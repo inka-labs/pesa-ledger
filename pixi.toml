@@ -1,0 +1,30 @@
+[workspace]
+name = "pesa-ledger"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "osx-64", "linux-64", "linux-aarch64", "win-64"]
+
+[dependencies]
+python = "3.12.*"
+nodejs = ">=22"
+pytest = ">=8"
+
+[pypi-dependencies]
+fastapi = ">=0.115"
+uvicorn = ">=0.30"
+httpx = ">=0.27"  # FastAPI's TestClient
+pesa-ledger = { path = "backend", editable = true }
+
+[tasks]
+install-ui = { cmd = "npm install", cwd = "frontend" }
+build-ui = { cmd = "npm run build", cwd = "frontend", depends-on = ["install-ui"] }
+dev-ui = { cmd = "npm run dev", cwd = "frontend" }
+serve = "python -m pesa_ledger"
+start = { depends-on = ["build-ui", "serve"] }
+# Open the ledger, starting it in the background if it isn't running (what a desktop shortcut runs)
+open = "python -m pesa_ledger.launch"
+stop = "python -m pesa_ledger.launch --stop"
+test = { depends-on = ["test-api", "test-ui"] }
+test-api = { cmd = "pytest -q", cwd = "backend" }
+test-ui = { cmd = "npm test", cwd = "frontend", depends-on = ["install-ui"] }
+# Start the ledger when you log in: pixi run autostart install | uninstall | status
+autostart = "python -m pesa_ledger.autostart"

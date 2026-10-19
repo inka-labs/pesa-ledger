@@ -1,0 +1,11 @@
+.pixi/
+*.egg-info/
+__pycache__/
+frontend/node_modules/
+frontend/dist/
+.pytest_cache/
+*.log
+.DS_Store
+*.tsbuildinfo
+# Never commit anyone's figures: exports and imports stay out of the repo.
+*.csv

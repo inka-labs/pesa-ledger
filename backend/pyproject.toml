@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pesa-ledger"
+version = "0.1.0"
+description = "A private, local household ledger: budget the months ahead, record what happened, compare month on month and year on year."
+requires-python = ">=3.12"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pesa_ledger"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
