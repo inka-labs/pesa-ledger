@@ -97,6 +97,25 @@ class Account(Strict):
     archived: bool = False
 
 
+class Bucket(Strict):
+    """A share of income in an allocation rule: at most (max), at least (min) or about (target) `pct`%."""
+    id: Id
+    name: Name
+    pct: Annotated[float, Field(ge=0, le=100, allow_inf_nan=False)]
+    kind: Literal["max", "min", "target"] = "target"
+
+
+class Allocation(Strict):
+    """The spending-allocation rule to measure against (50/30/20 and the like, or `custom`), and for each
+    rule which bucket each group ("g:<id>") or category ("c:<id>") falls in. With `leftover` on, money left
+    over counts towards the rule's savings bucket."""
+    rule: Annotated[str, StringConstraints(pattern=r"^[a-z0-9-]{1,30}$")] | None = None
+    maps: dict[Annotated[str, StringConstraints(pattern=r"^[a-z0-9-]{1,30}$")],
+               dict[Annotated[str, StringConstraints(pattern=r"^[gc]:[A-Za-z0-9_-]{1,40}$")], Id]] = Field(default_factory=dict)
+    custom: list[Bucket] = Field(default_factory=list, max_length=12)
+    leftover: bool = True
+
+
 class Health(Strict):
     """What the Health page needs to know: the emergency fund ("a:<account>" or "g:<goal>"), the groups that
     are essential costs, and the rent category."""
@@ -135,6 +154,7 @@ class Settings(Strict):
     goals: list[Goal] = Field(default_factory=list, max_length=200)
     accounts: list[Account] = Field(default_factory=list, max_length=100)
     health: Health | None = None
+    allocation: Allocation | None = None
     example: bool = False
 
 

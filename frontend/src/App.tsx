@@ -19,6 +19,7 @@ import { CategoriesView } from "./views/CategoriesView";
 import { CompareView } from "./views/CompareView";
 import { GoalsView } from "./views/GoalsView";
 import { FundsView } from "./views/FundsView";
+import { AllocationView } from "./views/AllocationView";
 import { HealthView } from "./views/HealthView";
 import { NetWorthView } from "./views/NetWorthView";
 import { MonthView } from "./views/MonthView";
@@ -249,6 +250,7 @@ export default function App() {
             {tab === "compare" && <CompareView />}
             {tab === "goals" && <GoalsView />}
             {tab === "funds" && <FundsView />}
+            {tab === "allocation" && <AllocationView />}
             {tab === "health" && <HealthView />}
             {tab === "networth" && <NetWorthView />}
             {tab === "categories" && <CategoriesView />}

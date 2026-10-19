@@ -136,3 +136,12 @@ def test_repeats_funds_accounts_and_balances(client, settings):
     assert client.put("/api/settings", json={**body, "accounts": body["accounts"] * 2}).status_code == 400
     assert client.put("/api/years/2026", json={"balances": {"10": {"mmf": 250000, "loan": 40000}}}).status_code == 200
     assert client.get("/api/ledger").json()["years"]["2026"]["balances"]["10"]["mmf"] == 250000
+
+
+def test_allocation_rules(client, settings):
+    g = settings["groups"][0]["id"]
+    body = {**settings, "allocation": {"rule": "50-30-20", "maps": {"50-30-20": {f"g:{g}": "needs"}},
+            "custom": [{"id": "keep", "name": "Keep", "pct": 30, "kind": "min"}], "leftover": True}}
+    assert client.put("/api/settings", json=body).status_code == 200
+    assert client.put("/api/settings", json={**body, "allocation": {"custom": [{"id": "x", "name": "X", "pct": 140}]}}).status_code == 400
+    assert client.put("/api/settings", json={**body, "allocation": {"maps": {"r": {"zz:1": "a"}}}}).status_code == 400

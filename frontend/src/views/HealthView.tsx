@@ -31,6 +31,7 @@ export function HealthView() {
     growth: { label: "Compare years", tab: "compare", patch: { cmpA: today.y, cmpB: today.y - 1, cmpMetric: "spent", cmpSame: true, regular: true } },
     negative: firstNeg ? { label: `Open ${firstNeg.m}/${firstNeg.y}`, tab: "month", patch: { ...firstNeg } } : undefined,
     funds: { label: "Sinking funds", tab: "funds" },
+    rule: { label: "Allocation", tab: "allocation" },
   };
   const needsSetup = checks.some((c) => c.setup);
 

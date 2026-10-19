@@ -33,6 +33,15 @@ export type Fund = { target: number; due: string; start: number; from: string; e
 export type Account = { id: string; name: string; debt?: boolean; cats: string[]; archived?: boolean };
 
 /** What the Health page needs: the emergency fund ("a:<account>" | "g:<goal>"), essential groups, rent. */
+/** The allocation rule to measure against, and per rule which bucket each group ("g:id") or category
+ *  ("c:id") is in. `custom` is the person's own split; `leftover` counts money left over as savings. */
+export type AllocationSettings = {
+  rule?: string | null;
+  maps?: Record<string, Record<string, string>>;
+  custom?: { id: string; name: string; pct: number; kind: "max" | "min" | "target" }[];
+  leftover?: boolean;
+};
+
 export type HealthSettings = { ef?: string | null; essential?: string[] | null; rent?: string | null };
 export type Goal = {
   id: string;
@@ -61,6 +70,7 @@ export type Settings = {
   goals: Goal[];
   accounts?: Account[];
   health?: HealthSettings | null;
+  allocation?: AllocationSettings | null;
   example?: boolean;
 };
 

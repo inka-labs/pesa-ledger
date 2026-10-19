@@ -4,10 +4,11 @@
  *  of at least 6 months of essential costs (more when income varies), spending growing no faster than income. */
 
 import { addMonths, Book, MONTHS, nextYM, fmtYM } from "./ledger";
+import { allocate, period, ruleById } from "./allocation";
 import type { YM } from "./types";
 
 export type Tone = "good" | "warn" | "bad" | "info";
-export type CheckId = "savings" | "ef" | "fixed" | "rent" | "growth" | "negative" | "funds" | "income";
+export type CheckId = "savings" | "ef" | "fixed" | "rent" | "growth" | "negative" | "funds" | "income" | "rule";
 export type Check = {
   id: CheckId;
   title: string;
@@ -194,7 +195,23 @@ export function healthChecks(book: Book): Check[] {
     });
   }
 
-  // 8. How much income varies
+  // 8. The allocation rule they chose (50/30/20 and the like), over the last 12 months
+  const rule = ruleById(book, book.settings.allocation?.rule);
+  const year = period(book, "12m").actual;
+  if (rule && year && year.income > 0) {
+    const a = allocate(book, rule, year);
+    const off = a.rows.filter((r) => r.tone !== "good");
+    out.push({
+      id: "rule", title: `Matches ${rule.name}`, value: `${a.score} of ${a.rows.length} on target`,
+      tone: a.rows.some((r) => r.tone === "bad") ? "bad" : off.length ? "warn" : "good",
+      rule: `${rule.name}: ${rule.buckets.map((b) => `${b.name} ${b.kind === "max" ? "≤" : b.kind === "min" ? "≥" : "≈"} ${b.pct}%`).join(", ")}`,
+      detail: off.length
+        ? `${off.map((r) => `${r.bucket.name} is ${pc(r.share)} (aim ${r.bucket.kind === "max" ? "at most" : r.bucket.kind === "min" ? "at least" : "about"} ${r.bucket.pct}%)`).join("; ")}.`
+        : `Every bucket is where ${rule.name} puts it: ${a.rows.map((r) => `${r.bucket.name} ${pc(r.share)}`).join(", ")}.`,
+    });
+  }
+
+  // 9. How much income varies
   if (s.months >= 3 && s.avgIncome > 0) {
     out.push({
       id: "income", title: "Income", value: s.cv < 0.2 ? "Steady" : s.cv < 0.4 ? "Varies" : "Varies a lot",

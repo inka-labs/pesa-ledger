@@ -60,6 +60,16 @@ the forecast expects income at your recent average (the last three months with i
   income, no months in the red, sinking funds on pace), one-offs left out. Choose the emergency fund, the essential
   groups and the rent category at the bottom of the page.
 
+### Allocation
+
+Plan → Allocation measures how income divides up against the long-standing rules: 50/30/20 (Elizabeth Warren),
+70/20/10, pay yourself first (80/20), the Babylon tenth (George Clason), 10/10/80, six jars (T. Harv Eker), 30/30/30/10,
+or your own split. Pick one, then see actual and budget against it for this month, next month, this year or the last
+12 months, with each bucket on target, over or short. Groups and categories fall into buckets automatically (saved →
+savings, rent → housing, family support → giving, entertainment → wants); "What goes where" changes any of them.
+"Every rule against your money" shows how each rule reads the same figures, and Health gains a "Matches your rule"
+check.
+
 ### One-offs
 
 A car, a deposit, a renovation, a bonus: money that won't repeat. On the Month page, point at a category and click
