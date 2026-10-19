@@ -3,7 +3,7 @@
  *  income went; what changed most) are plain HTML. The tables beside them carry the same numbers. */
 
 import { useMemo } from "react";
-import type { Data, Layout } from "plotly.js";
+import type { Annotations, Data, Layout, Shape } from "plotly.js";
 import { money, pct } from "../model/format";
 import { MONTHS, type Book } from "../model/ledger";
 import type { Metric, Totals } from "../model/types";
@@ -13,6 +13,15 @@ import { baseLayout, chartTheme, cssColor, Plot, useThemeTick } from "./Plot";
 
 const esc = (s: string) => s.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]!);
 const mk = (m: number) => String(m).padStart(2, "0");
+
+/** A colour with transparency, for Plotly (which can't mix colours itself): "#2a78d6" or "rgb(…)" at `a`. */
+function alpha(c: string, a: number): string {
+  const h = /^#([0-9a-f]{6})$/i.exec(c.trim());
+  if (h) { const n = parseInt(h[1], 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; }
+  const r = /^rgba?\(([^)]+)\)$/.exec(c.trim());
+  if (r) { const [x, y, z] = r[1].split(/[ ,/]+/); return `rgba(${x},${y},${z},${a})`; }
+  return c;
+}
 
 /** Each month's savings and spending stacked by group (one-offs hatched on top of their group), income as a
  *  line, and the month's budget as a tick. Click a month to open it. */
@@ -116,13 +125,18 @@ export function CompareChart({ book, a, b, metric, mode = "month" }: { book: Boo
     const vb = mode === "running" ? running(rawB) : rawB;
     const up = book.upIsGood(metric);
     const data: Data[] = [];
-    const lineFor = (yr: number, vals: (number | null)[], col: string) => data.push({
-      type: "scatter", mode: "lines+markers", name: String(yr), x: MONTHS, y: vals, legendrank: yr === a ? 1 : 2,
-      line: { color: col, width: 2.5 }, marker: { size: 7, color: col, line: { color: t.surface, width: 2 } },
+    // this year: a bolder line over a soft area; the year it's compared with: a lighter line on top of nothing
+    const lineFor = (yr: number, vals: (number | null)[], col: string, main: boolean) => data.push({
+      type: "scatter", mode: "lines+markers", name: String(yr), x: MONTHS, y: vals, legendrank: main ? 1 : 2,
+      line: { color: col, width: main ? 3 : 2, shape: "spline", smoothing: 0.35 }, // gentle: more would overshoot between equal months
+      marker: { size: main ? 8 : 6, color: col, line: { color: t.surface, width: 2 } },
+      opacity: main ? 1 : 0.85,
+      // an area under this year's line that fades towards the bottom (Plotly has fillgradient; its types don't yet)
+      ...(main ? { fill: "tozeroy" as const, fillcolor: alpha(col, 0.1), ...({ fillgradient: { type: "vertical", colorscale: [[0, alpha(col, 0)], [1, alpha(col, 0.22)]] } } as object) } : {}),
       hovertemplate: `${yr}: %{y:,.0f}<extra></extra>`,
     });
-    lineFor(b, vb, t.b);
-    lineFor(a, va, t.a);
+    lineFor(b, vb, t.b, false);
+    lineFor(a, va, t.a, true);
     if (!book.regularOnly) {
       let first = true;
       for (const [yr, vals, col] of [[a, va, t.a], [b, vb, t.b]] as const) {
@@ -130,7 +144,7 @@ export function CompareChart({ book, a, b, metric, mode = "month" }: { book: Boo
         if (!rings.some((v) => v != null)) continue;
         data.push({
           type: "scatter", mode: "markers", name: "Includes a one-off", x: MONTHS, y: rings, legendgroup: "oneoff", showlegend: first,
-          marker: { symbol: "circle-open", size: 18, color: col, line: { width: 1.5, color: col } }, hoverinfo: "skip",
+          marker: { symbol: "circle-open", size: 20, color: col, line: { width: 1.5, color: col } }, hoverinfo: "skip",
         });
         first = false;
       }
@@ -138,17 +152,48 @@ export function CompareChart({ book, a, b, metric, mode = "month" }: { book: Boo
     const gaps = MONTHS.map((_, i) => (va[i] != null && vb[i] != null ? va[i]! - vb[i]! : null));
     data.push({
       type: "bar", name: `${a} − ${b}`, x: MONTHS, y: gaps, yaxis: "y2", showlegend: false,
-      marker: { color: gaps.map((g) => (g == null ? t.muted : g > 0 === up ? t.good : t.bad)) },
+      marker: { color: gaps.map((g) => (g == null ? t.muted : g > 0 === up ? t.good : t.bad)), opacity: 0.85 },
       hovertemplate: `Difference: %{y:+,.0f}<extra></extra>`,
     });
-    const base = baseLayout(t, 430);
+
+    // each year's monthly average as a dashed line, labelled at the right (month by month only)
+    const avg = (vals: (number | null)[]) => { const n = vals.filter((v): v is number => v != null); return n.length ? n.reduce((x, y) => x + y, 0) / n.length : null; };
+    const shapes: Partial<Shape>[] = [], notes: Partial<Annotations>[] = [];
+    if (mode === "month") {
+      const avA = avg(va), avB = avg(vb);
+      const pair = [[a, avA, t.a], [b, avB, t.b]] as const;
+      pair.forEach(([yr, v, col], i) => {
+        if (v == null) return;
+        shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: v, y1: v, line: { color: col, width: 1.2, dash: "dash" }, opacity: 0.7 });
+        // the higher average's label sits above its line, the lower one's below, so they never overlap
+        const other = pair[1 - i][1];
+        const above = other == null || v >= other;
+        notes.push({ xref: "paper", x: 1, xanchor: "right", yref: "y", y: v, yanchor: above ? "bottom" : "top", yshift: above ? 2 : -2,
+          showarrow: false, text: `${yr} average ${money(v)}`, font: { size: 11.5, color: col }, bgcolor: alpha(t.surface, 0.85) });
+      });
+    }
+
+    // the axis fits the figures with room around them, rather than starting at zero, so month-to-month
+    // movement is visible; it only reaches zero (or below) when the figures do
+    const all = [...va, ...vb].filter((v): v is number => v != null);
+    const dmin = all.length ? Math.min(...all) : 0, dmax = all.length ? Math.max(...all) : 1;
+    const pad = Math.max((dmax - dmin) * 0.35, Math.abs(dmax) * 0.04, 1);
+    const lo = dmin >= 0 ? Math.max(0, dmin - pad) : dmin - pad, hi = dmax + pad;
+    const phone = window.innerWidth < 700;
+    const base = baseLayout(t, phone ? 440 : 540);
     const layout: Partial<Layout> = {
       ...base,
-      xaxis: { ...base.xaxis, anchor: "y2" },
-      yaxis: { ...base.yaxis, domain: [0.32, 1] },
-      yaxis2: { ...base.yaxis, domain: [0, 0.2], zerolinecolor: t.muted },
-      annotations: [{ xref: "paper", yref: "paper", x: 0, y: 0.235, xanchor: "left", yanchor: "bottom", showarrow: false,
-        text: `${a} minus ${b}`, font: { size: 11, color: t.muted } }],
+      margin: { l: 56, r: 12, t: 8, b: 30 },
+      // rounded bar ends (Plotly has this; its type definitions don't yet)
+      ...({ barcornerradius: 4 } as Partial<Layout>),
+      xaxis: { ...base.xaxis, anchor: "y2", spikecolor: t.muted, spikethickness: 1, spikedash: "dot" },
+      yaxis: { ...base.yaxis, domain: [0.3, 1], range: [lo, hi], nticks: 6 },
+      yaxis2: { ...base.yaxis, domain: [0, 0.19], zerolinecolor: t.muted, nticks: 3 },
+      shapes,
+      annotations: [
+        ...notes,
+        { xref: "paper", yref: "paper", x: 0, y: 0.205, xanchor: "left", yanchor: "bottom", showarrow: false, text: `${a} minus ${b}, each month`, font: { size: 11.5, color: t.muted } },
+      ],
     };
     return { data, layout };
   }, [book, a, b, metric, mode, tick]); // eslint-disable-line react-hooks/exhaustive-deps
