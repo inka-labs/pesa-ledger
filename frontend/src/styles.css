@@ -29,10 +29,13 @@ html, body { margin: 0; }
 body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--f-body); }
 .app { max-width: 1160px; margin: 0 auto; padding: 20px max(16px, 3vw) 64px; display: grid; gap: 20px; }
 .stack { display: grid; gap: 16px; }
+/* grid children otherwise refuse to shrink below their content (the tab bar), widening the whole page on a phone */
+.app > *, .stack > *, .catgroups > *, .top > .tabs { min-width: 0; }
 h1, h2, h3 { font-family: var(--f-display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
 h2 { font-size: 22px; font-weight: 700; }
 h3 { font-size: 16px; font-weight: 700; }
 p { margin: 0; }
+a { color: var(--accent); text-underline-offset: 2px; }
 .num, input.amt { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
@@ -135,6 +138,7 @@ textarea { width: 100%; min-height: 70px; resize: vertical; }
   .row .c-plan { order: 3; display: flex; align-items: center; gap: 8px; }
   .row .c-plan::before { content: "Budget"; color: var(--muted); font-size: 12px; }
   .row .c-plan input { max-width: 140px; }
+  .row .c-plan.none, .row .c-meter:empty { display: none; }
   .row .c-delta { text-align: left; }
 }
 
@@ -197,13 +201,27 @@ table.bg tr.gh td, table.bg tr.sum td { padding: 6px 8px; }
 .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 4px 14px; }
 .checks label { display: flex; gap: 6px; align-items: center; font-size: 13px; }
 
-/* categories */
+/* categories: one full-width panel per group; every row is a grid whose columns can shrink, so nothing overflows */
+.catgroups { display: grid; gap: 14px; max-width: 860px; }
+.group-line { display: grid; grid-template-columns: auto minmax(0, 1fr) 130px auto auto; gap: 8px; align-items: center; }
+.group-line .gname { font-weight: 600; font-size: 15px; }
 .cat-list { display: grid; gap: 6px; }
-.cat-line { display: flex; gap: 6px; align-items: center; }
-.cat-line input { flex: 1; }
-.cat-line select { max-width: 150px; }
-.cat-line .btn.ghost { padding: 5px 8px; }
-.cat-line.archived input { color: var(--muted); text-decoration: line-through; }
+.cat-line { display: grid; grid-template-columns: minmax(0, 1fr) 60px minmax(0, 200px) 92px; gap: 8px; align-items: center; }
+.cat-line.head { padding: 0 2px; }
+.cat-line .cact { justify-self: start; padding: 5px 8px; }
+.cat-line.archived .cname { color: var(--muted); text-decoration: line-through; }
+.moves { display: inline-flex; }
+.group-line input, .group-line select, .cat-line input, .cat-line select, .add-line input { width: 100%; min-width: 0; }
+.add-line { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+.add-line:has(> :nth-child(2):last-child) { grid-template-columns: minmax(0, 1fr) auto; }
+@media (max-width: 600px) {
+  .group-line { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .group-line select { grid-column: 2; }
+  .cat-line { grid-template-columns: minmax(0, 1fr) 60px; row-gap: 4px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .cat-line.head { display: none; }
+  .cat-line .cgroup { grid-column: 1; }
+  .cat-line .cact { grid-column: 2; justify-self: end; }
+}
 
 /* backups */
 .blist { display: grid; gap: 4px; max-height: 280px; overflow-y: auto; }
@@ -222,4 +240,11 @@ table.bg tr.gh td, table.bg tr.sum td { padding: 6px 8px; }
 .center { min-height: 60vh; display: grid; place-content: center; text-align: center; gap: 10px; padding: 24px; }
 code { font-family: var(--f-num); font-size: 12.5px; background: var(--sunk); padding: 1px 5px; border-radius: 4px; }
 
-@media (prefers-reduced-motion: no-preference) { .prog i, .meter i { transition: width .3s ease; } }
+.toast-zone { position: fixed; left: 0; right: 0; bottom: 20px; display: flex; justify-content: center; pointer-events: none; z-index: 20; padding: 0 16px; }
+.toast { background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 13px; box-shadow: 0 8px 24px rgba(0, 0, 0, .2); max-width: 640px; }
+.rate { display: grid; gap: 2px; }
+.rate .big { font-family: var(--f-display); font-size: 20px; font-weight: 700; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast { animation: toast-in .2s ease; }
+  @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } } .prog i, .meter i { transition: width .3s ease; } }

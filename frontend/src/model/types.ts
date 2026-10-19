@@ -20,7 +20,8 @@ export type Goal = {
 export type Settings = {
   v: number;
   currency: string;
-  alt?: { code: string; rate?: number | null } | null;
+  /** a second currency to show totals in; `auto` (the default) uses the live rate, otherwise `rate` */
+  alt?: { code: string; rate?: number | null; auto?: boolean } | null;
   groups: Group[];
   cats: Category[];
   goals: Goal[];

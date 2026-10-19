@@ -1,12 +1,13 @@
 /** Small pieces every view uses: amount boxes, deltas, KPI tiles, swatches, year pickers. */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { amountText, money, parseAmount, pct } from "../model/format";
+import { amountText, money, pct } from "../model/format";
 import type { Group } from "../model/types";
 import { useApp } from "../context";
 
 /** A number box that keeps what you type until you leave it (Enter or Tab), then commits.
- *  Blank means "no figure". Escape puts the saved value back. Unreadable input is flagged, not saved. */
+ *  Blank means "no figure". "USD 415" or "$415" is converted to the main currency at the live rate.
+ *  Escape puts the saved value back. Unreadable input is flagged, not saved. */
 export function AmountInput(props: {
   value: number | null;
   onCommit: (v: number | null) => void;
@@ -17,18 +18,23 @@ export function AmountInput(props: {
   id?: string;
 }) {
   const { value, onCommit, placeholder, label, className, title, id } = props;
+  const { read, notify, book } = useApp();
   const [draft, setDraft] = useState(amountText(value));
-  const [bad, setBad] = useState(false);
+  const [bad, setBad] = useState("");
   const focused = useRef(false);
   useEffect(() => {
-    if (!focused.current) { setDraft(amountText(value)); setBad(false); }
+    if (!focused.current) { setDraft(amountText(value)); setBad(""); }
   }, [value]);
   const commit = () => {
-    const v = parseAmount(draft);
-    if (Number.isNaN(v)) { setBad(true); return; }
-    setBad(false);
-    if (v !== value) onCommit(v);
-    setDraft(amountText(v));
+    const r = read(draft);
+    if ("error" in r) { setBad(r.error); return; }
+    setBad("");
+    if (r.converted) {
+      const { code, amount, perUnit } = r.converted;
+      notify(`${code} ${amountText(amount)} → ${book.settings.currency} ${money(r.value)} at 1 ${code} = ${perUnit.toFixed(2)} ${book.settings.currency}`);
+    }
+    if (r.value !== value) onCommit(r.value);
+    setDraft(amountText(r.value));
   };
   return (
     <input
@@ -38,14 +44,14 @@ export function AmountInput(props: {
       value={draft}
       placeholder={placeholder ?? "0"}
       aria-label={label}
-      aria-invalid={bad || undefined}
-      title={bad ? "Enter a number, like 18,000" : title}
+      aria-invalid={bad ? true : undefined}
+      title={bad || title || "A number, or another currency like USD 415"}
       onFocus={(e) => { focused.current = true; e.currentTarget.select(); }}
-      onChange={(e) => { setDraft(e.target.value); if (bad) setBad(false); }}
+      onChange={(e) => { setDraft(e.target.value); if (bad) setBad(""); }}
       onBlur={() => { focused.current = false; commit(); }}
       onKeyDown={(e) => {
         if (e.key === "Enter") { commit(); e.currentTarget.blur(); }
-        if (e.key === "Escape") { setDraft(amountText(value)); setBad(false); }
+        if (e.key === "Escape") { setDraft(amountText(value)); setBad(""); }
       }}
     />
   );
@@ -101,10 +107,10 @@ export function Kpi({ label, value, lead, children }: { label: string; value: nu
 
 /** "≈ USD 1,234" in the second currency, when one is set. */
 export function Alt({ v }: { v: number }) {
-  const { book } = useApp();
-  const alt = book.settings.alt;
-  if (!alt?.code || !alt.rate) return null;
-  return <span>≈ {alt.code} {money(v / alt.rate)}</span>;
+  const { book, altRate } = useApp();
+  const code = book.settings.alt?.code;
+  if (!code || !altRate) return null;
+  return <span>≈ {code} {money(v / altRate)}</span>;
 }
 
 export function YearSelect({ value, onChange, id, label }: { value: number; onChange: (y: number) => void; id: string; label: string }) {

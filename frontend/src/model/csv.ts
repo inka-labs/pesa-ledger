@@ -48,7 +48,7 @@ export function nextSlot(groups: Group[]): number {
   return slot;
 }
 
-export type ImportResult = { ledger: Ledger; count: number; skipped: number; years: string[] };
+export type ImportResult = { ledger: Ledger; count: number; skipped: number; incomeBudgets: number; years: string[] };
 
 /** Read a CSV into a copy of `current`. A brand-new or example ledger is replaced: the starter groups
  *  are kept only where the file uses them. Never mutates `current`. */
@@ -66,7 +66,7 @@ export function importCSV(text: string, current: Ledger | null): ImportResult {
   const st: Settings = ledger.settings;
   const usedCats = new Set<string>();
   const touched = new Set<string>();
-  let count = 0, skipped = 0;
+  let count = 0, skipped = 0, incomeBudgets = 0;
 
   const year = (y: number) => (ledger.years[String(y)] ??= emptyYear());
   const groupNamed = (raw: string) => {
@@ -100,6 +100,7 @@ export function importCSV(text: string, current: Ledger | null): ImportResult {
     const amount = parseAmount(r[ia]);
     if (amount == null || Number.isNaN(amount)) { skipped++; continue; }
     const g = groupNamed(ig >= 0 ? r[ig] : "");
+    if (isPlan && g.kind === "income") { incomeBudgets++; continue; } // income isn't budgeted
     let c = st.cats.find((x) => x.group === g.id && x.name.toLowerCase() === catName.toLowerCase());
     if (!c) { c = { id: newId("c"), name: catName, group: g.id }; st.cats.push(c); }
     usedCats.add(c.id);
@@ -120,7 +121,15 @@ export function importCSV(text: string, current: Ledger | null): ImportResult {
     st.example = false;
     st.goals = [];
   }
-  return { ledger, count, skipped, years: [...touched].sort() };
+  return { ledger, count, skipped, incomeBudgets, years: [...touched].sort() };
+}
+
+/** "Imported 313 figures for 2026. Skipped 2 rows that couldn't be read. Left out 1 income budget: income isn't budgeted." */
+export function importSummary(r: ImportResult): string {
+  const parts = [`Imported ${r.count} figures for ${r.years.join(", ")}.`];
+  if (r.skipped) parts.push(`Skipped ${r.skipped} row${r.skipped === 1 ? "" : "s"} that couldn't be read.`);
+  if (r.incomeBudgets) parts.push(`Left out ${r.incomeBudgets} income budget${r.incomeBudgets === 1 ? "" : "s"}: income isn't budgeted.`);
+  return parts.join(" ");
 }
 
 export function buildCSV(ledger: Ledger): string {

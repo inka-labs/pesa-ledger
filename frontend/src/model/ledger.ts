@@ -96,15 +96,35 @@ export class Book {
 
   // Budgets --------------------------------------------------------------------------------------
   // A yearly plan spreads evenly across the months; a budget set for one month overrides that month.
+  // Only savings and spending are budgeted: income is what comes in, so it has no budget, and a
+  // forecast uses expectedIncome() for months that haven't happened.
+
+  budgeted(cid: string): boolean {
+    const k = this.kindOf(cid);
+    return k === "saving" || k === "expense";
+  }
 
   planAnnual(y: number, cid: string): number | null {
+    if (!this.budgeted(cid)) return null;
     const v = this.year(y)?.plan?.[cid];
     return isNum(v) ? v : null;
   }
 
   budgetOverride(y: number, m: number, cid: string): number | null {
+    if (!this.budgeted(cid)) return null;
     const v = this.year(y)?.budget?.[mk(m)]?.[cid];
     return isNum(v) ? v : null;
+  }
+
+  /** What's likely to come in: the average income of the last `n` months (up to today) that had any. */
+  expectedIncome(n = 3): { amount: number; months: number } {
+    let p = this.today, sum = 0, found = 0;
+    for (let i = 0; i < 24 && found < n; i++) {
+      const t = this.monthTotals(p.y, p.m);
+      if (t.income > 0) { sum += t.income; found++; }
+      p = prevYM(p);
+    }
+    return { amount: found ? sum / found : 0, months: found };
   }
 
   planMonthly(y: number, m: number, cid: string): number | null {
@@ -138,20 +158,29 @@ export class Book {
     return !!yd && (Object.keys(yd.plan || {}).length > 0 || Object.values(yd.budget || {}).some((r) => Object.keys(r).length > 0));
   }
 
-  /** What happened if the month has figures, otherwise what's budgeted. */
-  forecastMonth(y: number, m: number): Totals & { src: "actual" | "budget" | "none" } {
+  /** What happened if the month has figures; otherwise its budget, with income expected at the recent average. */
+  forecastMonth(y: number, m: number, expected = this.expectedIncome().amount): Totals & { src: "actual" | "budget" | "none" } {
     const t = this.monthTotals(y, m);
     if (t.has) return { ...t, src: "actual" };
     const p = this.planRange(y, m, m);
-    return { ...p, src: p.has ? "budget" : "none" };
+    const src = p.has ? "budget" : "none";
+    if (!p.has) return { ...p, src };
+    return { ...p, income: expected, left: expected - p.saved - p.spent, src };
   }
 
   forecastYear(y: number): Totals {
     const r = blank();
+    const expected = this.expectedIncome().amount;
     for (let m = 1; m <= 12; m++) {
-      const f = this.forecastMonth(y, m);
-      for (const [cid, v] of Object.entries(f.byCat)) this.add(r, cid, v);
+      const f = this.forecastMonth(y, m, expected);
+      if (!f.has) continue;
+      r.has = true;
+      r.income += f.income;
+      r.saved += f.saved;
+      r.spent += f.spent;
+      for (const [g, v] of Object.entries(f.byGroup)) r.byGroup[g] = (r.byGroup[g] || 0) + v;
     }
+    r.left = r.income - r.saved - r.spent;
     return r;
   }
 
@@ -159,8 +188,9 @@ export class Book {
   ahead(n = 12) {
     const out: { ym: YM; f: ReturnType<Book["forecastMonth"]>; running: number }[] = [];
     let p = this.today, running = 0;
+    const expected = this.expectedIncome().amount;
     for (let i = 0; i < n; i++) {
-      const f = this.forecastMonth(p.y, p.m);
+      const f = this.forecastMonth(p.y, p.m, expected);
       running += f.left;
       out.push({ ym: p, f, running });
       p = nextYM(p);

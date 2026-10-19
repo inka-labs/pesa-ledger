@@ -47,14 +47,30 @@ describe("budgets", () => {
     expect(b.planMonthly(2026, 3, "ess_1")).toBeNull();
   });
 
-  it("forecasts with actual figures where they exist and the budget elsewhere", () => {
+  it("never budgets income, even if a yearly figure was stored for it", () => {
     const b = new Book(ledger(), TODAY);
+    expect(b.planMonthly(2026, 3, "inc_0")).toBeNull();
+    expect(b.planYear(2026, "inc_0")).toBeNull();
+    expect(b.planRange(2026, 1, 12).income).toBe(0);
+  });
+
+  it("expects income at the average of the last three months that had any", () => {
+    // Oct 110k, Sep 100k, then back to Jan 100k
+    expect(new Book(ledger(), TODAY).expectedIncome()).toEqual({ amount: 310_000 / 3, months: 3 });
+    expect(new Book({ ...ledger(), years: {} }, TODAY).expectedIncome()).toEqual({ amount: 0, months: 0 });
+  });
+
+  it("forecasts with actual figures where they exist, budgets and expected income elsewhere", () => {
+    const b = new Book(ledger(), TODAY);
+    const expected = 310_000 / 3;
     expect(b.forecastMonth(2026, 9)).toMatchObject({ src: "actual", spent: 25_000 });
-    expect(b.forecastMonth(2026, 11)).toMatchObject({ src: "budget", income: 100_000, spent: 50_000, saved: 10_000 });
+    const nov = b.forecastMonth(2026, 11);
+    expect(nov).toMatchObject({ src: "budget", spent: 50_000, saved: 10_000 });
+    expect(nov.income).toBeCloseTo(expected);
+    expect(nov.left).toBeCloseTo(expected - 60_000);
     expect(b.forecastMonth(2027, 1).src).toBe("none");
-    const fy = b.forecastYear(2026);
-    // 3 actual months + 9 budgeted months of income
-    expect(fy.income).toBe(310_000 + 9 * 100_000);
+    // 3 actual months + 9 months at the expected income
+    expect(b.forecastYear(2026).income).toBeCloseTo(310_000 + 9 * expected);
   });
 
   it("looks twelve months ahead, into next year, with a running total", () => {

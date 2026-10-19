@@ -26,12 +26,12 @@ export function CategoriesView() {
         everything else, including family support and sinking funds. A category that already has figures can be archived instead of
         removed, so past months stay correct.
       </p>
-      <div className="cols">
+      <div className="catgroups">
         {book.settings.groups.map((g, i) => <GroupPanel key={g.id} g={g} first={i === 0} last={i === book.settings.groups.length - 1} />)}
         <form className="panel" onSubmit={addGroup}>
           <h3>Add a group</h3>
-          <div className="bar">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Business, Children, Loans" aria-label="New group name" style={{ flex: 1 }} />
+          <div className="add-line">
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Business, Children, Loans" aria-label="New group name" />
             <select value={kind} onChange={(e) => setKind(e.target.value as Kind)} aria-label="New group type">
               <option value="expense">Spending</option><option value="saving">Saving</option><option value="income">Income</option>
             </select>
@@ -67,20 +67,23 @@ function GroupPanel({ g, first, last }: { g: Group; first: boolean; last: boolea
   };
   return (
     <div className="panel">
-      <div className="bar">
+      <div className="group-line">
         <Swatch g={g} />
-        <TextInput value={g.name} label="Group name" style={{ flex: 1, fontWeight: 600 }}
+        <TextInput className="gname" value={g.name} label="Group name"
           onCommit={(v) => v.trim() && edit((l) => void (group(l).name = v.trim()))} />
         <select value={g.kind} aria-label="Group type" onChange={(e) => setKind(e.target.value as Kind)}>
           {KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
-        <button className="iconbtn" aria-label="Move group up" disabled={first} onClick={() => moveGroup(-1)}>↑</button>
-        <button className="iconbtn" aria-label="Move group down" disabled={last} onClick={() => moveGroup(1)}>↓</button>
-        {!cats.length && <button className="btn ghost danger" onClick={() => edit((l) => void (l.settings.groups = l.settings.groups.filter((x) => x.id !== g.id)))}>Remove</button>}
+        <span className="moves">
+          <button className="iconbtn" aria-label="Move group up" disabled={first} onClick={() => moveGroup(-1)}>↑</button>
+          <button className="iconbtn" aria-label="Move group down" disabled={last} onClick={() => moveGroup(1)}>↓</button>
+        </span>
+        {!cats.length && <button className="btn ghost danger" onClick={() => edit((l) => void (l.settings.groups = l.settings.groups.filter((x) => x.id !== g.id)))}>Remove group</button>}
       </div>
       <div className="cat-list">
+        {cats.length > 0 && <div className="cat-line head lbl"><span>Category</span><span>Order</span><span>Group</span><span /></div>}
         {cats.map((c, i) => <CategoryLine key={c.id} c={c} first={i === 0} last={i === cats.length - 1} />)}
-        <form className="cat-line" onSubmit={add}>
+        <form className="add-line" onSubmit={add}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Add a category" aria-label={`New category in ${g.name}`} />
           <button className="btn">Add</button>
         </form>
@@ -106,19 +109,21 @@ function CategoryLine({ c, first, last }: { c: Category; first: boolean; last: b
   });
   return (
     <div className={`cat-line${c.archived ? " archived" : ""}`}>
-      <TextInput value={c.name} label="Category name" onCommit={(v) => v.trim() && edit((l) => void (cat(l).name = v.trim()))} />
-      <button className="iconbtn" aria-label="Move up" disabled={first} onClick={() => move(-1)}>↑</button>
-      <button className="iconbtn" aria-label="Move down" disabled={last} onClick={() => move(1)}>↓</button>
-      <select value={c.group} aria-label={`Move ${c.name} to another group`} onChange={(e) => edit((l) => void (cat(l).group = e.target.value))}>
+      <TextInput className="cname" value={c.name} label="Category name" onCommit={(v) => v.trim() && edit((l) => void (cat(l).name = v.trim()))} />
+      <span className="moves">
+        <button className="iconbtn" aria-label={`Move ${c.name} up`} disabled={first} onClick={() => move(-1)}>↑</button>
+        <button className="iconbtn" aria-label={`Move ${c.name} down`} disabled={last} onClick={() => move(1)}>↓</button>
+      </span>
+      <select className="cgroup" value={c.group} aria-label={`Move ${c.name} to another group`} onChange={(e) => edit((l) => void (cat(l).group = e.target.value))}>
         {book.settings.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
       </select>
       {book.catHasData(c.id) ? (
-        <button className="btn ghost" title={c.archived ? "Show it again in the month and budget" : "Hide it from new months. Past figures stay"}
+        <button className="btn ghost cact" title={c.archived ? "Show it again in the month and budget" : "Hide it from new months. Past figures stay"}
           onClick={() => edit((l) => { const x = cat(l); if (x.archived) delete x.archived; else x.archived = true; })}>
           {c.archived ? "Restore" : "Archive"}
         </button>
       ) : (
-        <button className="btn ghost danger" onClick={remove}>Remove</button>
+        <button className="btn ghost danger cact" onClick={remove}>Remove</button>
       )}
     </div>
   );

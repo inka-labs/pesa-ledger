@@ -17,7 +17,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
-from . import __version__, autostart, brand, ledger
+from . import __version__, autostart, brand, ledger, rates
 from .core.store import home
 
 COOKIE = f"{brand.SLUG.replace('-', '_')}_session"
@@ -113,6 +113,15 @@ def create_app() -> FastAPI:
         except autostart.AutostartError as e:
             bad(e)
         return {"enabled": autostart.enabled(), "message": message}
+
+    # Exchange rates -----------------------------------------------------------------------------
+
+    @app.get("/api/rates")
+    def get_rates(base: str = "KES", refresh: bool = False):
+        try:
+            return rates.get(base, refresh=refresh)
+        except rates.RatesError as e:
+            raise HTTPException(503, str(e))
 
     # The ledger -------------------------------------------------------------------------------
 

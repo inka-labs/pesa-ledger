@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApp } from "../context";
 import { newId } from "../model/csv";
-import { amountText, money, parseAmount } from "../model/format";
+import { amountText, money } from "../model/format";
 import { fmtYM, MONTHS, parseYM } from "../model/ledger";
 import type { Goal } from "../model/types";
 import { Swatch } from "../ui/bits";
@@ -76,7 +76,7 @@ function GoalCard({ g, onEdit, onDelete }: { g: Goal; onEdit: () => void; onDele
 }
 
 function GoalForm({ goal, onSave, onCancel }: { goal?: Goal; onSave: (g: Goal) => void; onCancel: () => void }) {
-  const { book } = useApp();
+  const { book, read, notify } = useApp();
   const y = book.today.y;
   const [g, setG] = useState(() => ({
     name: goal?.name ?? "", target: amountText(goal?.target), deadline: goal?.deadline ?? `${y}-12`,
@@ -85,11 +85,15 @@ function GoalForm({ goal, onSave, onCancel }: { goal?: Goal; onSave: (g: Goal) =
   const [error, setError] = useState("");
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const target = parseAmount(g.target), start = parseAmount(g.start);
-    if (!target || Number.isNaN(target) || target <= 0) return setError("Enter a target amount above zero.");
-    if (start != null && Number.isNaN(start)) return setError("Enter the amount already put aside as a number, or leave it blank.");
+    const t = read(g.target), s = read(g.start);
+    if ("error" in t) return setError(`Target: ${t.error}`);
+    if ("error" in s) return setError(`Already put aside: ${s.error}`);
+    if (!t.value || t.value <= 0) return setError("Enter a target amount above zero.");
     if (!g.deadline || !g.from) return setError("Choose a deadline and a month to count from.");
-    onSave({ id: goal?.id ?? newId("g"), name: g.name.trim() || "Goal", target, deadline: g.deadline, start: start ?? 0, from: g.from, cats: g.cats });
+    const cur = book.settings.currency;
+    const notes = [t, s].flatMap((r) => (r.converted ? [`${r.converted.code} ${amountText(r.converted.amount)} → ${cur} ${money(r.value)}`] : []));
+    if (notes.length) notify(`Converted at today's rate: ${notes.join(", ")}`);
+    onSave({ id: goal?.id ?? newId("g"), name: g.name.trim() || "Goal", target: t.value, deadline: g.deadline, start: s.value ?? 0, from: g.from, cats: g.cats });
   };
   const toggle = (cid: string) => setG((x) => ({ ...x, cats: x.cats.includes(cid) ? x.cats.filter((c) => c !== cid) : [...x.cats, cid] }));
   return (
@@ -97,7 +101,7 @@ function GoalForm({ goal, onSave, onCancel }: { goal?: Goal; onSave: (g: Goal) =
       <h3>{goal ? "Edit goal" : "New goal"}</h3>
       <div className="form-grid">
         <label className="field"><span className="lbl">Goal</span><input value={g.name} onChange={(e) => setG({ ...g, name: e.target.value })} placeholder="Emergency fund to 600k" required /></label>
-        <label className="field"><span className="lbl">Target ({book.settings.currency})</span><input className="amt" inputMode="decimal" value={g.target} onChange={(e) => setG({ ...g, target: e.target.value })} required /></label>
+        <label className="field"><span className="lbl">Target ({book.settings.currency}, or e.g. USD 20,000)</span><input className="amt" value={g.target} onChange={(e) => setG({ ...g, target: e.target.value })} required /></label>
         <label className="field"><span className="lbl">Reach it by</span><input type="month" value={g.deadline} onChange={(e) => setG({ ...g, deadline: e.target.value })} /></label>
         <label className="field"><span className="lbl">Already put aside</span><input className="amt" inputMode="decimal" value={g.start} onChange={(e) => setG({ ...g, start: e.target.value })} /></label>
         <label className="field"><span className="lbl">Count contributions from</span><input type="month" value={g.from} onChange={(e) => setG({ ...g, from: e.target.value })} /></label>

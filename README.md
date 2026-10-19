@@ -15,8 +15,20 @@ a small local server and a web page, with your figures kept in a folder in your 
   month, and when you'll get there at your current pace and on your budget.
 - **Categories:** your own groups (income, saving or spending) and categories. Rename, reorder, move between groups,
   or archive ones you've stopped using without changing past months.
-- **Settings:** a second currency at your exchange rate, CSV import and export, backups and restore, and start at
-  login.
+- **Settings:** a second currency at the live exchange rate (or one you set), CSV import and export, backups and
+  restore, and start at login.
+
+Income isn't budgeted: it's what comes in. Budgets cover savings and spending, and for months that haven't happened
+the forecast expects income at your recent average (the last three months with income).
+
+### Other currencies
+
+Type an amount in another currency in any amount box (`USD 415`, `$415`, `415 eur`) and it's converted to your main
+currency at today's rate; a message says what it converted and at what rate. The local server fetches rates from
+[open.er-api.com](https://www.exchangerate-api.com) (free, no key, includes KES), falling back to
+[fawazahmed0/exchange-api](https://github.com/fawazahmed0/exchange-api), and caches them for 12 hours in
+`~/.pesa-ledger/rates/`. Only your main currency's code is sent, never a figure. Offline, the last rates fetched are
+used and marked as old. `pytest --live` checks both services still answer.
 
 ## Your data
 

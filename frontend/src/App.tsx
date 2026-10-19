@@ -3,6 +3,7 @@ import { api, type Version } from "./api";
 import { NAME } from "./brand";
 import { AppContext, TABS, type Ctx, type Tab, type View } from "./context";
 import { Book, thisMonth } from "./model/ledger";
+import { altRate, readMoney, type Rates } from "./model/money";
 import { useLedger } from "./store";
 import { BudgetView } from "./views/BudgetView";
 import { CategoriesView } from "./views/CategoriesView";
@@ -58,10 +59,39 @@ export default function App() {
     window.scrollTo({ top: 0 });
   }, [setView]);
 
-  const ctx: Ctx | null = useMemo(
-    () => (ledger ? { book: new Book(ledger), change, replace, view, setView, go } : null),
-    [ledger, change, replace, view, setView, go],
-  );
+  // Live exchange rates for the main currency (fetched by the local server, cached for 12 hours).
+  const currency = ledger?.settings.currency ?? "";
+  const [rates, setRates] = useState<Rates | null>(null);
+  const [ratesError, setRatesError] = useState("");
+  const loadRates = useCallback(async (refresh = false) => {
+    if (!/^[A-Za-z]{3}$/.test(currency)) { setRates(null); setRatesError("Set a three-letter main currency, like KES, to get exchange rates."); return; }
+    try {
+      const r = await api.rates(currency, refresh);
+      setRates(r);
+      setRatesError(r.stale ? r.error ?? "" : "");
+    } catch (e) {
+      setRatesError((e as Error).message);
+    }
+  }, [currency]);
+  useEffect(() => { if (load.kind === "ready" && currency) loadRates(); }, [load.kind, currency, loadRates]);
+
+  const [toast, setToast] = useState<{ text: string; id: number } | null>(null);
+  const notify = useCallback((text: string) => setToast({ text, id: Date.now() }), []);
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 6000);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
+  const ctx: Ctx | null = useMemo(() => {
+    if (!ledger) return null;
+    return {
+      book: new Book(ledger), change, replace, view, setView, go, notify, rates, ratesError,
+      refreshRates: () => loadRates(true),
+      altRate: altRate(ledger.settings, rates),
+      read: (text: string) => readMoney(text, ledger.settings.currency, rates),
+    };
+  }, [ledger, change, replace, view, setView, go, notify, rates, ratesError, loadRates]);
 
   useEffect(() => {
     document.title = tab === "month" || !ledger ? NAME : `${TABS.find((t) => t.id === tab)?.label} · ${NAME}`;
@@ -123,6 +153,7 @@ export default function App() {
           </AppContext.Provider>
         )}
       </main>
+      <div className="toast-zone" aria-live="polite">{toast && <div className="toast" key={toast.id}>{toast.text}</div>}</div>
     </div>
   );
 }

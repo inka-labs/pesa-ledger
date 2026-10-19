@@ -1,6 +1,7 @@
 /** The ledger's local HTTP API. Every call carries the session cookie (same origin); a 401 means
  *  the browser isn't signed in, which App shows as such. */
 
+import type { Rates } from "./model/money";
 import type { Ledger, Settings, YearDoc } from "./model/types";
 
 export class ApiError extends Error {
@@ -43,6 +44,7 @@ export const api = {
   backups: () => call<{ backups: Backup[]; folder: string }>("/api/backups"),
   backupNow: () => call<{ name: string }>("/api/backups", { method: "POST" }),
   restore: (name: string) => call<Stored>(`/api/backups/${encodeURIComponent(name)}/restore`, { method: "POST" }),
+  rates: (base: string, refresh = false) => call<Rates>(`/api/rates?base=${encodeURIComponent(base)}${refresh ? "&refresh=true" : ""}`),
   reveal: () => call<void>("/api/reveal", { method: "POST" }),
   quit: () => call<void>("/api/quit", { method: "POST" }),
   setAutostart: (enabled: boolean) => call<{ enabled: boolean; message: string }>("/api/autostart", json("PUT", { enabled })),

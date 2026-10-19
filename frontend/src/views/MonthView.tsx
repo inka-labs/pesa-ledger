@@ -35,7 +35,7 @@ export function MonthView() {
 
   const tiles = (["income", "saved", "spent", "left"] as const).map((k, i) => (
     <Kpi key={k} label={{ income: "Income", saved: "Saved", spent: "Spent", left: "Left over" }[k]} value={t[k]} lead={i === 3}>
-      {pl.has && <span>Budget {money(pl[k])}</span>}
+      {pl.has && (k === "saved" || k === "spent") && <span>Budget {money(pl[k])}</span>}
       <Delta cur={val(t, k)} prev={val(tp, k)} upGood={k !== "spent"} label={pLabel} />
       {ly.has && <Delta cur={val(t, k)} prev={ly[k]} upGood={k !== "spent"} label={`${MONTHS[m - 1]} ${y - 1}`} />}
       {k === "saved" && t.income > 0 && <span>{Math.round((t.saved / t.income) * 100)}% of income</span>}
@@ -95,11 +95,17 @@ function GroupSection({ g, gAct, gPlan }: { g: Group; gAct: number; gPlan: numbe
       <div className="grp-h">
         <Swatch g={g} />
         <h3>{g.name}</h3>
-        <span className="tot"><span className="num">{money(gAct)}</span> <span className="muted">of {money(gPlan)} budgeted</span></span>
+        <span className="tot">
+          <span className="num">{money(gAct)}</span>{" "}
+          <span className="muted">{g.kind === "income" ? "received" : `of ${money(gPlan)} budgeted`}</span>
+        </span>
       </div>
       <div>
         {cats.length > 0 && (
-          <div className="row head lbl"><span>Category</span><span className="r">Budget</span><span className="r">Actual</span><span>Progress</span><span className="r">Month on month</span></div>
+          <div className="row head lbl">
+            <span>Category</span><span className="r">{g.kind === "income" ? "" : "Budget"}</span><span className="r">Actual</span>
+            <span>{g.kind === "income" ? "" : "Progress"}</span><span className="r">Month on month</span>
+          </div>
         )}
         {cats.map((c) => <CategoryRow key={c.id} c={c} g={g} />)}
       </div>
@@ -121,8 +127,9 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
   const p = prevYM({ y, m });
   const prev = book.actual(p.y, p.m, c.id);
   const spending = g.kind === "expense";
+  const income = g.kind === "income";
 
-  let progress = <span className="muted small">No budget</span>;
+  let progress = income ? null : <span className="muted small">No budget</span>;
   if (budget) {
     const ratio = (a || 0) / budget;
     const over = spending && ratio > 1.0001;
@@ -141,12 +148,14 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
   return (
     <div className="row">
       <div className="name">{c.name}{c.archived && <small>Archived</small>}</div>
-      <div className="c-plan">
-        <AmountInput value={own} placeholder={annual != null ? money(annual / 12) : "–"}
-          title={annual != null ? "Leave blank to use the yearly budget ÷ 12" : "Budget for this month"}
-          label={`${c.name} budget for ${MONTHS[m - 1]}`}
-          onCommit={(v) => change((l) => void setBudget(l, y, m, c.id, v), [`y:${y}`])} />
-      </div>
+      {income ? <div className="c-plan none" /> : (
+        <div className="c-plan">
+          <AmountInput value={own} placeholder={annual != null ? money(annual / 12) : "–"}
+            title={annual != null ? "Leave blank to use the yearly budget ÷ 12" : "Budget for this month"}
+            label={`${c.name} budget for ${MONTHS[m - 1]}`}
+            onCommit={(v) => change((l) => void setBudget(l, y, m, c.id, v), [`y:${y}`])} />
+        </div>
+      )}
       <div>
         <AmountInput value={a} label={`${c.name} actual for ${MONTHS[m - 1]}`}
           onCommit={(v) => change((l) => void setActual(l, y, m, c.id, v), [`y:${y}`])} />

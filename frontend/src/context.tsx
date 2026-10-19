@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import type { Book } from "./model/ledger";
+import type { Rates, Read } from "./model/money";
 import type { Ledger, Metric } from "./model/types";
 
 export type Tab = "month" | "budget" | "year" | "compare" | "goals" | "categories" | "settings";
@@ -27,6 +28,16 @@ export type View = {
 
 export type Ctx = {
   book: Book;
+  /** live exchange rates for the main currency, or null until they load (or when offline with nothing cached) */
+  rates: Rates | null;
+  ratesError: string;
+  refreshRates: () => Promise<void>;
+  /** units of the main currency per 1 of the second currency */
+  altRate: number | null;
+  /** read an amount box, converting other currencies to the main one */
+  read: (text: string) => Read;
+  /** a short message at the bottom of the screen */
+  notify: (text: string) => void;
   /** change a copy of the ledger; `touches` says what to save ("settings", "y:2026") */
   change: (mutate: (draft: Ledger) => void, touches: string[]) => void;
   replace: (next: Ledger) => void;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCSV, importCSV, parseCSV } from "./csv";
+import { buildCSV, importCSV, importSummary, parseCSV } from "./csv";
 import { exampleLedger } from "./example";
 import { Book } from "./ledger";
 import { parseAmount } from "./format";
@@ -20,14 +20,16 @@ describe("reading a CSV", () => {
     expect(parseCSV('a,"b,c","d ""e"""\r\n1,2,3')).toEqual([["a", "b,c", 'd "e"'], ["1", "2", "3"]]);
   });
 
-  it("imports actuals, yearly and monthly budgets, and notes into a new ledger", () => {
+  it("imports actuals, monthly budgets and notes into a new ledger, leaving out income budgets", () => {
     const r = importCSV(SHEET, null);
-    expect(r.count).toBe(5);
+    expect(r.count).toBe(4);
     expect(r.skipped).toBe(2); // month 13, amount "lots"
+    expect(r.incomeBudgets).toBe(1);
+    expect(importSummary(r)).toBe("Imported 4 figures for 2026. Skipped 2 rows that couldn't be read. Left out 1 income budget: income isn't budgeted.");
     const b = new Book(r.ledger, { y: 2026, m: 10 });
     const salary = r.ledger.settings.cats.find((c) => c.name === "Salary")!;
     const rent = r.ledger.settings.cats.find((c) => c.name === "Rent")!;
-    expect(b.planAnnual(2026, salary.id)).toBe(6_300_000);
+    expect(r.ledger.years["2026"].plan[salary.id]).toBeUndefined();
     expect(b.actual(2026, 2, salary.id)).toBe(206_400);
     expect(b.planMonthly(2026, 11, rent.id)).toBe(40_000);
     expect(r.ledger.years["2026"].notes["01"]).toBe("Rent: paid late\nContract renewed");
@@ -42,7 +44,7 @@ describe("reading a CSV", () => {
     const real = { ...ex, settings: { ...ex.settings, example: false } };
     const r = importCSV(SHEET, real);
     expect(r.ledger.years["2025"]).toBeDefined();
-    expect(real.years["2026"].plan.inc_0).toBeDefined(); // the original is untouched
+    expect(real.years["2026"].actual["01"].inc_0).toBeDefined(); // the original is untouched
   });
 
   it("refuses a file without the needed columns", () => {

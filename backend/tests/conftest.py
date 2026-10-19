@@ -6,6 +6,10 @@ from pesa_ledger import brand
 BASE = "http://127.0.0.1:8768"
 
 
+def pytest_addoption(parser):
+    parser.addoption("--live", action="store_true", help="also test the real exchange-rate services")
+
+
 @pytest.fixture(autouse=True)
 def ledger_home(tmp_path, monkeypatch):
     """Every test gets an empty ledger folder of its own, never the real ~/.pesa-ledger."""

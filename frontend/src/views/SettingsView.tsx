@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type Backup, type Stored, type Version } from "../api";
 import { useApp } from "../context";
-import { buildCSV } from "../model/csv";
+import { buildCSV, importSummary } from "../model/csv";
 import { parseAmount } from "../model/format";
 import { thisMonth, mk } from "../model/ledger";
 import { TextInput } from "../ui/bits";
@@ -20,6 +20,66 @@ function when(b: Backup) {
   return `${label} · ${d ? d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : b.name}`;
 }
 
+function CurrencyPanel() {
+  const { book, change, rates, ratesError, refreshRates } = useApp();
+  const st = book.settings;
+  const [busy, setBusy] = useState(false);
+  const settings = (fn: (s: typeof st) => void) => change((l) => fn(l.settings), ["settings"]);
+  const code = st.alt?.code ?? "";
+  const live = st.alt?.auto !== false;
+  const liveRate = code && rates?.rates[code.toUpperCase()] ? 1 / rates.rates[code.toUpperCase()] : null;
+  const updated = rates?.fetched_at ? new Date(rates.fetched_at * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
+  return (
+    <div className="panel">
+      <h3>Currency</h3>
+      <div className="form-grid">
+        <label className="field"><span className="lbl">Main currency</span>
+          <TextInput value={st.currency} label="Main currency"
+            onCommit={(v) => /^[A-Za-z]{3}$/.test(v.trim()) && settings((s) => void (s.currency = v.trim().toUpperCase()))} /></label>
+        <label className="field"><span className="lbl">Also show totals in</span>
+          <TextInput value={code} label="Second currency" placeholder="USD"
+            onCommit={(v) => settings((s) => void (s.alt = { ...(s.alt ?? {}), code: v.trim().toUpperCase().slice(0, 3) }))} /></label>
+      </div>
+      {code && (
+        <div className="rate">
+          <span className="lbl">Exchange rate</span>
+          {live ? (
+            liveRate ? (
+              <>
+                <span className="big">1 {code} = {liveRate.toFixed(2)} {st.currency}</span>
+                <span className="small muted">
+                  Live rate from{" "}
+                  <a href={rates?.source_url || "#"} target="_blank" rel="noreferrer">{rates?.source}</a>
+                  {rates?.date && `, published ${rates.date}`}. Checked {updated}.
+                </span>
+              </>
+            ) : <span className="small muted">{ratesError || "Loading the live rate…"}</span>
+          ) : (
+            <div className="bar">
+              <span className="small">{st.currency} per 1 {code}</span>
+              <TextInput value={st.alt?.rate ? String(st.alt.rate) : ""} label="Exchange rate" style={{ width: 120 }}
+                onCommit={(v) => { const r = parseAmount(v); if (r && !Number.isNaN(r) && r > 0) settings((s) => void (s.alt = { ...(s.alt ?? { code }), rate: r })); }} />
+              {liveRate && <span className="small muted">Live rate today: {liveRate.toFixed(2)}</span>}
+            </div>
+          )}
+          {ratesError && liveRate && <span className="small d-bad">{ratesError} Showing the last rates fetched.</span>}
+        </div>
+      )}
+      <div className="bar">
+        <label className="bar small">
+          <input type="checkbox" checked={!live} onChange={(e) => settings((s) => void (s.alt = { ...(s.alt ?? { code }), auto: !e.target.checked, rate: s.alt?.rate ?? (liveRate ? Math.round(liveRate * 100) / 100 : null) }))} />
+          Set the rate myself
+        </label>
+        <button className="btn ghost" disabled={busy} onClick={() => { setBusy(true); refreshRates().finally(() => setBusy(false)); }}>{busy ? "Checking…" : "Check rates now"}</button>
+      </div>
+      <p className="small muted">
+        In any amount box you can type another currency, like <code>USD 415</code> or <code>$415</code>. It's converted to {st.currency} at
+        the live rate. Only the currency code is sent to the rate service, never your figures.
+      </p>
+    </div>
+  );
+}
+
 export function SettingsView({ version, onRestored }: { version: Version | null; onRestored: (s: Stored) => void }) {
   const { book, change, replace } = useApp();
   const st = book.settings;
@@ -32,7 +92,6 @@ export function SettingsView({ version, onRestored }: { version: Version | null;
   const loadBackups = () => api.backups().then((r) => setBackups(r.backups)).catch(() => setBackups([]));
   useEffect(() => { loadBackups(); }, []);
   const fail = (e: unknown) => setMsg({ err: true, text: (e as Error).message });
-  const settings = (fn: (s: typeof st) => void) => change((l) => fn(l.settings), ["settings"]);
 
   if (stopped) return <div className="center"><h2>Pesa Ledger has stopped</h2><p className="muted">Start it again with <code>pixi run open</code>.</p></div>;
 
@@ -42,19 +101,7 @@ export function SettingsView({ version, onRestored }: { version: Version | null;
       {msg && <div className={`notice${msg.err ? " err" : ""}`} role={msg.err ? "alert" : undefined}>{msg.text}</div>}
       <div className="cols">
         <div className="stack">
-          <div className="panel">
-            <h3>Currency</h3>
-            <div className="form-grid">
-              <label className="field"><span className="lbl">Main currency</span>
-                <TextInput value={st.currency} label="Main currency" onCommit={(v) => v.trim() && settings((s) => void (s.currency = v.trim().toUpperCase().slice(0, 5)))} /></label>
-              <label className="field"><span className="lbl">Also show in</span>
-                <TextInput value={st.alt?.code ?? ""} label="Second currency" placeholder="USD"
-                  onCommit={(v) => settings((s) => void (s.alt = { ...(s.alt ?? {}), code: v.trim().toUpperCase().slice(0, 5) }))} /></label>
-              <label className="field"><span className="lbl">{st.currency} per 1 {st.alt?.code || "unit"}</span>
-                <TextInput value={st.alt?.rate ? String(st.alt.rate) : ""} label="Exchange rate"
-                  onCommit={(v) => { const r = parseAmount(v); if (r && !Number.isNaN(r) && r > 0) settings((s) => void (s.alt = { code: s.alt?.code ?? "", rate: r })); }} /></label>
-            </div>
-          </div>
+          <CurrencyPanel />
 
           <div className="panel">
             <h3>Import and export</h3>
@@ -64,7 +111,7 @@ export function SettingsView({ version, onRestored }: { version: Version | null;
               A row with no category adds its note to that month.
             </p>
             <div className="bar">
-              <ImportButton className="btn" current={book.ledger} onDone={(r) => { replace(r.ledger); setMsg({ text: `Imported ${r.count} figures for ${r.years.join(", ")}${r.skipped ? `. Skipped ${r.skipped} rows that couldn't be read` : ""}.` }); }} onError={(text) => setMsg({ err: true, text })}>
+              <ImportButton className="btn" current={book.ledger} onDone={(r) => { replace(r.ledger); setMsg({ text: importSummary(r) }); }} onError={(text) => setMsg({ err: true, text })}>
                 Import CSV
               </ImportButton>
               <button className="btn" onClick={() => { const t = thisMonth(); download(`pesa-ledger-${t.y}-${mk(t.m)}.csv`, buildCSV(book.ledger)); }}>Export CSV</button>

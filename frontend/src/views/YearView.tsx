@@ -24,8 +24,8 @@ export function YearView() {
       <td>{label}</td>
       {months.map((mt, i) => (mt.has ? <td key={i}>{money(mt[k])}</td> : <td key={i} className="empty">–</td>))}
       <td>{money(yearT[k])}</td>
-      <td>{planY.has ? money(planY[k]) : "–"}</td>
-      {ofBudget(yearT[k], planY[k])}
+      <td>{planY.has && k !== "left" ? money(planY[k]) : "–"}</td>
+      {ofBudget(yearT[k], k === "left" ? null : planY[k])}
     </tr>
   );
 
@@ -39,7 +39,7 @@ export function YearView() {
       <div className="kpis">
         {(["income", "saved", "spent", "left"] as const).map((k, i) => (
           <Kpi key={k} label={{ income: "Income", saved: "Saved", spent: "Spent", left: "Left over" }[k]} value={t[k]} lead={i === 3}>
-            {pl.has && <span>Budget {money(pl[k])}</span>}
+            {pl.has && (k === "saved" || k === "spent") && <span>Budget {money(pl[k])}</span>}
             {lastYear.has && <Delta cur={t[k]} prev={lastYear[k]} upGood={k !== "spent"} label={`same months ${y - 1}`} />}
             {k === "saved" && t.income > 0 && <span>{Math.round((t.saved / t.income) * 100)}% of income</span>}
             <Alt v={t[k]} />

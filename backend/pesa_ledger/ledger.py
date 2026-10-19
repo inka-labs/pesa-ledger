@@ -61,7 +61,10 @@ class Goal(Strict):
 
 class OtherCurrency(Strict):
     code: Annotated[str, StringConstraints(strip_whitespace=True, max_length=5)] = ""
+    # units of the main currency per 1 of this one; only used when `auto` is off
     rate: Annotated[float, Field(gt=0, allow_inf_nan=False)] | None = None
+    # use the live rate (rates.py) instead of `rate`
+    auto: bool = True
 
 
 class Settings(Strict):
