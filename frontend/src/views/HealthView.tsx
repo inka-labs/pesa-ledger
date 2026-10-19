@@ -6,13 +6,14 @@ import { useApp, type Tab, type View } from "../context";
 import { healthChecks, healthStats, rentCategory, type Check, type CheckId, type Tone } from "../model/health";
 import { money } from "../model/format";
 import type { HealthSettings, Ledger } from "../model/types";
-import { Swatch } from "../ui/bits";
+import { EmptyState, Swatch } from "../ui/bits";
+import { CircleAlert, CircleCheck, HeartPulse, Info, TriangleAlert } from "lucide-react";
 
-const TONE: Record<Tone, { icon: string; label: string }> = {
-  good: { icon: "✓", label: "Good" },
-  warn: { icon: "!", label: "Watch" },
-  bad: { icon: "▲", label: "Needs attention" },
-  info: { icon: "i", label: "For context" },
+const TONE: Record<Tone, { icon: React.ReactNode; label: string }> = {
+  good: { icon: <CircleCheck size={13} strokeWidth={2.4} />, label: "Good" },
+  warn: { icon: <CircleAlert size={13} strokeWidth={2.4} />, label: "Watch" },
+  bad: { icon: <TriangleAlert size={13} strokeWidth={2.4} />, label: "Needs attention" },
+  info: { icon: <Info size={13} strokeWidth={2.4} />, label: "For context" },
 };
 
 export function HealthView() {
@@ -40,7 +41,9 @@ export function HealthView() {
         <span className="muted">The last {stats.months} months against common rules of thumb, one-offs left out</span>
       </div>
       {!checks.length ? (
-        <div className="panel"><p className="muted">Record a few months on the Month page and the checks will appear here.</p></div>
+        <EmptyState icon={HeartPulse} title="Your money's health, once there's a month to look at" action={<button className="btn primary" onClick={() => go("month", { ...book.today })}>Record this month</button>}>
+          Record a few months and this page checks them against common rules of thumb: how much you save, how long your emergency fund would last, whether rent and essentials fit your income.
+        </EmptyState>
       ) : (
         <>
           <div className="health-sum">

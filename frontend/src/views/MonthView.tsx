@@ -240,7 +240,7 @@ function GroupSection({ g, gAct, gPlan }: { g: Group; gAct: number; gPlan: numbe
         {cats.length > 0 && (
           <div className="row head lbl">
             <span>Category</span><span className="r">{budgeted ? "Budget" : ""}</span><span className="r">Actual</span>
-            <span>{budgeted ? "Progress" : ""}</span><span className="r">Month on month</span>
+            <span className="r">Month on month</span>
           </div>
         )}
         {cats.map((c) => <CategoryRow key={c.id} c={c} g={g} />)}
@@ -331,28 +331,34 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
   const spending = effect === "out";
   const income = effect === "in" || effect === "none"; // not budgeted
 
-  let progress = income ? null : <span className="muted small">No budget</span>;
+  // a thin bar under the name, with what's left (or over) beside it; amber for a small overspend, red past 10%
+  let progress = null;
   if (budget) {
     const ratio = (a || 0) / budget;
     const over = spending && ratio > 1.0001;
-    const chip = a == null ? null
-      : over ? <span className="chip over">▲ Over by {money(a - budget)}</span>
-      : !spending && ratio >= 0.9999 ? <span className="chip ok">✓ On budget</span>
-      : !spending ? <span className="chip">{Math.round(ratio * 100)}% of budget</span>
-      : <span className="chip">{money(budget - a)} left</span>;
+    const way = over && ratio > 1.1;
+    const status = a == null ? <span className="muted">Budget {money(budget)}</span>
+      : over ? <span className={way ? "d-bad" : "warn-ink"}>Over by {money(a - budget)}</span>
+      : !spending && ratio >= 0.9999 ? <span className="d-good">✓ On budget</span>
+      : !spending ? <span>{Math.round(ratio * 100)}% of budget</span>
+      : <span>{money(budget - a)} left</span>;
     progress = (
-      <div className="mcell">
-        <div className={`meter${over ? " over" : ""}`} style={{ width: "100%" }}><i style={{ width: `${Math.min(100, ratio * 100)}%` }} /></div>
-        {chip}
+      <div className="nmeter">
+        <div className={`meter thin${over ? (way ? " way" : " over") : ""}`}><i style={{ width: `${Math.min(100, ratio * 100)}%` }} /></div>
+        <span className="nstat">{status}</span>
       </div>
     );
   }
   return (
     <div className="row" id={`row-${c.id}`}>
-      <div className="name">{c.name}{c.archived && <small>Archived</small>}{effect !== "none" && <OneOffControl c={c} actual={a} />}</div>
+      <div className="name">
+        <span className="nname">{c.name}{c.archived && <small>Archived</small>}</span>
+        {effect !== "none" && <OneOffControl c={c} actual={a} />}
+        {progress}
+      </div>
       {income ? <div className="c-plan none" /> : (
         <div className="c-plan">
-          <AmountInput value={own} placeholder={annual != null ? money(annual / 12) : "–"}
+          <AmountInput value={own} placeholder={annual != null ? money(annual / 12) : c.repeat ? money(c.repeat) : "–"}
             title={annual != null ? "Leave blank to use the yearly budget ÷ 12" : "Budget for this month"}
             label={`${c.name} budget for ${MONTHS[m - 1]}`}
             onCommit={(v) => change((l) => void setBudget(l, y, m, c.id, v), [`y:${y}`])} />
@@ -363,7 +369,6 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
           placeholder={c.repeat ? money(c.repeat) : undefined} title={c.repeat ? `Repeats at ${money(c.repeat)} a month` : undefined}
           onCommit={(v) => change((l) => void setActual(l, y, m, c.id, v), [`y:${y}`])} />
       </div>
-      <div className="c-meter">{progress}</div>
       <div className="r small c-delta">{(a != null || prev != null) && <Delta cur={a} prev={prev} upGood={!spending} label={MONTHS[p.m - 1]} />}</div>
     </div>
   );

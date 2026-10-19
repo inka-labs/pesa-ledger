@@ -4,7 +4,8 @@ import { newId } from "../model/csv";
 import { amountText, money } from "../model/format";
 import { fmtYM, MONTHS, parseYM } from "../model/ledger";
 import type { Goal } from "../model/types";
-import { Swatch } from "../ui/bits";
+import { EmptyState, Ring, Swatch } from "../ui/bits";
+import { Target } from "lucide-react";
 
 export function GoalsView() {
   const { book, change, notify } = useApp();
@@ -37,7 +38,9 @@ export function GoalsView() {
           {goals.map((g) => <GoalCard key={g.id} g={g} editing={editing === g.id} onEdit={() => setEditing(g.id)} onDelete={() => remove(g.id)} />)}
         </div>
       ) : (
-        <div className="panel"><p className="muted">No goals yet. A goal tracks a target, such as an emergency fund or a car fund, against the savings or sinking-fund categories you link to it.</p></div>
+        <EmptyState icon={Target} title="Set your first goal" action={<button className="btn primary" onClick={() => setEditing("new")}>New goal</button>}>
+          A goal tracks a target, like an emergency fund or a deposit, against the savings categories you link to it, and tells you what to put in each month to make the deadline.
+        </EmptyState>
       )}
       {/* editing happens in a side sheet, so the cards never move or stretch */}
       {editing && <GoalForm key={editing} goal={goals.find((g) => g.id === editing)} onSave={save} onCancel={close} />}
@@ -57,8 +60,10 @@ function GoalCard({ g, editing, onEdit, onDelete }: { g: Goal; editing: boolean;
         <h3>{g.name}</h3>
         {r.reached ? <span className="chip ok">✓ Reached</span> : r.onTrack ? <span className="chip ok">✓ On track</span> : <span className="chip over">▲ Behind pace</span>}
       </div>
-      <div><span className="big">{money(r.saved)}</span> <span className="muted">of {book.settings.currency} {money(g.target)}</span></div>
-      <div className="prog" role="progressbar" aria-valuenow={Math.round(r.progress * 100)} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${r.progress * 100}%` }} /></div>
+      <div className="card-top">
+        <Ring value={r.progress} tone={r.reached || r.onTrack ? undefined : "warn"} />
+        <div className="fig"><span className="big">{money(r.saved)}</span><span className="muted small">of {book.settings.currency} {money(g.target)}</span></div>
+      </div>
       <dl>
         <dt>Progress</dt><dd>{Math.round(r.progress * 100)}%</dd>
         <dt>Deadline</dt><dd>{MONTHS[deadline.m - 1]} {deadline.y} · {r.monthsLeft} mo</dd>

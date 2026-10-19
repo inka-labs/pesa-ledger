@@ -10,7 +10,8 @@ import { money } from "../model/format";
 import { addMonths, fmtYM, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
 import type { Account, Ledger, YM } from "../model/types";
 import { newId } from "../model/csv";
-import { AmountInput, Delta, Kpi, Alt } from "../ui/bits";
+import { AmountInput, Delta, EmptyState, Kpi, Alt } from "../ui/bits";
+import { Landmark } from "lucide-react";
 import { baseLayout, chartTheme, Plot, useThemeTick } from "../ui/Plot";
 import { Sheet } from "../ui/Sheet";
 
@@ -43,10 +44,9 @@ export function NetWorthView() {
       </div>
 
       {!accounts.length ? (
-        <div className="panel">
-          <p className="muted">Add the places your money sits (bank, M-Pesa, money market fund, pension, the car) and anything you owe (a loan, a credit card). Then record their balances once a month to see your net worth grow.</p>
-          <button className="btn" onClick={() => setEditing("new")}>Add your first account</button>
-        </div>
+        <EmptyState icon={Landmark} title="See everything you own and owe in one place" action={<button className="btn primary" onClick={() => setEditing("new")}>Add your first account</button>}>
+          Add where your money sits (bank, M-Pesa, money market fund, pension, the car) and anything you owe. Record their balances once a month to watch your net worth grow, and see what your MMF earns.
+        </EmptyState>
       ) : (
         <>
           <div className="kpis">

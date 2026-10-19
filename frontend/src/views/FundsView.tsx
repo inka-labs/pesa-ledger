@@ -8,7 +8,8 @@ import { payFund } from "../model/edit";
 import { amountText, money } from "../model/format";
 import { addMonths, fmtYM, parseYM, ymKey } from "../model/ledger";
 import type { Fund, Ledger } from "../model/types";
-import { Swatch } from "../ui/bits";
+import { EmptyState, Ring, Swatch } from "../ui/bits";
+import { PiggyBank } from "lucide-react";
 import { Sheet } from "../ui/Sheet";
 
 const EVERY: { v: number; label: string }[] = [
@@ -38,10 +39,9 @@ export function FundsView() {
       {funds.length ? (
         <div className="goals">{funds.map((c) => <FundCard key={c.id} cid={c.id} editing={editing === c.id} onEdit={() => setEditing(c.id)} />)}</div>
       ) : (
-        <div className="panel">
-          <p className="muted">No sinking funds yet. A fund turns a category (say, <i>Car service &amp; insurance</i>) into a pot with a target and a due date, so you can see whether you're putting enough aside each month, or more than the bill needs.</p>
-          <button className="btn" onClick={() => setEditing("new")}>Set up a fund</button>
-        </div>
+        <EmptyState icon={PiggyBank} title="Put a little aside for bills you know are coming" action={<button className="btn primary" onClick={() => setEditing("new")}>Set up a fund</button>}>
+          A fund turns a category, like <i>Car service &amp; insurance</i>, into a pot with a target and a due date, so you can see whether you're putting enough aside each month, or more than the bill needs.
+        </EmptyState>
       )}
       {editing && <FundForm cid={editing === "new" ? null : editing} onClose={close} />}
     </>
@@ -73,8 +73,10 @@ function FundCard({ cid, editing, onEdit }: { cid: string; editing: boolean; onE
   return (
     <article className={`goal${editing ? " editing" : ""}`}>
       <div className="top-l"><h3>{g && <Swatch g={g} />} {c.name}</h3>{chip}</div>
-      <div><span className="big">{money(f.saved)}</span> <span className="muted">of {book.settings.currency} {money(c.fund!.target)}</span></div>
-      <div className="prog" role="progressbar" aria-valuenow={Math.round(f.progress * 100)} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${f.progress * 100}%` }} /></div>
+      <div className="card-top">
+        <Ring value={f.progress} tone={f.status === "overdue" ? "bad" : f.status === "short" ? "warn" : undefined} />
+        <div className="fig"><span className="big">{money(f.saved)}</span><span className="muted small">of {book.settings.currency} {money(c.fund!.target)}</span></div>
+      </div>
       <dl>
         <dt>Due</dt><dd>{fmtYM(due)} · {f.monthsLeft} mo</dd>
         <dt>Needed per month</dt><dd>{f.status === "ready" ? "Nothing more" : money(f.neededPerMonth)}</dd>

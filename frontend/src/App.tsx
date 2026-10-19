@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SEARCH_KEY, UNDO_KEY } from "./ui/keys";
 import { api, type Version } from "./api";
 import { NAME } from "./brand";
-import { AppContext, SECTIONS, sectionOf, TABS, type Ctx, type Tab, type View } from "./context";
+import { AppContext, SECTIONS, TABS, type Ctx, type Tab, type View } from "./context";
+import { Ellipsis, Info, Monitor, Moon, Search, Sun, Undo2, X } from "lucide-react";
+import { TAB_ICON } from "./ui/icons";
 import { applyPalette } from "./model/theme";
 import { AppearanceView } from "./views/AppearanceView";
 import { OverviewView } from "./views/OverviewView";
@@ -25,6 +27,21 @@ import { Welcome } from "./views/Welcome";
 import { YearView } from "./views/YearView";
 
 const REGULAR_KEY = "pesa-ledger.leave-out-one-offs";
+const EXAMPLE_KEY = "pesa-ledger.example-note-hidden";
+
+/** Shapes where the page will be, while the ledger loads. */
+function Skeleton() {
+  return (
+    <div className="shell" aria-busy="true" aria-label="Opening your ledger">
+      <aside className="side"><div className="sk" style={{ height: 28, width: "70%" }} />{[...Array(8)].map((_, i) => <div key={i} className="sk" style={{ height: 14, width: `${50 + (i % 3) * 15}%` }} />)}</aside>
+      <div className="main"><div className="stack">
+        <div className="sk" style={{ height: 30, width: 260 }} />
+        <div className="kpis">{[...Array(4)].map((_, i) => <div key={i} className="sk" style={{ height: 96 }} />)}</div>
+        <div className="sk" style={{ height: 280 }} />
+      </div></div>
+    </div>
+  );
+}
 
 const tabFromHash = (): Tab => {
   const h = location.hash.slice(1) as Tab;
@@ -56,8 +73,9 @@ export default function App() {
   const [version, setVersion] = useState<Version | null>(null);
   const { theme, setTheme, cycle } = useTheme();
   // the last tab used in each section, so switching sections returns to it
-  const [lastInSection, setLastInSection] = useState<Record<string, Tab>>({});
-  useEffect(() => setLastInSection((s) => ({ ...s, [sectionOf(tab).id]: tab })), [tab]);
+  const [more, setMore] = useState(false);
+  const [exampleHidden, setExampleHidden] = useState(() => { try { return sessionStorage.getItem(EXAMPLE_KEY) === "1"; } catch { return false; } });
+  const hideExample = () => { setExampleHidden(true); try { sessionStorage.setItem(EXAMPLE_KEY, "1"); } catch { /* private window */ } };
   // the palette recolours groups, charts and (for Matplotlib palettes) the accent
   const palette = ledger?.settings.palette;
   useEffect(() => applyPalette(palette), [palette]);
@@ -141,7 +159,7 @@ export default function App() {
     document.title = tab === "overview" || !ledger ? NAME : `${TABS.find((t) => t.id === tab)?.label} · ${NAME}`;
   }, [tab, ledger]);
 
-  if (load.kind === "loading") return <div className="center muted">Opening your ledger…</div>;
+  if (load.kind === "loading") return <Skeleton />;
   if (load.kind === "signedout")
     return (
       <div className="center">
@@ -162,51 +180,64 @@ export default function App() {
   ];
 
   const saveLabel = save.kind === "saving" ? "Saving…" : save.kind === "saved" ? "Saved" : save.kind === "error" ? "Not saved" : "On this computer";
+  const ThemeIcon = theme === "system" ? Monitor : theme === "light" ? Sun : Moon;
+  const navLink = (t: { id: Tab; label: string }, cls: string) => {
+    const Icon = TAB_ICON[t.id];
+    return (
+      <a key={t.id} className={cls} href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined}
+        onClick={() => { setMore(false); if (t.id !== "categories" && view.catHint) setView({ catHint: false }); }}>
+        <Icon size={17} strokeWidth={1.9} aria-hidden /><span>{t.label}</span>
+      </a>
+    );
+  };
 
   return (
-    <div className="app">
-      <header className="top">
-        <div className="brand"><h1>{NAME}</h1><span className="mark">{ledger?.settings.currency ?? "KES"}</span></div>
-        <span className="save" data-s={save.kind}>{saveLabel}</span>
-        {ledger && (
-          <>
-            <button className="searchbtn" onClick={openSearch} title="Search pages, months, categories and actions">
-              <span>Search or jump to…</span><kbd>{SEARCH_KEY}</kbd>
-            </button>
-            <button className="theme" onClick={doUndo} disabled={!canUndo} title={`Undo the last change (${UNDO_KEY})`}>↶ Undo</button>
-          </>
-        )}
-        <button className="theme" onClick={cycle} title="Switch between system, light and dark">
-          {theme === "system" ? "Theme: system" : theme === "light" ? "Theme: light" : "Theme: dark"}
-        </button>
-        {ledger && (
-          <nav className="tabs" aria-label="Sections">
+    <div className={`shell${ledger ? "" : " bare"}`}>
+      {ledger && (
+        <aside className="side" aria-label="Pages">
+          <div className="brand"><h1>{NAME}</h1><span className="mark">{ledger.settings.currency}</span></div>
+          <button className="searchbtn" onClick={openSearch} title="Search pages, months, categories and actions">
+            <Search size={15} aria-hidden /><span>Search…</span><kbd>{SEARCH_KEY}</kbd>
+          </button>
+          <nav className="side-nav">
             {SECTIONS.map((s) => (
-              <a key={s.id} href={`#${lastInSection[s.id] ?? s.tabs[0].id}`} aria-current={sectionOf(tab).id === s.id ? "page" : undefined}>{s.label}</a>
+              <div key={s.id} className="side-sec">
+                <span className="lbl">{s.label}</span>
+                {s.tabs.map((t) => navLink(t, "side-link"))}
+              </div>
             ))}
           </nav>
+          <div className="side-foot">
+            <span className="save" data-s={save.kind}>{saveLabel}</span>
+            <div className="bar">
+              <button className="iconbtn wide" onClick={doUndo} disabled={!canUndo} title={`Undo the last change (${UNDO_KEY})`}><Undo2 size={15} aria-hidden /> Undo</button>
+              <button className="iconbtn wide" onClick={cycle} title="Switch between system, light and dark"><ThemeIcon size={15} aria-hidden /> {theme === "system" ? "System" : theme === "light" ? "Light" : "Dark"}</button>
+            </div>
+          </div>
+        </aside>
+      )}
+      <div className="main">
+        <header className="mtop">
+          <div className="brand"><h1>{NAME}</h1>{ledger && <span className="mark">{ledger.settings.currency}</span>}</div>
+          {ledger && <span className="save" data-s={save.kind} aria-label={saveLabel} title={saveLabel} />}
+          {ledger && <button className="iconbtn" onClick={openSearch} aria-label="Search"><Search size={19} /></button>}
+          {ledger && <button className="iconbtn" onClick={doUndo} disabled={!canUndo} aria-label="Undo"><Undo2 size={19} /></button>}
+          <button className="iconbtn" onClick={cycle} aria-label={`Theme: ${theme}`}><ThemeIcon size={19} /></button>
+        </header>
+
+        {save.kind === "error" && (
+          <div className="banner" role="alert"><span><b>Your last change wasn't saved.</b> {save.message}</span><button className="btn" onClick={retry}>Try again</button></div>
         )}
-      </header>
-      {ledger && (
-        <nav className="subnav" aria-label={sectionOf(tab).label}>
-          {sectionOf(tab).tabs.map((t) => (
-            <a key={t.id} href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined}
-              onClick={() => t.id !== "categories" && view.catHint && setView({ catHint: false })}>{t.label}</a>
-          ))}
-        </nav>
-      )}
+        {ledger?.settings.example && tab !== "settings" && !exampleHidden && (
+          <div className="strip-note">
+            <Info size={15} aria-hidden />
+            <span>You're looking at example figures.</span>
+            <button className="link" onClick={() => { change((l) => { l.years = {}; l.settings.goals = []; l.settings.example = false; }, ["settings", ...Object.keys(ledger.years).map((y) => `y:${y}`)]); notify("Example figures cleared.", true); }}>Clear them</button>
+            <button className="iconbtn" aria-label="Hide this note" onClick={hideExample}><X size={14} /></button>
+          </div>
+        )}
 
-      {save.kind === "error" && (
-        <div className="banner" role="alert"><span><b>Your last change wasn't saved.</b> {save.message}</span><button className="btn" onClick={retry}>Try again</button></div>
-      )}
-      {ledger?.settings.example && tab !== "settings" && (
-        <div className="banner">
-          <span><b>These are example figures.</b> Clear them when you're ready to enter your own. Your categories stay.</span>
-          <button className="btn" onClick={() => { change((l) => { l.years = {}; l.settings.goals = []; l.settings.example = false; }, ["settings", ...Object.keys(ledger.years).map((y) => `y:${y}`)]); notify("Example figures cleared.", true); }}>Clear example figures</button>
-        </div>
-      )}
-
-      <main className="stack">
+      <main className="stack page" key={tab}>
         {!ctx ? (
           <Welcome onStart={(l, then) => { replace(l); setView({ catHint: then === "categories" && l.settings.cats.length > 0 }); go(then); }} />
         ) : (
@@ -227,6 +258,25 @@ export default function App() {
           </AppContext.Provider>
         )}
       </main>
+      </div>
+      {ledger && (
+        <nav className="bottombar" aria-label="Pages">
+          {(["overview", "month", "health", "budget"] as Tab[]).map((id) => navLink(TABS.find((t) => t.id === id)!, "bb-link"))}
+          <button className={`bb-link${more ? " on" : ""}`} aria-expanded={more} onClick={() => setMore((x) => !x)}><Ellipsis size={17} aria-hidden /><span>More</span></button>
+        </nav>
+      )}
+      {more && ledger && (
+        <div className="sheet-back" onMouseDown={(e) => e.target === e.currentTarget && setMore(false)}>
+          <div className="more-sheet" role="dialog" aria-label="All pages">
+            {SECTIONS.map((s) => (
+              <div key={s.id} className="side-sec">
+                <span className="lbl">{s.label}</span>
+                <div className="more-grid">{s.tabs.map((t) => navLink(t, "more-link"))}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="toast-zone" aria-live="polite">
         {toast && (
           <div className="toast" key={toast.id}>

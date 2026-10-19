@@ -95,13 +95,58 @@ export function Delta({ cur, prev, upGood, label }: { cur: number | null; prev: 
   );
 }
 
-export function Kpi({ label, value, lead, children }: { label: string; value: number; lead?: boolean; children?: ReactNode }) {
+export function Kpi({ label, value, lead, children, spark }: { label: string; value: number; lead?: boolean; children?: ReactNode; spark?: (number | null)[] }) {
   const { book } = useApp();
   return (
     <div className={`kpi${lead ? " lead" : ""}${lead && value < 0 ? " neg" : ""}`}>
       <span className="lbl">{label}</span>
       <span className="v"><span className="cc">{book.settings.currency}</span>{money(value)}</span>
+      {spark && <Sparkline values={spark} label={`${label}, last ${spark.length} months`} />}
       <span className="sub">{children}</span>
+    </div>
+  );
+}
+
+/** A small trend line: the shape of the last months, the latest marked. Gaps (no figures) break the line. */
+export function Sparkline({ values, label }: { values: (number | null)[]; label: string }) {
+  const nums = values.filter((v): v is number => v != null);
+  if (nums.length < 2) return null;
+  const W = 120, H = 30, lo = Math.min(0, ...nums), hi = Math.max(...nums, lo + 1);
+  const x = (i: number) => (i / (values.length - 1)) * W;
+  const y = (v: number) => H - 2 - ((v - lo) / (hi - lo)) * (H - 4);
+  const d = values.map((v, i) => (v == null ? "" : `${i && values[i - 1] != null ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`)).join("");
+  const last = values.length - 1 - [...values].reverse().findIndex((v) => v != null);
+  return (
+    <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label}>
+      {lo < 0 && <line x1={0} x2={W} y1={y(0)} y2={y(0)} stroke="var(--line)" strokeWidth={1} vectorEffect="non-scaling-stroke" />}
+      <path d={d} fill="none" stroke="var(--accent)" strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <circle cx={x(last)} cy={y(values[last]!)} r={2.6} fill="var(--accent)" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+/** Progress as a ring with the percentage inside. */
+export function Ring({ value, size = 56, tone }: { value: number; size?: number; tone?: "good" | "bad" | "warn" }) {
+  const r = (size - 8) / 2, c = 2 * Math.PI * r, p = Math.max(0, Math.min(1, value));
+  const col = tone === "bad" ? "var(--bad)" : tone === "warn" ? "var(--warn)" : "var(--accent)";
+  return (
+    <svg className="ring" width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${Math.round(p * 100)}%`}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--sunk)" strokeWidth={6} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={6} strokeLinecap="round"
+        strokeDasharray={`${c * p} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} className="ring-arc" />
+      <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle">{Math.round(p * 100)}%</text>
+    </svg>
+  );
+}
+
+/** An empty page: an icon, what the page is for, and the one thing to do first. */
+export function EmptyState({ icon: Icon, title, children, action }: { icon: React.ComponentType<{ size?: number; strokeWidth?: number }>; title: string; children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="panel empty">
+      <span className="empty-icon" aria-hidden><Icon size={26} strokeWidth={1.7} /></span>
+      <h3>{title}</h3>
+      <p className="muted">{children}</p>
+      {action}
     </div>
   );
 }
