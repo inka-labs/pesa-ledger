@@ -27,7 +27,8 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--f-body); }
-.app { max-width: 1160px; margin: 0 auto; padding: 20px max(16px, 3vw) 64px; display: grid; gap: 20px; }
+/* the page uses the screen's width (up to 1680px) so twelve months of figures fit side by side */
+.app { max-width: 1680px; margin: 0 auto; padding: 20px max(16px, 2.5vw) 64px; display: grid; gap: 20px; }
 .stack { display: grid; gap: 16px; }
 /* grid children otherwise refuse to shrink below their content (the tab bar), widening the whole page on a phone */
 .app > *, .stack > *, .catgroups > *, .top > .tabs { min-width: 0; }
@@ -92,7 +93,7 @@ textarea { width: 100%; min-height: 70px; resize: vertical; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 14px; min-width: 0; }
 .panel-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
 .panel-h .end { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; align-items: start; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 14px; align-items: start; }
 
 /* month header */
 .monthnav { display: flex; align-items: center; gap: 6px; }
@@ -100,7 +101,7 @@ textarea { width: 100%; min-height: 70px; resize: vertical; }
 .monthnav .btn { padding: 6px 11px; font-size: 16px; line-height: 1; }
 
 /* KPI tiles */
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
 .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
 .kpi .v { font-family: var(--f-display); font-size: 26px; font-weight: 700; line-height: 1.15; }
 .kpi .v .cc { font-family: var(--f-body); font-size: 12px; font-weight: 500; color: var(--muted); margin-right: 4px; }
@@ -162,7 +163,7 @@ textarea { width: 100%; min-height: 70px; resize: vertical; }
 /* tables */
 .scroll { overflow-x: auto; }
 table.t { border-collapse: collapse; width: 100%; font-size: 12.5px; }
-table.t th, table.t td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+table.t th, table.t td { padding: 6px 7px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
 table.t th:first-child, table.t td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface); z-index: 1; }
 table.t thead th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
 table.t td { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
@@ -173,13 +174,15 @@ table.t tr.cat td:first-child { padding-left: 24px; color: var(--ink-2); }
 table.t td.empty { color: var(--muted); }
 
 /* budget grid */
-table.bg td { padding: 3px 4px; }
-table.bg td:first-child { padding-left: 10px; min-width: 150px; max-width: 220px; white-space: normal; }
-table.bg input.amt { width: 88px; padding: 4px 6px; font-size: 12px; border-color: transparent; background: transparent; }
+table.bg { table-layout: auto; }
+table.bg th { padding-inline: 4px; }
+table.bg td { padding: 3px 2px; }
+table.bg td:first-child { padding-left: 10px; min-width: 140px; max-width: 200px; white-space: normal; }
+table.bg input.amt { width: 100%; min-width: 72px; padding: 4px 6px; font-size: 12px; border-color: transparent; background: transparent; }
 table.bg input.amt:hover { border-color: var(--line); }
 table.bg input.amt:focus { border-color: var(--accent); background: var(--surface); }
 table.bg input.amt::placeholder { color: var(--muted); opacity: .85; }
-table.bg input.yr { font-weight: 600; width: 108px; background: var(--sunk); }
+table.bg input.yr { font-weight: 600; min-width: 96px; background: var(--sunk); }
 table.bg .past { background: color-mix(in srgb, var(--sunk) 55%, transparent); }
 table.bg th.now { color: var(--accent); }
 table.bg tr.gh td, table.bg tr.sum td { padding: 6px 8px; }
@@ -187,7 +190,7 @@ table.bg tr.gh td, table.bg tr.sum td { padding: 6px 8px; }
 .key .ex { font-family: var(--f-num); color: var(--muted); }
 
 /* goals */
-.goals { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+.goals { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 14px; }
 .goal { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 10px; align-content: start; }
 .goal .top-l { display: flex; gap: 8px; align-items: start; }
 .goal .top-l h3 { margin-right: auto; }
@@ -202,7 +205,7 @@ table.bg tr.gh td, table.bg tr.sum td { padding: 6px 8px; }
 .checks label { display: flex; gap: 6px; align-items: center; font-size: 13px; }
 
 /* categories: one full-width panel per group; every row is a grid whose columns can shrink, so nothing overflows */
-.catgroups { display: grid; gap: 14px; max-width: 860px; }
+.catgroups { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 600px), 1fr)); align-items: start; }
 .group-line { display: grid; grid-template-columns: auto minmax(0, 1fr) 130px auto auto; gap: 8px; align-items: center; }
 .group-line .gname { font-weight: 600; font-size: 15px; }
 .cat-list { display: grid; gap: 6px; }
