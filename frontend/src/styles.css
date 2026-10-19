@@ -8,6 +8,7 @@
   --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
   --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --cmp-a: var(--s1); --cmp-b: var(--s2);
   --r: 10px;
   color-scheme: light;
 }
@@ -51,11 +52,15 @@ a { color: var(--accent); text-underline-offset: 2px; }
 .save { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .save::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
 .save[data-s="saved"]::before { background: var(--good); }
-.save[data-s="saving"]::before { background: var(--s4); }
+.save[data-s="saving"]::before { background: #e0a100; }
 .save[data-s="error"]::before { background: var(--bad); }
 .tabs { display: flex; gap: 2px; background: var(--sunk); border-radius: 999px; padding: 3px; overflow-x: auto; max-width: 100%; }
 .tabs a { color: var(--ink-2); font: 500 13px var(--f-body); padding: 6px 14px; border-radius: 999px; white-space: nowrap; text-decoration: none; }
 .tabs a[aria-current="page"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+.subnav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; margin-top: -6px; }
+.subnav a { color: var(--ink-2); text-decoration: none; font-weight: 500; padding: 8px 12px; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.subnav a:hover { color: var(--ink); }
+.subnav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
 .theme { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; padding: 4px 8px; border-radius: 6px; }
 .theme:hover { background: var(--sunk); color: var(--ink); }
 
@@ -225,6 +230,36 @@ table.bg tr.gh td, table.bg tr.sum td { padding: 6px 8px; }
   .cat-line .cgroup { grid-column: 1; }
   .cat-line .cact { grid-column: 2; justify-self: end; }
 }
+
+/* colour picker */
+.cpick { position: relative; }
+.cpick summary { list-style: none; cursor: pointer; padding: 4px; border-radius: 6px; display: inline-flex; }
+.cpick summary::-webkit-details-marker { display: none; }
+.cpick summary:hover { background: var(--sunk); }
+.sw.big { width: 16px; height: 16px; border-radius: 4px; }
+.cpick .pop { position: absolute; z-index: 10; top: calc(100% + 4px); left: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, .18); display: grid; gap: 10px; width: 236px; }
+.swatches { display: grid; grid-template-columns: repeat(7, 24px); gap: 6px; }
+.swb { width: 24px; height: 24px; border-radius: 6px; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.swb[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cpick input[type="color"] { width: 40px; height: 28px; border: 1px solid var(--line); border-radius: 6px; background: none; padding: 0 2px; cursor: pointer; }
+
+/* appearance */
+.gcolors { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.gcolor { display: inline-flex; align-items: center; gap: 4px; }
+.pfamily { display: grid; gap: 8px; }
+.palettes { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.pcard { display: grid; gap: 6px; text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 8px 10px; cursor: pointer; color: var(--ink); }
+.pcard:hover { border-color: var(--muted); }
+.pcard[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.pname { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 500; }
+.strip { display: flex; height: 14px; border-radius: 4px; overflow: hidden; }
+.strip i { flex: 1; }
+
+/* group types */
+.kinds { display: grid; gap: 6px; }
+.kind-line { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 180px) minmax(0, 2fr) 92px; gap: 8px; align-items: center; }
+.kind-line input, .kind-line select { width: 100%; min-width: 0; }
+@media (max-width: 700px) { .kind-line { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .kind-line .help { grid-column: 1 / -1; } }
 
 /* backups */
 .blist { display: grid; gap: 4px; max-height: 280px; overflow-y: auto; }

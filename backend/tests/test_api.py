@@ -39,6 +39,28 @@ def test_settings_and_years_round_trip(client, settings, ledger_home):
     assert mode == 0o600
 
 
+def test_older_settings_get_the_default_types_and_palette(client, settings):
+    saved = client.put("/api/settings", json=settings).json()
+    assert [k["id"] for k in saved["kinds"]] == ["income", "saving", "expense"]
+    assert saved["palette"] == "pesa"
+
+
+def test_custom_types_and_colours(client, settings):
+    custom = {**settings,
+              "kinds": [*settings.get("kinds", []), {"id": "income", "name": "Income", "effect": "in"},
+                        {"id": "expense", "name": "Spending", "effect": "out"},
+                        {"id": "k1", "name": "Transfers", "effect": "none"}],
+              "groups": [*settings["groups"], {"id": "tr", "name": "Between accounts", "kind": "k1", "slot": 5, "color": "#aa3377"}],
+              "palette": "viridis"}
+    saved = client.put("/api/settings", json=custom).json()
+    assert saved["groups"][-1]["color"] == "#aa3377" and saved["palette"] == "viridis"
+    bad_type = {**custom, "groups": [{**custom["groups"][0], "kind": "nope"}]}
+    r = client.put("/api/settings", json=bad_type)
+    assert r.status_code == 400 and "type that doesn't exist" in r.json()["detail"]
+    assert client.put("/api/settings", json={**custom, "groups": [{**custom["groups"][-1], "color": "red"}]}).status_code == 400
+    assert client.put("/api/settings", json={**custom, "kinds": [{"id": "x", "name": "X", "effect": "sideways"}]}).status_code == 400
+
+
 def test_bad_writes_are_refused_with_a_reason(client, settings):
     bad_cat = {**settings, "cats": [{"id": "x", "name": "Orphan", "group": "nope"}]}
     r = client.put("/api/settings", json=bad_cat)

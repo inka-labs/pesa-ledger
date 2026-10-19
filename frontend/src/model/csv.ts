@@ -6,10 +6,10 @@
  *    plan-3 / plan-Mar             one month's budget on its own
  *  A row with no category adds its note to that month. */
 
-import { emptyYear, MONTHS, mk } from "./ledger";
+import { DEFAULT_KINDS, emptyYear, kindsOf, MONTHS, mk } from "./ledger";
 import { parseAmount } from "./format";
 import { starterSettings } from "./example";
-import type { Group, Ledger, Settings } from "./types";
+import type { Effect, Group, Ledger, Settings } from "./types";
 
 export function parseCSV(text: string): string[][] {
   const rows: string[][] = [];
@@ -44,7 +44,7 @@ export const newId = (prefix: string) => prefix + Date.now().toString(36).slice(
 export function nextSlot(groups: Group[]): number {
   const used = new Set(groups.map((g) => g.slot));
   let slot = 1;
-  while (used.has(slot) && slot < 8) slot++;
+  while (used.has(slot) && slot < 20) slot++;
   return slot;
 }
 
@@ -73,8 +73,14 @@ export function importCSV(text: string, current: Ledger | null): ImportResult {
     const name = (raw || "Spending").trim();
     let g = st.groups.find((x) => x.name.toLowerCase() === name.toLowerCase());
     if (!g) {
-      const kind = /income|salary|earn/i.test(name) ? "income" : /sav|invest|pension/i.test(name) ? "saving" : "expense";
-      g = { id: newId("g"), name, kind, slot: kind === "income" ? 0 : nextSlot(st.groups) };
+      const effect: Effect = /income|salary|earn/i.test(name) ? "in" : /sav|invest|pension/i.test(name) ? "aside" : "out";
+      // the first type with that effect; add the default one if the ledger has none
+      let kind = kindsOf(st).find((k) => k.effect === effect);
+      if (!kind) {
+        kind = DEFAULT_KINDS.find((k) => k.effect === effect)!;
+        st.kinds = [...kindsOf(st), kind];
+      }
+      g = { id: newId("g"), name, kind: kind.id, slot: effect === "in" ? 0 : nextSlot(st.groups) };
       st.groups.push(g);
     }
     return g;
@@ -100,7 +106,8 @@ export function importCSV(text: string, current: Ledger | null): ImportResult {
     const amount = parseAmount(r[ia]);
     if (amount == null || Number.isNaN(amount)) { skipped++; continue; }
     const g = groupNamed(ig >= 0 ? r[ig] : "");
-    if (isPlan && g.kind === "income") { incomeBudgets++; continue; } // income isn't budgeted
+    const effect = kindsOf(st).find((k) => k.id === g.kind)?.effect ?? "out";
+    if (isPlan && (effect === "in" || effect === "none")) { incomeBudgets++; continue; } // only savings and spending are budgeted
     let c = st.cats.find((x) => x.group === g.id && x.name.toLowerCase() === catName.toLowerCase());
     if (!c) { c = { id: newId("c"), name: catName, group: g.id }; st.cats.push(c); }
     usedCats.add(c.id);

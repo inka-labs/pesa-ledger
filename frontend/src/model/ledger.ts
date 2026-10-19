@@ -1,7 +1,23 @@
 /** The ledger's arithmetic: totals, budgets, forecasts, comparisons and goals. Pure functions over a
  *  Ledger, so the views never compute money themselves and the tests cover all of it. */
 
-import type { Category, Goal, Group, Ledger, Metric, Totals, YearDoc, YM } from "./types";
+import type { Category, Effect, Goal, Group, Kind, Ledger, Metric, Totals, YearDoc, YM } from "./types";
+
+/** The three types every ledger starts with (and what older ledgers, saved before custom types, use). */
+export const DEFAULT_KINDS: Kind[] = [
+  { id: "income", name: "Income", effect: "in" },
+  { id: "saving", name: "Saving", effect: "aside" },
+  { id: "expense", name: "Spending", effect: "out" },
+];
+
+export const EFFECTS: { id: Effect; label: string; help: string }[] = [
+  { id: "in", label: "Money in", help: "Adds to what's left over. Not budgeted." },
+  { id: "aside", label: "Set aside", help: "Saved or invested. Budgeted, and counted in Saved." },
+  { id: "out", label: "Money out", help: "Spent. Budgeted, and counted in Spent." },
+  { id: "none", label: "Not counted", help: "Tracked only, like transfers or loans owed to you. Never in the totals." },
+];
+
+export const kindsOf = (s: { kinds?: Kind[] }) => (s.kinds?.length ? s.kinds : DEFAULT_KINDS);
 
 export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -30,30 +46,42 @@ function blank(): Totals {
 export class Book {
   readonly cats: Record<string, Category> = {};
   readonly groups: Record<string, Group> = {};
+  readonly kinds: Record<string, Kind> = {};
 
   constructor(readonly ledger: Ledger, readonly today: YM = thisMonth()) {
     ledger.settings.cats.forEach((c) => (this.cats[c.id] = c));
     ledger.settings.groups.forEach((g) => (this.groups[g.id] = g));
+    kindsOf(ledger.settings).forEach((k) => (this.kinds[k.id] = k));
   }
 
   get settings() {
     return this.ledger.settings;
   }
 
+  kindList(): Kind[] {
+    return kindsOf(this.settings);
+  }
+
   year(y: number): YearDoc | undefined {
     return this.ledger.years[String(y)];
   }
 
-  kindOf(cid: string) {
-    return this.groups[this.cats[cid]?.group]?.kind;
+  /** How a group's figures count. A group whose type was removed counts as money out. */
+  effectOfGroup(g: Group | undefined): Effect {
+    return (g && this.kinds[g.kind]?.effect) || "out";
+  }
+
+  effectOf(cid: string): Effect {
+    return this.effectOfGroup(this.groups[this.cats[cid]?.group]);
   }
 
   catsIn(gid: string, includeArchived = false) {
     return this.settings.cats.filter((c) => c.group === gid && (includeArchived || !c.archived));
   }
 
+  /** Groups whose money leaves what's left over: set aside or spent (stacked in the charts, budgeted). */
   outGroups() {
-    return this.settings.groups.filter((g) => g.kind !== "income");
+    return this.settings.groups.filter((g) => ["aside", "out"].includes(this.effectOfGroup(g)));
   }
 
   private add(r: Totals, cid: string, v: number) {
@@ -63,9 +91,10 @@ export class Book {
     r.has = true;
     r.byGroup[g.id] = (r.byGroup[g.id] || 0) + v;
     r.byCat[cid] = (r.byCat[cid] || 0) + v;
-    if (g.kind === "income") r.income += v;
-    else if (g.kind === "saving") r.saved += v;
-    else r.spent += v;
+    const effect = this.effectOfGroup(g);
+    if (effect === "in") r.income += v;
+    else if (effect === "aside") r.saved += v;
+    else if (effect === "out") r.spent += v;
     r.left = r.income - r.saved - r.spent;
   }
 
@@ -100,8 +129,8 @@ export class Book {
   // forecast uses expectedIncome() for months that haven't happened.
 
   budgeted(cid: string): boolean {
-    const k = this.kindOf(cid);
-    return k === "saving" || k === "expense";
+    const e = this.effectOf(cid);
+    return e === "aside" || e === "out";
   }
 
   planAnnual(y: number, cid: string): number | null {
@@ -219,8 +248,8 @@ export class Book {
   /** Whether a rise is good news: more income or savings is, more spending isn't. */
   upIsGood(key: Metric): boolean {
     if (key === "spent") return false;
-    if (key.startsWith("g:")) return this.groups[key.slice(2)]?.kind !== "expense";
-    if (key.startsWith("c:")) return this.kindOf(key.slice(2)) !== "expense";
+    if (key.startsWith("g:")) return this.effectOfGroup(this.groups[key.slice(2)]) !== "out";
+    if (key.startsWith("c:")) return this.effectOf(key.slice(2)) !== "out";
     return true;
   }
 

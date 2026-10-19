@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { amountText, money, pct } from "../model/format";
 import type { Group } from "../model/types";
+import { colorOf } from "../model/theme";
 import { useApp } from "../context";
 
 /** A number box that keeps what you type until you leave it (Enter or Tab), then commits.
@@ -75,8 +76,8 @@ export function TextInput(props: { value: string; onCommit: (v: string) => void;
   );
 }
 
-export function Swatch({ g }: { g: Pick<Group, "slot"> }) {
-  return <span className="sw" style={{ background: `var(--s${g.slot ?? 0})` }} />;
+export function Swatch({ g }: { g: Pick<Group, "slot" | "color"> }) {
+  return <span className="sw" style={{ background: colorOf(g) }} />;
 }
 
 /** "▲ 12% vs Sep", coloured by whether the move is good news. */

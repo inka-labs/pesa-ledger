@@ -3,16 +3,17 @@ import type { Book } from "./model/ledger";
 import type { Rates, Read } from "./model/money";
 import type { Ledger, Metric } from "./model/types";
 
-export type Tab = "month" | "budget" | "year" | "compare" | "goals" | "categories" | "settings";
-export const TABS: { id: Tab; label: string }[] = [
-  { id: "month", label: "Month" },
-  { id: "budget", label: "Budget" },
-  { id: "year", label: "Year" },
-  { id: "compare", label: "Compare" },
-  { id: "goals", label: "Goals" },
-  { id: "categories", label: "Categories" },
-  { id: "settings", label: "Settings" },
+export type Tab = "month" | "year" | "compare" | "budget" | "goals" | "settings" | "categories" | "appearance";
+export type Section = { id: string; label: string; tabs: { id: Tab; label: string }[] };
+
+/** Three places: what happened (Track), what's ahead (Plan), and how the ledger is set up (Settings). */
+export const SECTIONS: Section[] = [
+  { id: "track", label: "Track", tabs: [{ id: "month", label: "Month" }, { id: "year", label: "Year" }, { id: "compare", label: "Compare" }] },
+  { id: "plan", label: "Plan", tabs: [{ id: "budget", label: "Budget" }, { id: "goals", label: "Goals" }] },
+  { id: "setup", label: "Settings", tabs: [{ id: "settings", label: "General" }, { id: "categories", label: "Categories" }, { id: "appearance", label: "Appearance" }] },
 ];
+export const TABS = SECTIONS.flatMap((s) => s.tabs);
+export const sectionOf = (tab: Tab) => SECTIONS.find((s) => s.tabs.some((t) => t.id === tab))!;
 
 export type View = {
   y: number;
@@ -38,6 +39,8 @@ export type Ctx = {
   read: (text: string) => Read;
   /** a short message at the bottom of the screen */
   notify: (text: string) => void;
+  theme: "system" | "light" | "dark";
+  setTheme: (t: "system" | "light" | "dark") => void;
   /** change a copy of the ledger; `touches` says what to save ("settings", "y:2026") */
   change: (mutate: (draft: Ledger) => void, touches: string[]) => void;
   replace: (next: Ledger) => void;

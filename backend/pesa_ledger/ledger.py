@@ -35,11 +35,33 @@ class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
+class Kind(Strict):
+    """A type of group the user defines ("Income", "Business", "Debt repayment"...). Its effect says how
+    its figures count: in (adds to what's left over), aside (saved or invested: subtracts, and is
+    budgeted), out (spent: subtracts, and is budgeted), none (tracked only: never in the totals)."""
+    id: Id
+    name: Name
+    effect: Literal["in", "aside", "out", "none"]
+
+
+# The three every ledger started with; their ids are what groups saved before custom types point at.
+DEFAULT_KINDS = [
+    {"id": "income", "name": "Income", "effect": "in"},
+    {"id": "saving", "name": "Saving", "effect": "aside"},
+    {"id": "expense", "name": "Spending", "effect": "out"},
+]
+
+Hex = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
+
+
 class Group(Strict):
     id: Id
     name: Name
-    kind: Literal["income", "saving", "expense"]
-    slot: int = Field(ge=0, le=8)
+    kind: Id
+    # a position in the chosen palette (0 = the text colour)...
+    slot: int = Field(ge=0, le=40)
+    # ...unless the user picked a colour of their own
+    color: Hex | None = None
 
 
 class Category(Strict):
@@ -71,6 +93,9 @@ class Settings(Strict):
     v: int = 1
     currency: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=5)] = "KES"
     alt: OtherCurrency | None = None
+    kinds: list[Kind] = Field(default_factory=lambda: [Kind(**k) for k in DEFAULT_KINDS], min_length=1, max_length=30)
+    # a Matplotlib colormap name, or "pesa" (the built-in palette)
+    palette: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,30}$")] = "pesa"
     groups: list[Group] = Field(max_length=40)
     cats: list[Category] = Field(max_length=1000)
     goals: list[Goal] = Field(default_factory=list, max_length=200)
@@ -126,6 +151,11 @@ def save_settings(payload: dict) -> dict:
         settings = Settings.model_validate(payload)
     except ValidationError as e:
         raise LedgerError(_explain(e))
+    kind_ids = {k.id for k in settings.kinds}
+    if len(kind_ids) != len(settings.kinds):
+        raise LedgerError("Two group types have the same id.")
+    if any(g.kind not in kind_ids for g in settings.groups):
+        raise LedgerError("A group has a type that doesn't exist.")
     group_ids = {g.id for g in settings.groups}
     if len(group_ids) != len(settings.groups):
         raise LedgerError("Two groups have the same id.")

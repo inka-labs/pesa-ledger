@@ -1,6 +1,6 @@
 /** Starter categories and the example ledger someone can explore before entering their own. */
 
-import { mk } from "./ledger";
+import { DEFAULT_KINDS, mk } from "./ledger";
 import type { Ledger, Settings, YearDoc, YM } from "./types";
 
 export function starterSettings(): Settings {
@@ -19,7 +19,7 @@ export function starterSettings(): Settings {
     snk: ["Car service & insurance", "Medical", "Entertainment", "Gifts & occasions"],
   };
   const cats = groups.flatMap((g) => names[g.id].map((name, i) => ({ id: `${g.id}_${i}`, name, group: g.id })));
-  return { v: 1, currency: "KES", alt: { code: "USD", rate: 129 }, groups, cats, goals: [], example: false };
+  return { v: 1, currency: "KES", alt: { code: "USD", rate: 129, auto: true }, kinds: structuredClone(DEFAULT_KINDS), palette: "pesa", groups, cats, goals: [], example: false };
 }
 
 export function emptyGroupsSettings(): Settings {

@@ -7,6 +7,7 @@ import { compact, money } from "../model/format";
 import { MONTHS, MONTHS_LONG, type Book } from "../model/ledger";
 import type { Metric } from "../model/types";
 import { Delta, Swatch } from "./bits";
+import { colorOf } from "../model/theme";
 
 const W = 720, L = 50, R = 8, T = 14, B = 26;
 
@@ -71,7 +72,7 @@ export function YearChart({ book, y }: { book: Book; y: number }) {
       acc += d.v;
       const h = Math.max(0, y0 - y1 - (k > 0 ? 2 : 0)); // 2px gap between stacked segments
       if (h <= 0) return;
-      const fill = `var(--s${d.g.slot})`;
+      const fill = colorOf(d.g);
       bars.push(k === segs.length - 1
         ? <path key={`${i}${k}`} d={topRounded(x, y1, bw, h, 4)} fill={fill} />
         : <rect key={`${i}${k}`} x={x} y={y1} width={bw} height={h} fill={fill} />);
@@ -123,15 +124,15 @@ export function CompareChart({ book, a, b, metric }: { book: Book; a: number; b:
   const tips = MONTHS.map((_, i) => (
     <>
       <b>{MONTHS_LONG[i]} · {label}</b>
-      <div className="tr"><span><span className="sw" style={{ background: "var(--s1)" }} />{a}</span><span className="num">{money(va[i])}</span></div>
-      <div className="tr"><span><span className="sw" style={{ background: "var(--s2)" }} />{b}</span><span className="num">{money(vb[i])}</span></div>
+      <div className="tr"><span><span className="sw" style={{ background: "var(--cmp-a)" }} />{a}</span><span className="num">{money(va[i])}</span></div>
+      <div className="tr"><span><span className="sw" style={{ background: "var(--cmp-b)" }} />{b}</span><span className="num">{money(vb[i])}</span></div>
       <div className="tr total"><Delta cur={va[i]} prev={vb[i]} upGood={book.upIsGood(metric)} label={String(b)} /></div>
     </>
   ));
   return (
     <Frame H={H} sc={sc} ys={ys} tips={tips} label={`${label}, ${a} against ${b}`}>
-      {line(vb, "var(--s2)", "b")}
-      {line(va, "var(--s1)", "a")}
+      {line(vb, "var(--cmp-b)", "b")}
+      {line(va, "var(--cmp-a)", "a")}
     </Frame>
   );
 }

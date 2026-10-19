@@ -38,6 +38,31 @@ describe("totals", () => {
   });
 });
 
+describe("custom group types", () => {
+  it("counts each group by its type's effect, and leaves tracked-only groups out of the totals", () => {
+    const l = ledger();
+    l.settings.kinds = [...(l.settings.kinds ?? []), { id: "biz", name: "Business", effect: "in" }, { id: "tr", name: "Transfers", effect: "none" }];
+    l.settings.groups.push({ id: "consult", name: "Consulting", kind: "biz", slot: 6 }, { id: "move", name: "Between accounts", kind: "tr", slot: 7 });
+    l.settings.cats.push({ id: "c_wwf", name: "WWF contract", group: "consult" }, { id: "c_mmf", name: "To MMF", group: "move" });
+    l.years["2026"].actual["01"] = { ...l.years["2026"].actual["01"], c_wwf: 50_000, c_mmf: 70_000 };
+    const b = new Book(l, TODAY);
+    const t = b.monthTotals(2026, 1);
+    expect(t.income).toBe(150_000); // salary + consulting
+    expect(t.left).toBe(150_000 - 10_000 - 20_000); // the transfer isn't counted...
+    expect(t.byGroup.move).toBe(70_000); // ...but it's still tracked
+    expect(b.budgeted("c_mmf")).toBe(false);
+    expect(b.budgeted("c_wwf")).toBe(false);
+    expect(b.outGroups().map((g) => g.id)).not.toContain("move");
+  });
+
+  it("treats a group whose type was deleted as spending", () => {
+    const l = ledger();
+    l.settings.groups.push({ id: "odd", name: "Odd", kind: "gone", slot: 5 });
+    l.settings.cats.push({ id: "c_odd", name: "Odd", group: "odd" });
+    expect(new Book(l, TODAY).effectOf("c_odd")).toBe("out");
+  });
+});
+
 describe("budgets", () => {
   it("spreads a yearly plan evenly, and a month's own budget overrides its share", () => {
     const b = new Book(ledger(), TODAY);

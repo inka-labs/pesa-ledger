@@ -84,6 +84,8 @@ function GroupSection({ g, gAct, gPlan }: { g: Group; gAct: number; gPlan: numbe
   const { y, m } = view;
   const [name, setName] = useState("");
   const cats = book.catsIn(g.id, true).filter((c) => !c.archived || book.actual(y, m, c.id) != null);
+  const effect = book.effectOfGroup(g);
+  const budgeted = effect === "aside" || effect === "out";
   const add = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -97,14 +99,14 @@ function GroupSection({ g, gAct, gPlan }: { g: Group; gAct: number; gPlan: numbe
         <h3>{g.name}</h3>
         <span className="tot">
           <span className="num">{money(gAct)}</span>{" "}
-          <span className="muted">{g.kind === "income" ? "received" : `of ${money(gPlan)} budgeted`}</span>
+          <span className="muted">{effect === "in" ? "received" : effect === "none" ? "tracked, not in the totals" : `of ${money(gPlan)} budgeted`}</span>
         </span>
       </div>
       <div>
         {cats.length > 0 && (
           <div className="row head lbl">
-            <span>Category</span><span className="r">{g.kind === "income" ? "" : "Budget"}</span><span className="r">Actual</span>
-            <span>{g.kind === "income" ? "" : "Progress"}</span><span className="r">Month on month</span>
+            <span>Category</span><span className="r">{budgeted ? "Budget" : ""}</span><span className="r">Actual</span>
+            <span>{budgeted ? "Progress" : ""}</span><span className="r">Month on month</span>
           </div>
         )}
         {cats.map((c) => <CategoryRow key={c.id} c={c} g={g} />)}
@@ -126,8 +128,9 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
   const annual = book.planAnnual(y, c.id);
   const p = prevYM({ y, m });
   const prev = book.actual(p.y, p.m, c.id);
-  const spending = g.kind === "expense";
-  const income = g.kind === "income";
+  const effect = book.effectOfGroup(g);
+  const spending = effect === "out";
+  const income = effect === "in" || effect === "none"; // not budgeted
 
   let progress = income ? null : <span className="muted small">No budget</span>;
   if (budget) {

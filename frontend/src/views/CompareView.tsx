@@ -68,8 +68,8 @@ export function CompareView() {
           </div>
         </div>
         <div className="legend">
-          <span><span className="ln" style={{ background: "var(--s1)" }} />{a}</span>
-          <span><span className="ln" style={{ background: "var(--s2)" }} />{b}</span>
+          <span><span className="ln" style={{ background: "var(--cmp-a)" }} />{a}</span>
+          <span><span className="ln" style={{ background: "var(--cmp-b)" }} />{b}</span>
         </div>
         <CompareChart book={book} a={a} b={b} metric={metric} />
       </div>
@@ -84,7 +84,7 @@ export function CompareView() {
               {row("spent", "Spent", ta.spent, tb.spent, false, "sum")}
               {row("left", "Left over", ta.left, tb.left, true, "sum")}
               {book.settings.groups.flatMap((g) => {
-                const up = g.kind !== "expense";
+                const up = book.effectOfGroup(g) !== "out";
                 return [
                   row(g.id, <><Swatch g={g} /> {g.name}</>, ta.byGroup[g.id] || 0, tb.byGroup[g.id] || 0, up, "gh"),
                   ...book.catsIn(g.id, true)

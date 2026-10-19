@@ -109,7 +109,7 @@ function GoalForm({ goal, onSave, onCancel }: { goal?: Goal; onSave: (g: Goal) =
       <div className="field">
         <span className="lbl">Counts towards this goal</span>
         <div className="checks">
-          {book.outGroups().flatMap((gr) => book.catsIn(gr.id).map((c) => (
+          {book.settings.groups.filter((gr) => book.effectOfGroup(gr) !== "in").flatMap((gr) => book.catsIn(gr.id).map((c) => (
             <label key={c.id}><input type="checkbox" checked={g.cats.includes(c.id)} onChange={() => toggle(c.id)} /><Swatch g={gr} />{c.name}</label>
           )))}
         </div>

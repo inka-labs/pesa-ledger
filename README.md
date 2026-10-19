@@ -4,21 +4,37 @@ A private household ledger that runs on your own computer. Budget the months ahe
 out, and compare month on month and year on year. It's built the same way as Ecoscope Studio and Docling Studio:
 a small local server and a web page, with your figures kept in a folder in your home directory.
 
+The app has three sections:
+
+**Track**: what happened
 - **Month:** each category's budget and actual side by side, with what's left or overspent, the change from last
   month and from the same month last year. Copy last month's amounts or fill from the budget in one click.
+- **Year:** where each month's money went, as a chart and a full month-by-month table against budget.
+- **Compare:** any two years over the same months, by total, group or single category.
+
+**Plan**: what's ahead
 - **Budget:** plan any year month by month. A yearly figure spreads evenly; a single month can be set on its own
   (school fees in January, insurance in November). It also shows a year-end forecast (actual figures so far plus
   budget for the rest) and the next 12 months with a running total. Months that would leave you short are flagged.
-- **Year:** where each month's money went, as a chart and a full month-by-month table against budget.
-- **Compare:** any two years over the same months, by total, group or single category.
 - **Goals:** a target and deadline linked to savings or sinking-fund categories. Shows progress, what's needed per
   month, and when you'll get there at your current pace and on your budget.
-- **Categories:** your own groups (income, saving or spending) and categories. Rename, reorder, move between groups,
-  or archive ones you've stopped using without changing past months.
-- **Settings:** a second currency at the live exchange rate (or one you set), CSV import and export, backups and
-  restore, and start at login.
 
-Income isn't budgeted: it's what comes in. Budgets cover savings and spending, and for months that haven't happened
+**Settings**: how the ledger is set up
+- **General:** a second currency at the live exchange rate (or one you set), CSV import and export, backups and
+  restore, and start at login.
+- **Categories:** your own group types, groups and categories. Every group has a type, and each type says how its
+  figures count: *money in*, *set aside* (saved or invested), *money out*, or *not counted* (tracked only, like
+  transfers between your own accounts). Add as many types as you like (Business, Investments, Debt repayment...).
+  Rename, reorder and recolour groups, move categories between them, or archive ones you've stopped using without
+  changing past months.
+- **Appearance:** light, dark or match the computer, and the palette: the built-in one (chosen so neighbouring
+  groups stay distinguishable with colour blindness) or any of 37
+  [Matplotlib colormaps](https://matplotlib.org/stable/users/explain/colors/colormaps.html) (tab10, Set2, viridis,
+  plasma, coolwarm, twilight, turbo...). A palette colours the groups, the charts and the app's accent; colours that
+  would vanish against the page in the current theme are skipped. Any group can also have a colour of its own.
+  `frontend/scripts/palettes.py` regenerates the palettes from Matplotlib.
+
+Money in isn't budgeted: it's what comes in. Budgets cover money set aside and money out, and for months that haven't happened
 the forecast expects income at your recent average (the last three months with income).
 
 ### Other currencies

@@ -1,8 +1,19 @@
 /** The ledger's shape, as the API stores it (backend/pesa_ledger/ledger.py validates the same). */
 
-export type Kind = "income" | "saving" | "expense";
+/** How a type of group counts: money in, set aside (saved or invested), money out, or tracked only. */
+export type Effect = "in" | "aside" | "out" | "none";
+/** A type of group the user defines: "Income", "Business", "Debt repayment"... */
+export type Kind = { id: string; name: string; effect: Effect };
 
-export type Group = { id: string; name: string; kind: Kind; slot: number };
+export type Group = {
+  id: string;
+  name: string;
+  /** a Kind id */
+  kind: string;
+  /** position in the palette (0 = the text colour), unless `color` is set */
+  slot: number;
+  color?: string | null;
+};
 export type Category = { id: string; name: string; group: string; archived?: boolean };
 export type Goal = {
   id: string;
@@ -22,6 +33,10 @@ export type Settings = {
   currency: string;
   /** a second currency to show totals in; `auto` (the default) uses the live rate, otherwise `rate` */
   alt?: { code: string; rate?: number | null; auto?: boolean } | null;
+  /** group types; older ledgers have none saved and use DEFAULT_KINDS */
+  kinds?: Kind[];
+  /** "pesa" or a Matplotlib colormap name */
+  palette?: string;
   groups: Group[];
   cats: Category[];
   goals: Goal[];

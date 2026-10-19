@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type Version } from "./api";
 import { NAME } from "./brand";
-import { AppContext, TABS, type Ctx, type Tab, type View } from "./context";
+import { AppContext, SECTIONS, sectionOf, TABS, type Ctx, type Tab, type View } from "./context";
+import { applyPalette } from "./model/theme";
+import { AppearanceView } from "./views/AppearanceView";
 import { Book, thisMonth } from "./model/ledger";
 import { altRate, readMoney, type Rates } from "./model/money";
 import { useLedger } from "./store";
@@ -19,7 +21,7 @@ const tabFromHash = (): Tab => {
   return TABS.some((t) => t.id === h) ? h : "month";
 };
 
-type Theme = "system" | "light" | "dark";
+export type Theme = "system" | "light" | "dark";
 function useTheme() {
   const [theme, setTheme] = useState<Theme>(() => {
     try { return (localStorage.getItem("pesa-ledger.theme") as Theme) || "system"; } catch { return "system"; }
@@ -30,7 +32,7 @@ function useTheme() {
     try { localStorage.setItem("pesa-ledger.theme", theme); } catch { /* private window */ }
   }, [theme]);
   const next: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
-  return { theme, cycle: () => setTheme(next[theme]) };
+  return { theme, setTheme, cycle: () => setTheme(next[theme]) };
 }
 
 export default function App() {
@@ -41,7 +43,13 @@ export default function App() {
     y: today.y, m: today.m, yearView: today.y, cmpA: today.y, cmpB: today.y - 1, cmpMetric: "spent", cmpSame: true, planYear: today.y, catHint: false,
   });
   const [version, setVersion] = useState<Version | null>(null);
-  const { theme, cycle } = useTheme();
+  const { theme, setTheme, cycle } = useTheme();
+  // the last tab used in each section, so switching sections returns to it
+  const [lastInSection, setLastInSection] = useState<Record<string, Tab>>({});
+  useEffect(() => setLastInSection((s) => ({ ...s, [sectionOf(tab).id]: tab })), [tab]);
+  // the palette recolours groups, charts and (for Matplotlib palettes) the accent
+  const palette = ledger?.settings.palette;
+  useEffect(() => applyPalette(palette), [palette]);
 
   useEffect(() => {
     const onHash = () => setTab(tabFromHash());
@@ -86,12 +94,12 @@ export default function App() {
   const ctx: Ctx | null = useMemo(() => {
     if (!ledger) return null;
     return {
-      book: new Book(ledger), change, replace, view, setView, go, notify, rates, ratesError,
+      book: new Book(ledger), change, replace, view, setView, go, notify, rates, ratesError, theme, setTheme,
       refreshRates: () => loadRates(true),
       altRate: altRate(ledger.settings, rates),
       read: (text: string) => readMoney(text, ledger.settings.currency, rates),
     };
-  }, [ledger, change, replace, view, setView, go, notify, rates, ratesError, loadRates]);
+  }, [ledger, change, replace, view, setView, go, notify, rates, ratesError, loadRates, theme, setTheme]);
 
   useEffect(() => {
     document.title = tab === "month" || !ledger ? NAME : `${TABS.find((t) => t.id === tab)?.label} · ${NAME}`;
@@ -119,14 +127,21 @@ export default function App() {
           {theme === "system" ? "Theme: system" : theme === "light" ? "Theme: light" : "Theme: dark"}
         </button>
         {ledger && (
-          <nav className="tabs" aria-label="Views">
-            {TABS.map((t) => (
-              <a key={t.id} href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined}
-                onClick={() => t.id !== "categories" && view.catHint && setView({ catHint: false })}>{t.label}</a>
+          <nav className="tabs" aria-label="Sections">
+            {SECTIONS.map((s) => (
+              <a key={s.id} href={`#${lastInSection[s.id] ?? s.tabs[0].id}`} aria-current={sectionOf(tab).id === s.id ? "page" : undefined}>{s.label}</a>
             ))}
           </nav>
         )}
       </header>
+      {ledger && (
+        <nav className="subnav" aria-label={sectionOf(tab).label}>
+          {sectionOf(tab).tabs.map((t) => (
+            <a key={t.id} href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined}
+              onClick={() => t.id !== "categories" && view.catHint && setView({ catHint: false })}>{t.label}</a>
+          ))}
+        </nav>
+      )}
 
       {save.kind === "error" && (
         <div className="banner" role="alert"><span><b>Your last change wasn't saved.</b> {save.message}</span><button className="btn" onClick={retry}>Try again</button></div>
@@ -150,6 +165,7 @@ export default function App() {
             {tab === "goals" && <GoalsView />}
             {tab === "categories" && <CategoriesView />}
             {tab === "settings" && <SettingsView version={version} onRestored={restored} />}
+            {tab === "appearance" && <AppearanceView />}
           </AppContext.Provider>
         )}
       </main>
