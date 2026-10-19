@@ -3,11 +3,11 @@ import { money, pct } from "../model/format";
 import { MONTHS } from "../model/ledger";
 import type { Totals } from "../model/types";
 import { Alt, Delta, Kpi, OneOffNote, OneOffToggle, Swatch, YearSelect } from "../ui/bits";
-import { HatchSwatch, ShareBar, YearChart } from "../ui/charts";
+import { ShareBar, YearChart } from "../ui/charts";
 
 export function YearView() {
   const app = useApp();
-  const { view, setView } = app;
+  const { view, setView, go } = app;
   const book = view.regular ? app.book.regular : app.book;
   const y = view.yearView;
   const last = book.lastDataMonth(y) || 12;
@@ -17,7 +17,6 @@ export function YearView() {
   const months = MONTHS.map((_, i) => book.monthTotals(y, i + 1));
   const yearT = book.rangeTotals(y, 1, 12);
   const planY = book.planRange(y, 1, 12);
-  const groups = book.outGroups();
 
   const cell = (v: number | undefined, key: number) => (v ? <td key={key}>{money(v)}</td> : <td key={key} className="empty">–</td>);
   const ofBudget = (a: number, p: number | null | undefined) => (p ? <td>{Math.round((a / p) * 100)}%</td> : <td className="empty">–</td>);
@@ -50,14 +49,8 @@ export function YearView() {
         ))}
       </div>
       <div className="panel">
-        <div className="panel-h"><h3>Where each month's money went</h3><span className="muted small">Bars stack savings and spending. The line is income.</span></div>
-        <div className="legend">
-          <span><span className="ln" style={{ background: "var(--s0)" }} />Income</span>
-          {groups.map((g) => <span key={g.id}><Swatch g={g} />{g.name}</span>)}
-          {planY.has && <span><span className="ln budget" />Budget</span>}
-          {!book.regularOnly && yearT.oneOff.any && <span><HatchSwatch />One-off</span>}
-        </div>
-        <YearChart book={book} y={y} />
+        <div className="panel-h"><h3>Where each month's money went</h3><span className="muted small">Bars stack savings and spending; the line is income. Click a legend item to hide it, drag to zoom, click a month to open it.</span></div>
+        <YearChart book={book} y={y} onMonth={(m) => go("month", { y, m })} />
       </div>
       <div className="panel">
         <div className="panel-h"><h3>Where the income went</h3><span className="muted small">{last === 12 ? `All of ${y}` : `Jan–${MONTHS[last - 1]} ${y}`}, as a share of income</span></div>

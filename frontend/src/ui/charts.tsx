@@ -1,149 +1,75 @@
-/** The charts, hand-drawn in SVG (or HTML where bars are simpler): where each month's money went
- *  (stacked outflows, income as a line, budget ticks, one-offs hatched), where the year's income went,
- *  one measure across two years (month by month or as a running total, with the gap underneath), and
- *  which categories moved most. Each has a hover tooltip or labels; the tables carry the same numbers. */
+/** The charts. The two over time (where each month's money went; one measure across two years) are
+ *  Plotly, for zoom, legend toggles and saving as PNG. The two that are single bars per row (where the
+ *  income went; what changed most) are plain HTML. The tables beside them carry the same numbers. */
 
-import { useId, useState, type ReactNode } from "react";
-import { compact, money, pct } from "../model/format";
-import { MONTHS, MONTHS_LONG, type Book } from "../model/ledger";
+import { useMemo } from "react";
+import type { Data, Layout } from "plotly.js";
+import { money, pct } from "../model/format";
+import { MONTHS, type Book } from "../model/ledger";
 import type { Metric, Totals } from "../model/types";
-import { Delta, Swatch } from "./bits";
+import { Swatch } from "./bits";
 import { colorOf } from "../model/theme";
+import { baseLayout, chartTheme, cssColor, Plot, useThemeTick } from "./Plot";
 
-const W = 720, L = 50, R = 8, T = 14, B = 26;
-const band = (W - L - R) / 12;
-const cx = (i: number) => L + i * band + band / 2;
+const esc = (s: string) => s.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]!);
+const mk = (m: number) => String(m).padStart(2, "0");
 
-function scale(lo: number, hi: number) {
-  lo = Math.min(0, lo);
-  hi = Math.max(0, hi);
-  if (hi === lo) hi = lo + 1;
-  const raw = (hi - lo) / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / p;
-  const step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
-  lo = Math.floor(lo / step) * step;
-  hi = Math.ceil(hi / step) * step;
-  const ticks: number[] = [];
-  for (let v = lo; v <= hi + step / 2; v += step) ticks.push(v);
-  return { lo, hi, ticks };
-}
-
-function topRounded(x: number, y: number, w: number, h: number, r: number) {
-  r = Math.min(r, h, w / 2);
-  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
-}
-
-/** Diagonal stripes in the surface colour, laid over the one-off part of a bar. */
-function Hatch({ id }: { id: string }) {
-  return (
-    <defs>
-      <pattern id={id} patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
-        <rect width={2.2} height={6} style={{ fill: "var(--surface)" }} opacity={0.7} />
-      </pattern>
-    </defs>
-  );
-}
-
-/** A legend swatch for one-offs: a hatched square. */
-export function HatchSwatch() {
-  return <span className="sw hatch" aria-hidden />;
-}
-
-function Frame({ H, sc, ys, children, tips, label, defs }: { H: number; sc: ReturnType<typeof scale>; ys: (v: number) => number; children: ReactNode; tips: ReactNode[]; label: string; defs?: ReactNode }) {
-  const [hover, setHover] = useState<number | null>(null);
-  const ph = H - T - B;
-  return (
-    <div className="chart-wrap" onMouseLeave={() => setHover(null)}>
-      <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
-        {defs}
-        {sc.ticks.map((v) => (
-          <g key={v}>
-            <line className={v === 0 ? "base" : "grid"} x1={L} x2={W - R} y1={ys(v)} y2={ys(v)} />
-            <text x={L - 8} y={ys(v) + 4} textAnchor="end">{compact(v)}</text>
-          </g>
-        ))}
-        {MONTHS.map((mn, i) => <text key={mn} x={cx(i)} y={H - 8} textAnchor="middle">{mn}</text>)}
-        {MONTHS.map((_, i) => (
-          <rect key={`h${i}`} className={`hit${hover === i ? " on" : ""}`} x={L + i * band} y={T} width={band} height={ph} onMouseEnter={() => setHover(i)} />
-        ))}
-        <g pointerEvents="none">{children}</g>
-      </svg>
-      {hover != null && (
-        <div className="tip" style={{ left: `${((L + (hover + (hover < 7 ? 1 : 0)) * band) / W) * 100}%`, top: 8, transform: hover < 7 ? "translateX(8px)" : "translateX(calc(-100% - 8px))" }}>
-          {tips[hover]}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const Row = ({ k, v, sw }: { k: ReactNode; v: ReactNode; sw?: ReactNode }) => (
-  <div className="tr"><span>{sw}{k}</span><span className="num">{v}</span></div>
-);
-
-export function YearChart({ book, y }: { book: Book; y: number }) {
-  const hatch = useId().replace(/:/g, "");
-  const H = 270, ph = H - T - B, bw = Math.min(34, band * 0.56);
-  const groups = book.outGroups();
-  const data = MONTHS.map((_, i) => book.monthTotals(y, i + 1));
-  const plans = MONTHS.map((_, i) => book.planRange(y, i + 1, i + 1));
-  // one-offs are hatched only when they're in the figures (a book that leaves them out has none to show)
-  const showOneOffs = !book.regularOnly;
-  const sc = scale(0, Math.max(1, ...data.map((t) => Math.max(t.income, t.saved + t.spent)), ...plans.map((p) => (p.has ? p.saved + p.spent : 0))));
-  const ys = (v: number) => T + ph - ((v - sc.lo) / (sc.hi - sc.lo)) * ph;
-  const bars: ReactNode[] = [];
-  data.forEach((t, i) => {
-    const x = L + i * band + (band - bw) / 2;
-    let acc = 0;
-    const segs = groups.map((g) => ({ g, v: t.byGroup[g.id] || 0, o: showOneOffs ? t.oneOff.byGroup[g.id] || 0 : 0 })).filter((d) => d.v > 0);
-    segs.forEach((d, k) => {
-      const y1 = ys(acc + d.v), y0 = ys(acc);
-      acc += d.v;
-      const h = Math.max(0, y0 - y1 - (k > 0 ? 2 : 0)); // 2px gap between stacked segments
-      if (h <= 0) return;
-      const top = k === segs.length - 1;
-      const shape = (fill: string, key: string) => top
-        ? <path key={key} d={topRounded(x, y1, bw, h, 4)} fill={fill} />
-        : <rect key={key} x={x} y={y1} width={bw} height={h} fill={fill} />;
-      bars.push(shape(colorOf(d.g), `${i}-${k}`));
-      if (d.o > 0) {
-        // the one-off part sits at the top of its segment
-        const oh = Math.min(h, (Math.min(d.o, d.v) / d.v) * h);
-        bars.push(
-          <g key={`${i}-${k}-o`}>
-            <clipPath id={`${hatch}-c${i}-${k}`}><rect x={x} y={y1} width={bw} height={oh} /></clipPath>
-            <g clipPath={`url(#${hatch}-c${i}-${k})`}>{shape(`url(#${hatch})`, "p")}</g>
-          </g>,
-        );
+/** Each month's savings and spending stacked by group (one-offs hatched on top of their group), income as a
+ *  line, and the month's budget as a tick. Click a month to open it. */
+export function YearChart({ book, y, onMonth }: { book: Book; y: number; onMonth?: (m: number) => void }) {
+  const tick = useThemeTick();
+  const { data, layout } = useMemo(() => {
+    const t = chartTheme();
+    const x = MONTHS.map((_, i) => `${y}-${mk(i + 1)}-01`);
+    const totals = MONTHS.map((_, i) => book.monthTotals(y, i + 1));
+    const plans = MONTHS.map((_, i) => book.planRange(y, i + 1, i + 1));
+    const showOneOffs = !book.regularOnly;
+    const data: Data[] = [];
+    let firstOneOff = true;
+    for (const g of book.outGroups()) {
+      const col = cssColor(colorOf(g));
+      const oo = totals.map((tt) => (showOneOffs ? Math.min(tt.oneOff.byGroup[g.id] || 0, Math.max(0, tt.byGroup[g.id] || 0)) : 0));
+      data.push({
+        type: "bar", name: g.name, x, y: totals.map((tt, i) => (tt.has ? (tt.byGroup[g.id] || 0) - oo[i] : null)),
+        marker: { color: col }, legendgroup: g.id, legendrank: 100,
+        hovertemplate: `${esc(g.name)}: %{y:,.0f}<extra></extra>`,
+      });
+      if (oo.some((v) => v > 0)) {
+        data.push({
+          type: "bar", name: "One-off", x, y: oo.map((v) => v || null), legendgroup: "oneoff", showlegend: firstOneOff,
+          marker: { color: col, pattern: { shape: "/", fillmode: "overlay", fgcolor: t.surface, fgopacity: 0.8, size: 7, solidity: 0.35 } }, legendrank: 900,
+          hovertemplate: `${esc(g.name)}, one-off: %{y:,.0f}<extra></extra>`,
+        });
+        firstOneOff = false;
       }
-    });
-    const p = plans[i];
-    if (p.has && p.saved + p.spent > 0) {
-      const py = ys(p.saved + p.spent);
-      bars.push(<line key={`b${i}`} className="budget-tick" x1={x - 5} x2={x + bw + 5} y1={py} y2={py} />);
     }
-  });
-  const pts = data.map((t, i) => (t.has ? ([cx(i), ys(t.income)] as const) : null));
-  const d = pts.map((p, i) => (p ? `${i && pts[i - 1] ? "L" : "M"}${p[0]},${p[1]}` : "")).join("");
-  const tips = data.map((t, i) => (
-    <>
-      <b>{MONTHS_LONG[i]} {y}</b>
-      {t.has ? (
-        <>
-          <Row sw={<span className="ln" style={{ display: "inline-block", width: 12, height: 2, background: "var(--s0)" }} />} k="Income" v={money(t.income)} />
-          {[...groups].reverse().map((g) => <Row key={g.id} sw={<Swatch g={g} />} k={g.name} v={money(t.byGroup[g.id] || 0)} />)}
-          {plans[i].has && <Row k="Budget (saved + spent)" v={money(plans[i].saved + plans[i].spent)} />}
-          {showOneOffs && t.oneOff.any && <Row sw={<HatchSwatch />} k="of which one-off" v={money(t.oneOff.saved + t.oneOff.spent)} />}
-          <div className="tr total"><span>Left over</span><span className="num">{money(t.left)}</span></div>
-        </>
-      ) : plans[i].has ? <Row k="Budget (saved + spent)" v={money(plans[i].saved + plans[i].spent)} /> : <span className="muted">No figures yet</span>}
-    </>
-  ));
+    data.push({
+      type: "scatter", mode: "lines+markers", name: "Income", x, y: totals.map((tt) => (tt.has ? tt.income : null)),
+      line: { color: t.ink, width: 2 }, marker: { size: 7, color: t.ink, line: { color: t.surface, width: 2 } }, legendrank: 1,
+      hovertemplate: "Income: %{y:,.0f}<extra></extra>",
+    });
+    if (plans.some((p) => p.has)) data.push({
+      type: "scatter", mode: "markers", name: "Budget", x, y: plans.map((p) => (p.has && p.saved + p.spent > 0 ? p.saved + p.spent : null)),
+      marker: { symbol: "line-ew", size: window.innerWidth < 700 ? 14 : 30, color: t.muted, line: { width: 2.5, color: t.muted } }, legendrank: 1000,
+      hovertemplate: "Budget: %{y:,.0f}<extra></extra>",
+    });
+    // what's left over, for the tooltip only
+    data.push({
+      type: "scatter", mode: "markers", name: "Left over", x, y: totals.map((tt) => (tt.has ? 0 : null)),
+      customdata: totals.map((tt) => tt.left), marker: { size: 1, opacity: 0 }, showlegend: false,
+      hovertemplate: "<b>Left over: %{customdata:,.0f}</b><extra></extra>",
+    });
+    const base = baseLayout(t, 360);
+    const layout: Partial<Layout> = {
+      ...base,
+      barmode: "relative",
+      xaxis: { ...base.xaxis, type: "date", tickformat: "%b", dtick: "M1", hoverformat: "%B %Y", range: [`${y - 1}-12-16`, `${y}-12-16`] },
+    };
+    return { data, layout };
+  }, [book, y, tick]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <Frame H={H} sc={sc} ys={ys} tips={tips} label={`Monthly income and outflows for ${y}`} defs={<Hatch id={hatch} />}>
-      {bars}
-      <path d={d} fill="none" stroke="var(--s0)" strokeWidth={2} strokeLinejoin="round" />
-      {pts.map((p, i) => p && <circle key={i} cx={p[0]} cy={p[1]} r={4} fill="var(--s0)" stroke="var(--surface)" strokeWidth={2} />)}
-    </Frame>
+    <Plot data={data} layout={layout} label={`Monthly income and outflows for ${y}`} filename={`pesa-ledger-${y}`}
+      onClick={(e) => { const p = e.points[0]; if (p && onMonth) onMonth(Number(String(p.x).slice(5, 7))); }} />
   );
 }
 
@@ -177,94 +103,56 @@ function running(vals: (number | null)[]): (number | null)[] {
   return vals.map((v) => (v == null ? null : (s += v)));
 }
 
+/** One measure across two years, month by month or as a running total, with the gap between them underneath.
+ *  Months whose figure includes a one-off get a ring. */
 export function CompareChart({ book, a, b, metric, mode = "month" }: { book: Book; a: number; b: number; metric: Metric; mode?: "month" | "running" }) {
-  const H = 250, ph = H - T - B;
-  const rawA = MONTHS.map((_, i) => book.metric(a, i + 1, metric));
-  const rawB = MONTHS.map((_, i) => book.metric(b, i + 1, metric));
-  const va = mode === "running" ? running(rawA) : rawA;
-  const vb = mode === "running" ? running(rawB) : rawB;
-  const ooA = book.regularOnly ? [] : MONTHS.map((_, i) => book.metricOneOff(a, i + 1, metric));
-  const ooB = book.regularOnly ? [] : MONTHS.map((_, i) => book.metricOneOff(b, i + 1, metric));
-  const all = [...va, ...vb].filter((v): v is number => v != null);
-  const sc = scale(Math.min(0, ...all), Math.max(1, ...all));
-  const ys = (v: number) => T + ph - ((v - sc.lo) / (sc.hi - sc.lo)) * ph;
-  const lastOf = (vals: (number | null)[]) => { for (let i = 11; i >= 0; i--) if (vals[i] != null) return i; return -1; };
-  // each line is named above its last point; when both end in the same month, the higher name moves up clear of the other
-  const la = lastOf(va), lb = lastOf(vb);
-  const labelY = { a: la >= 0 ? ys(va[la]!) - 12 : 0, b: lb >= 0 ? ys(vb[lb]!) - 12 : 0 };
-  if (la === lb && la >= 0 && Math.abs(labelY.a - labelY.b) < 16) {
-    if (labelY.a <= labelY.b) labelY.a = labelY.b - 16; else labelY.b = labelY.a - 16;
-  }
-  const line = (vals: (number | null)[], oo: number[], col: string, key: "a" | "b", name: string) => {
-    const d = vals.map((v, i) => (v == null ? "" : `${i && vals[i - 1] != null ? "L" : "M"}${cx(i)},${ys(v)}`)).join("");
-    const li = key === "a" ? la : lb;
-    return (
-      <g key={key}>
-        <path d={d} fill="none" stroke={col} strokeWidth={2} strokeLinejoin="round" />
-        {vals.map((v, i) => v != null && (
-          <g key={i}>
-            {oo[i] ? <circle cx={cx(i)} cy={ys(v)} r={8} fill="none" stroke={col} strokeWidth={1.5} strokeDasharray="2 2" /> : null}
-            <circle cx={cx(i)} cy={ys(v)} r={4} fill={col} stroke="var(--surface)" strokeWidth={2} />
-          </g>
-        ))}
-        {li >= 0 && <text className="endlabel" x={cx(li)} y={labelY[key]} textAnchor={li > 10 ? "end" : "middle"}>{name}</text>}
-      </g>
-    );
-  };
+  const tick = useThemeTick();
   const label = book.metricLabel(metric);
-  const tips = MONTHS.map((_, i) => (
-    <>
-      <b>{MONTHS_LONG[i]} · {label}{mode === "running" ? " so far" : ""}</b>
-      <Row sw={<span className="sw" style={{ background: "var(--cmp-a)" }} />} k={a} v={money(va[i])} />
-      {ooA[i] ? <Row k={<span className="muted">incl. one-off</span>} v={money(ooA[i])} /> : null}
-      <Row sw={<span className="sw" style={{ background: "var(--cmp-b)" }} />} k={b} v={money(vb[i])} />
-      {ooB[i] ? <Row k={<span className="muted">incl. one-off</span>} v={money(ooB[i])} /> : null}
-      <div className="tr total"><Delta cur={va[i]} prev={vb[i]} upGood={book.upIsGood(metric)} label={String(b)} /></div>
-    </>
-  ));
-  return (
-    <>
-      <Frame H={H} sc={sc} ys={ys} tips={tips} label={`${label}${mode === "running" ? ", running total," : ""} ${a} against ${b}`}>
-        {line(vb, ooB, "var(--cmp-b)", "b", String(b))}
-        {line(va, ooA, "var(--cmp-a)", "a", String(a))}
-      </Frame>
-      <GapStrip book={book} a={a} b={b} metric={metric} va={va} vb={vb} />
-    </>
-  );
-}
-
-/** The gap between the two years for each month, as bars from zero: green when it's good news. */
-function GapStrip({ book, a, b, metric, va, vb }: { book: Book; a: number; b: number; metric: Metric; va: (number | null)[]; vb: (number | null)[] }) {
-  const gaps = MONTHS.map((_, i) => (va[i] != null && vb[i] != null ? va[i]! - vb[i]! : null));
-  const vals = gaps.filter((g): g is number => g != null);
-  if (!vals.length) return null;
-  const H = 86, top = 8, bot = 8, ph = H - top - bot;
-  const max = Math.max(1, ...vals.map(Math.abs));
-  const zero = top + ph / 2;
-  const up = book.upIsGood(metric);
-  const bw = Math.min(26, band * 0.5);
-  return (
-    <div className="gap-strip">
-      <span className="lbl">{a} minus {b}</span>
-      <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Difference between ${a} and ${b} each month`}>
-        <line className="base" x1={L} x2={W - R} y1={zero} y2={zero} />
-        <text x={L - 8} y={top + 8} textAnchor="end">+{compact(max)}</text>
-        <text x={L - 8} y={H - bot} textAnchor="end">−{compact(max)}</text>
-        {gaps.map((g, i) => {
-          if (g == null || g === 0) return null;
-          const h = (Math.abs(g) / max) * (ph / 2);
-          const good = g > 0 === up;
-          const x = cx(i) - bw / 2;
-          return (
-            <g key={i}>
-              <title>{`${MONTHS_LONG[i]}: ${g > 0 ? "+" : "−"}${money(Math.abs(g))}`}</title>
-              <rect x={x} y={g > 0 ? zero - h : zero} width={bw} height={Math.max(1, h)} rx={2} className={good ? "gap-good" : "gap-bad"} />
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
+  const { data, layout } = useMemo(() => {
+    const t = chartTheme();
+    const rawA = MONTHS.map((_, i) => book.metric(a, i + 1, metric));
+    const rawB = MONTHS.map((_, i) => book.metric(b, i + 1, metric));
+    const va = mode === "running" ? running(rawA) : rawA;
+    const vb = mode === "running" ? running(rawB) : rawB;
+    const up = book.upIsGood(metric);
+    const data: Data[] = [];
+    const lineFor = (yr: number, vals: (number | null)[], col: string) => data.push({
+      type: "scatter", mode: "lines+markers", name: String(yr), x: MONTHS, y: vals, legendrank: yr === a ? 1 : 2,
+      line: { color: col, width: 2.5 }, marker: { size: 7, color: col, line: { color: t.surface, width: 2 } },
+      hovertemplate: `${yr}: %{y:,.0f}<extra></extra>`,
+    });
+    lineFor(b, vb, t.b);
+    lineFor(a, va, t.a);
+    if (!book.regularOnly) {
+      let first = true;
+      for (const [yr, vals, col] of [[a, va, t.a], [b, vb, t.b]] as const) {
+        const rings = MONTHS.map((_, i) => (vals[i] != null && book.metricOneOff(yr, i + 1, metric) ? vals[i] : null));
+        if (!rings.some((v) => v != null)) continue;
+        data.push({
+          type: "scatter", mode: "markers", name: "Includes a one-off", x: MONTHS, y: rings, legendgroup: "oneoff", showlegend: first,
+          marker: { symbol: "circle-open", size: 18, color: col, line: { width: 1.5, color: col } }, hoverinfo: "skip",
+        });
+        first = false;
+      }
+    }
+    const gaps = MONTHS.map((_, i) => (va[i] != null && vb[i] != null ? va[i]! - vb[i]! : null));
+    data.push({
+      type: "bar", name: `${a} − ${b}`, x: MONTHS, y: gaps, yaxis: "y2", showlegend: false,
+      marker: { color: gaps.map((g) => (g == null ? t.muted : g > 0 === up ? t.good : t.bad)) },
+      hovertemplate: `Difference: %{y:+,.0f}<extra></extra>`,
+    });
+    const base = baseLayout(t, 430);
+    const layout: Partial<Layout> = {
+      ...base,
+      xaxis: { ...base.xaxis, anchor: "y2" },
+      yaxis: { ...base.yaxis, domain: [0.32, 1] },
+      yaxis2: { ...base.yaxis, domain: [0, 0.2], zerolinecolor: t.muted },
+      annotations: [{ xref: "paper", yref: "paper", x: 0, y: 0.235, xanchor: "left", yanchor: "bottom", showarrow: false,
+        text: `${a} minus ${b}`, font: { size: 11, color: t.muted } }],
+    };
+    return { data, layout };
+  }, [book, a, b, metric, mode, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <Plot data={data} layout={layout} label={`${label}${mode === "running" ? ", running total," : ""} ${a} against ${b}`} filename={`pesa-ledger-${a}-vs-${b}`} />;
 }
 
 /** The categories behind a change between two periods, biggest first: click one to chart it. */

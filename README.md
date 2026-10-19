@@ -12,8 +12,13 @@ The app has three sections:
   last six months at a glance, your goals, and a getting-started checklist until the basics are set up.
 - **Month:** each category's budget and actual side by side, with what's left or overspent, the change from last
   month and from the same month last year. Copy last month's amounts or fill from the budget in one click.
-- **Year:** where each month's money went, as a chart and a full month-by-month table against budget.
-- **Compare:** any two years over the same months, by total, group or single category.
+- **Year:** where each month's money went (with budget ticks and one-offs hatched), where the year's income went as
+  shares, and a full month-by-month table against budget. Click a month in the chart to open it.
+- **Compare:** any two years over the same months, by total, group or single category, month by month or as a running
+  total, with the gap each month and the categories that changed most.
+
+The Year and Compare charts are [Plotly](https://plotly.com/javascript/) (the bar-and-line build, loaded only on those
+pages): drag to zoom, double-click to reset, click a legend item to hide it, and the camera icon saves a PNG.
 
 **Plan**: what's ahead
 - **Budget:** plan any year month by month. A yearly figure spreads evenly; a single month can be set on its own

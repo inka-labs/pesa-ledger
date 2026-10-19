@@ -74,11 +74,7 @@ export function CompareView() {
           </div>
         </div>
         <div className="bar legend-bar">
-          <div className="legend">
-            <span><span className="ln" style={{ background: "var(--cmp-a)" }} />{a}</span>
-            <span><span className="ln" style={{ background: "var(--cmp-b)" }} />{b}</span>
-            {!book.regularOnly && book.hasOneOffs() && <span><span className="ring" />Includes a one-off</span>}
-          </div>
+          <span className="muted small">Click a legend item to hide it, drag to zoom, double-click to reset.</span>
           <div className="seg" role="group" aria-label="How to show it">
             <button className={mode === "month" ? "on" : ""} aria-pressed={mode === "month"} onClick={() => setMode("month")}>Each month</button>
             <button className={mode === "running" ? "on" : ""} aria-pressed={mode === "running"} onClick={() => setMode("running")}>Running total</button>
