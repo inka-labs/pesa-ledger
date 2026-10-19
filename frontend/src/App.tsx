@@ -16,6 +16,9 @@ import { BudgetView } from "./views/BudgetView";
 import { CategoriesView } from "./views/CategoriesView";
 import { CompareView } from "./views/CompareView";
 import { GoalsView } from "./views/GoalsView";
+import { FundsView } from "./views/FundsView";
+import { HealthView } from "./views/HealthView";
+import { NetWorthView } from "./views/NetWorthView";
 import { MonthView } from "./views/MonthView";
 import { SettingsView } from "./views/SettingsView";
 import { Welcome } from "./views/Welcome";
@@ -214,6 +217,9 @@ export default function App() {
             {tab === "year" && <YearView />}
             {tab === "compare" && <CompareView />}
             {tab === "goals" && <GoalsView />}
+            {tab === "funds" && <FundsView />}
+            {tab === "health" && <HealthView />}
+            {tab === "networth" && <NetWorthView />}
             {tab === "categories" && <CategoriesView />}
             {tab === "settings" && <SettingsView version={version} onRestored={restored} />}
             {tab === "appearance" && <AppearanceView />}

@@ -9,6 +9,7 @@ A year file holds, per month key "01".."12":
     budget[month][category id]  a budget set for that month on its own
     notes[month]                free text
     oneoff[month][category id]  {amount, note}: the part of that figure that won't repeat
+    balances[month][account id] what an account held (or owed) at the end of the month
 and plan[category id], a yearly budget spread evenly over the months that have no budget of their own.
 
 Before the first change of each day the whole ledger is copied to backups/auto-<date>.json, so any
@@ -65,11 +66,43 @@ class Group(Strict):
     color: Hex | None = None
 
 
+class Fund(Strict):
+    """A sinking fund on a category: money set aside in it (from `from`, plus `start` already there) builds
+    towards `target` by `due`. `every` months after a bill is paid the next cycle starts (0: once)."""
+    target: Annotated[float, Field(gt=0, allow_inf_nan=False)]
+    due: YearMonth
+    start: Amount = 0
+    from_: YearMonth = Field(alias="from")
+    every: int = Field(default=12, ge=0, le=120)
+
+
 class Category(Strict):
     id: Id
     name: Name
     group: Id
     archived: bool = False
+    # the amount that comes in or goes out every month (rent, salary): offered on the Month page, and the
+    # budget when none is set
+    repeat: Amount | None = None
+    fund: Fund | None = None
+
+
+class Account(Strict):
+    """Somewhere money sits (a bank, the MMF, the car) or is owed (a loan). Its balance is recorded monthly in
+    the year file; `cats` are the categories whose amounts are contributions to it."""
+    id: Id
+    name: Name
+    debt: bool = False
+    cats: list[Id] = Field(default_factory=list, max_length=200)
+    archived: bool = False
+
+
+class Health(Strict):
+    """What the Health page needs to know: the emergency fund ("a:<account>" or "g:<goal>"), the groups that
+    are essential costs, and the rent category."""
+    ef: Annotated[str, StringConstraints(pattern=r"^[ag]:[A-Za-z0-9_-]{1,40}$")] | None = None
+    essential: list[Id] | None = None
+    rent: Id | None = None
 
 
 class Goal(Strict):
@@ -100,6 +133,8 @@ class Settings(Strict):
     groups: list[Group] = Field(max_length=40)
     cats: list[Category] = Field(max_length=1000)
     goals: list[Goal] = Field(default_factory=list, max_length=200)
+    accounts: list[Account] = Field(default_factory=list, max_length=100)
+    health: Health | None = None
     example: bool = False
 
 
@@ -116,6 +151,8 @@ class YearDoc(Strict):
     plan: dict[Id, Amount] = Field(default_factory=dict)
     notes: dict[MonthKey, Annotated[str, StringConstraints(max_length=10000)]] = Field(default_factory=dict)
     oneoff: dict[MonthKey, dict[Id, OneOff]] = Field(default_factory=dict)
+    # account id -> its balance at the end of the month
+    balances: dict[MonthKey, dict[Id, Amount]] = Field(default_factory=dict)
 
 
 class LedgerError(ValueError):
@@ -172,6 +209,8 @@ def save_settings(payload: dict) -> dict:
         raise LedgerError("Two categories have the same id.")
     if any(c.group not in group_ids for c in settings.cats):
         raise LedgerError("A category belongs to a group that doesn't exist.")
+    if len({a.id for a in settings.accounts}) != len(settings.accounts):
+        raise LedgerError("Two accounts have the same id.")
     data = settings.model_dump(by_alias=True, exclude_none=True)
     daily_backup()
     write_json(home() / "settings.json", data)

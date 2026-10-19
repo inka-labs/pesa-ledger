@@ -3,13 +3,13 @@ import type { Book } from "./model/ledger";
 import type { Rates, Read } from "./model/money";
 import type { Ledger, Metric } from "./model/types";
 
-export type Tab = "overview" | "month" | "year" | "compare" | "budget" | "goals" | "settings" | "categories" | "appearance";
+export type Tab = "overview" | "health" | "month" | "year" | "compare" | "networth" | "budget" | "goals" | "funds" | "settings" | "categories" | "appearance";
 export type Section = { id: string; label: string; tabs: { id: Tab; label: string }[] };
 
 /** Three places: what happened (Track), what's ahead (Plan), and how the ledger is set up (Settings). */
 export const SECTIONS: Section[] = [
-  { id: "track", label: "Track", tabs: [{ id: "overview", label: "Overview" }, { id: "month", label: "Month" }, { id: "year", label: "Year" }, { id: "compare", label: "Compare" }] },
-  { id: "plan", label: "Plan", tabs: [{ id: "budget", label: "Budget" }, { id: "goals", label: "Goals" }] },
+  { id: "track", label: "Track", tabs: [{ id: "overview", label: "Overview" }, { id: "month", label: "Month" }, { id: "year", label: "Year" }, { id: "compare", label: "Compare" }, { id: "health", label: "Health" }, { id: "networth", label: "Net worth" }] },
+  { id: "plan", label: "Plan", tabs: [{ id: "budget", label: "Budget" }, { id: "funds", label: "Sinking funds" }, { id: "goals", label: "Goals" }] },
   { id: "setup", label: "Settings", tabs: [{ id: "settings", label: "General" }, { id: "categories", label: "Categories" }, { id: "appearance", label: "Appearance" }] },
 ];
 export const TABS = SECTIONS.flatMap((s) => s.tabs);

@@ -123,3 +123,16 @@ def test_one_offs_round_trip_and_are_checked(client):
     assert client.put("/api/years/2025", json=year).status_code == 200
     assert client.get("/api/ledger").json()["years"]["2025"]["oneoff"]["11"]["car"] == {"amount": 1150000, "note": "Car"}
     assert client.put("/api/years/2025", json={"oneoff": {"11": {"car": {"note": "no amount"}}}}).status_code == 400
+
+
+def test_repeats_funds_accounts_and_balances(client, settings):
+    cats = [{**settings["cats"][0], "repeat": 42500, "fund": {"target": 60000, "due": "2027-01", "from": "2026-02", "every": 12}}] + settings["cats"][1:]
+    body = {**settings, "cats": cats, "accounts": [{"id": "mmf", "name": "MMF", "cats": [cats[0]["id"]]}, {"id": "loan", "name": "Loan", "debt": True}],
+            "health": {"ef": "a:mmf", "essential": [settings["groups"][0]["id"]], "rent": cats[0]["id"]}}
+    saved = client.put("/api/settings", json=body)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["cats"][0]["fund"]["from"] == "2026-02"
+    assert client.put("/api/settings", json={**body, "health": {"ef": "x:mmf"}}).status_code == 400
+    assert client.put("/api/settings", json={**body, "accounts": body["accounts"] * 2}).status_code == 400
+    assert client.put("/api/years/2026", json={"balances": {"10": {"mmf": 250000, "loan": 40000}}}).status_code == 200
+    assert client.get("/api/ledger").json()["years"]["2026"]["balances"]["10"]["mmf"] == 250000

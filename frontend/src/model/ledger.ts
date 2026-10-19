@@ -33,9 +33,14 @@ export const nextYM = ({ y, m }: YM): YM => (m === 12 ? { y: y + 1, m: 1 } : { y
 export const before = (a: YM, b: YM) => a.y < b.y || (a.y === b.y && a.m < b.m);
 export const parseYM = (s: string): YM => { const [y, m] = s.split("-").map(Number); return { y, m }; };
 export const fmtYM = ({ y, m }: YM) => `${MONTHS[m - 1]} ${y}`;
+export const ymKey = ({ y, m }: YM) => `${y}-${mk(m)}`;
+/** `n` months after (or before, when negative) a month. */
+export const addMonths = ({ y, m }: YM, n: number): YM => { const i = y * 12 + (m - 1) + n; return { y: Math.floor(i / 12), m: (i % 12) + 1 }; };
+/** Months from `a` to `b`, counting both (0 when `b` is before `a`). */
+export const monthsFromTo = (a: YM, b: YM) => Math.max(0, (b.y - a.y) * 12 + (b.m - a.m) + 1);
 
 export function emptyYear(): YearDoc {
-  return { actual: {}, budget: {}, plan: {}, notes: {}, oneoff: {} };
+  return { actual: {}, budget: {}, plan: {}, notes: {}, oneoff: {}, balances: {} };
 }
 
 function blank(): Totals {
@@ -196,11 +201,21 @@ export class Book {
     return { amount: found ? sum / found : 0, months: found };
   }
 
+  /** A month's budget: its own, else the yearly plan's even share, else the category's repeating amount. */
   planMonthly(y: number, m: number, cid: string): number | null {
     const o = this.budgetOverride(y, m, cid);
     if (o != null) return o;
     const a = this.planAnnual(y, cid);
-    return a == null ? null : a / 12;
+    if (a != null) return a / 12;
+    const r = this.cats[cid]?.repeat;
+    return this.budgeted(cid) && isNum(r) && !this.cats[cid].archived ? r : null;
+  }
+
+  // Repeating amounts ----------------------------------------------------------------------------
+
+  /** Categories with a repeating amount that have nothing recorded for the month yet. */
+  unpaid(y: number, m: number): Category[] {
+    return this.settings.cats.filter((c) => isNum(c.repeat) && c.repeat !== 0 && !c.archived && this.effectOf(c.id) !== "none" && this.actual(y, m, c.id) == null);
   }
 
   planYear(y: number, cid: string): number | null {
@@ -318,6 +333,89 @@ export class Book {
   }
 
   // Goals ----------------------------------------------------------------------------------------
+
+  // Sinking funds --------------------------------------------------------------------------------
+
+  /** Where a category's sinking fund stands: what's in it, what the bill needs, and whether the budget gets there. */
+  fund(cid: string) {
+    const f = this.cats[cid]?.fund;
+    if (!f) return null;
+    const from = parseYM(f.from), due = parseYM(f.due);
+    let contributed = 0, monthsWith = 0;
+    for (let p = from; !before(this.today, p); p = nextYM(p)) {
+      const v = this.actual(p.y, p.m, cid);
+      if (v != null) { contributed += v; monthsWith++; }
+    }
+    const saved = (f.start || 0) + contributed;
+    // months still to put money in: from this month (if it has nothing yet) to the due month
+    const firstOpen = this.actual(this.today.y, this.today.m, cid) == null ? this.today : nextYM(this.today);
+    const monthsLeft = monthsFromTo(firstOpen, due);
+    let planned = 0;
+    for (let i = 0, p = firstOpen; i < monthsLeft; i++, p = nextYM(p)) planned += this.planMonthly(p.y, p.m, cid) ?? 0;
+    const remaining = Math.max(0, f.target - saved);
+    const projected = saved + planned;
+    const average = monthsWith ? contributed / monthsWith : 0;
+    const neededPerMonth = monthsLeft ? remaining / monthsLeft : remaining;
+    const status: "ready" | "on-pace" | "short" | "overdue" =
+      saved >= f.target ? "ready" : monthsLeft === 0 ? "overdue" : projected >= f.target - 0.5 ? "on-pace" : "short";
+    return {
+      fund: f, saved, remaining, monthsLeft, neededPerMonth, average, planned, projected,
+      /** what will be in it beyond the bill: by now if it's already there, else by the due month on budget */
+      over: Math.max(0, (status === "ready" ? saved : projected) - f.target),
+      short: Math.max(0, f.target - projected),
+      status, progress: Math.min(1, saved / f.target),
+    };
+  }
+
+  // Accounts and net worth ---------------------------------------------------------------------------
+
+  accounts(includeArchived = false) {
+    return (this.settings.accounts ?? []).filter((a) => includeArchived || !a.archived);
+  }
+
+  balance(y: number, m: number, aid: string): number | null {
+    const v = this.year(y)?.balances?.[mk(m)]?.[aid];
+    return isNum(v) ? v : null;
+  }
+
+  /** The last balance recorded for an account at or before a month (balances carry forward), within ten years. */
+  balanceAsOf(ym: YM, aid: string): { value: number; ym: YM } | null {
+    let p = ym;
+    for (let i = 0; i < 120; i++, p = prevYM(p)) {
+      const v = this.balance(p.y, p.m, aid);
+      if (v != null) return { value: v, ym: p };
+    }
+    return null;
+  }
+
+  /** Assets minus debts at the end of a month, each account at its latest balance; null before any balance. */
+  netWorth(ym: YM): { total: number; assets: number; debts: number; byAccount: Record<string, number> } | null {
+    let assets = 0, debts = 0, any = false;
+    const byAccount: Record<string, number> = {};
+    for (const a of this.accounts(true)) {
+      const b = this.balanceAsOf(ym, a.id);
+      if (!b) continue;
+      any = true;
+      byAccount[a.id] = b.value;
+      if (a.debt) debts += b.value; else assets += b.value;
+    }
+    return any ? { total: assets - debts, assets, debts, byAccount } : null;
+  }
+
+  /** What an account gained in a month beyond what was put in: interest, returns or a change in value.
+   *  Needs a balance for the month and for the one before. For a debt, it's what the debt grew by beyond
+   *  repayments (so interest charged shows as a positive figure). */
+  growth(y: number, m: number, aid: string): number | null {
+    const a = this.accounts(true).find((x) => x.id === aid);
+    const now = this.balance(y, m, aid);
+    const p = prevYM({ y, m });
+    const before_ = this.balance(p.y, p.m, aid);
+    if (!a || now == null || before_ == null) return null;
+    // a debt's change is mostly repayments: without knowing them, there's no telling what interest cost
+    if (a.debt && !a.cats.length) return null;
+    const put = a.cats.reduce((s, cid) => s + (this.actual(y, m, cid) ?? 0), 0);
+    return a.debt ? now - before_ + put : now - before_ - put;
+  }
 
   goal(g: Goal) {
     const from = parseYM(g.from || `${this.today.y}-01`);

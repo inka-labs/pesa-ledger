@@ -4,7 +4,8 @@ import { useState, type ReactNode } from "react";
 import { SEARCH_KEY } from "../ui/keys";
 import { useApp, type Tab, type View } from "../context";
 import { money } from "../model/format";
-import { fmtYM, MONTHS, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
+import { fmtYM, MONTHS, MONTHS_LONG, nextYM, parseYM, prevYM } from "../model/ledger";
+import { healthChecks } from "../model/health";
 import type { YM } from "../model/types";
 import { Alt, Delta, Kpi } from "../ui/bits";
 
@@ -45,6 +46,17 @@ export function OverviewView() {
     if (!r.reached && !r.onTrack)
       items.push({ tone: "warn", text: <><b>{g.name}</b> is behind: it needs {cur} {money(r.neededPerMonth)} a month to make its deadline.</>, action: "See goal", tab: "goals" });
   });
+  const unpaid = book.unpaid(today.y, today.m);
+  if (unpaid.length)
+    items.push({ tone: "info", text: <>{unpaid.length === 1 ? <><b>{unpaid[0].name}</b> repeats every month and isn't</> : <>{unpaid.length} repeating amounts aren't</>} recorded for {MONTHS_LONG[today.m - 1]} yet.</>, action: "Record", tab: "month", patch: { ...today } });
+  book.settings.cats.filter((c) => c.fund && !c.archived).forEach((c) => {
+    const f = book.fund(c.id)!;
+    if (f.status === "short" || f.status === "overdue")
+      items.push({ tone: "warn", text: <><b>{c.name}</b> will be {cur} {money(f.status === "overdue" ? f.remaining : f.short)} short of its bill{f.status === "overdue" ? ", which is due" : ` by ${fmtYM(parseYM(c.fund!.due))}`}.</>, action: "See fund", tab: "funds" });
+  });
+  const unhealthy = healthChecks(book).filter((c) => c.tone === "bad");
+  if (unhealthy.length)
+    items.push({ tone: "bad", text: <>{unhealthy.length === 1 ? <><b>{unhealthy[0].title}</b> needs attention</> : <>{unhealthy.length} health checks need attention: {unhealthy.map((c) => c.title.toLowerCase()).join(", ")}</>}.</>, action: "See Health", tab: "health" });
   if (ratesError) items.push({ tone: "info", text: <>Exchange rates couldn't be updated. {ratesError}</>, action: "Check", tab: "settings" });
 
   // The last six months' left over, for a sense of direction

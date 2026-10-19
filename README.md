@@ -45,6 +45,21 @@ pages): drag to zoom, double-click to reset, click a legend item to hide it, and
 Money in isn't budgeted: it's what comes in. Budgets cover money set aside and money out, and for months that haven't happened
 the forecast expects income at your recent average (the last three months with income).
 
+### Repeating amounts, sinking funds, net worth and health
+
+- **Repeating amounts** (Categories, "Every month"): rent, salary, subscriptions. The Month page lists the ones not
+  recorded yet, one click each, and a repeating amount is the budget when no other budget is set.
+- **Sinking funds** (Plan): a category becomes a pot for a bill you know is coming, with a target, a due month and how
+  often it repeats. Each fund says whether it's on pace, short, or holding more than the bill needs; "Bill paid" starts
+  the next cycle and carries over what's left.
+- **Net worth** (Track): accounts you own and owe, with a balance recorded at the end of each month (it carries
+  forward until the next). Link an account to the categories you pay into it and the app splits its change into what
+  you put in and what it earned, like MMF interest.
+- **Health** (Track): the last 12 months against common rules of thumb (savings ≥ 20% of income, rent ≤ 30%, an
+  emergency fund of 6+ months of essential costs, essentials well within a weak month, spending growing no faster than
+  income, no months in the red, sinking funds on pace), one-offs left out. Choose the emergency fund, the essential
+  groups and the rent category at the bottom of the page.
+
 ### One-offs
 
 A car, a deposit, a renovation, a bonus: money that won't repeat. On the Month page, point at a category and click

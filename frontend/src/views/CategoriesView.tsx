@@ -4,7 +4,7 @@ import { newId, nextSlot } from "../model/csv";
 import { EFFECTS, kindsOf } from "../model/ledger";
 import type { Category, Effect, Group, Ledger } from "../model/types";
 import { ColorPicker } from "../ui/ColorPicker";
-import { TextInput } from "../ui/bits";
+import { AmountInput, TextInput } from "../ui/bits";
 
 export function CategoriesView() {
   const { book, change, view } = useApp();
@@ -118,7 +118,7 @@ function GroupPanel({ g, first, last }: { g: Group; first: boolean; last: boolea
         {!cats.length && <button className="btn ghost danger" onClick={() => { edit((l) => void (l.settings.groups = l.settings.groups.filter((x) => x.id !== g.id))); notify(`Removed the group “${g.name}”.`, true); }}>Remove group</button>}
       </div>
       <div className="cat-list">
-        {cats.length > 0 && <div className="cat-line head lbl"><span>Category</span><span>Order</span><span>Group</span><span /></div>}
+        {cats.length > 0 && <div className="cat-line head lbl"><span>Category</span><span>Order</span><span>Group</span><span title="An amount that comes in or goes out every month, like rent or a salary">Every month</span><span /></div>}
         {cats.map((c, i) => <CategoryLine key={c.id} c={c} first={i === 0} last={i === cats.length - 1} />)}
         <form className="add-line" onSubmit={add}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Add a category" aria-label={`New category in ${g.name}`} />
@@ -157,6 +157,11 @@ function CategoryLine({ c, first, last }: { c: Category; first: boolean; last: b
       <select className="cgroup" value={c.group} aria-label={`Move ${c.name} to another group`} onChange={(e) => edit((l) => void (cat(l).group = e.target.value))}>
         {book.settings.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
       </select>
+      {book.effectOf(c.id) !== "none" ? (
+        <AmountInput className="crepeat" value={c.repeat ?? null} placeholder="–" label={`${c.name}: amount every month`}
+          title="Repeats every month (rent, salary, a subscription). The Month page offers it, and it's the budget when none is set."
+          onCommit={(v) => edit((l) => { const x = cat(l); if (v == null) delete x.repeat; else x.repeat = v; })} />
+      ) : <span />}
       {book.catHasData(c.id) ? (
         <button className="btn ghost cact" title={c.archived ? "Show it again in the month and budget" : "Hide it from new months. Past figures stay"}
           onClick={() => edit((l) => { const x = cat(l); if (x.archived) delete x.archived; else x.archived = true; })}>

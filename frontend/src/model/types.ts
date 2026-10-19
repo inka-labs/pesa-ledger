@@ -14,7 +14,26 @@ export type Group = {
   slot: number;
   color?: string | null;
 };
-export type Category = { id: string; name: string; group: string; archived?: boolean };
+export type Category = {
+  id: string;
+  name: string;
+  group: string;
+  archived?: boolean;
+  /** the amount that comes in or goes out every month: offered on the Month page, and the budget when none is set */
+  repeat?: number | null;
+  /** a sinking fund kept in this category */
+  fund?: Fund | null;
+};
+
+/** Money set aside in a category (from `from`, plus `start` already there) towards a bill of `target` due by
+ *  `due`. When it's paid, the next cycle starts `every` months later (0: a one-time fund). */
+export type Fund = { target: number; due: string; start: number; from: string; every: number };
+
+/** Somewhere money sits or is owed. `cats` are the categories whose amounts are contributions to it. */
+export type Account = { id: string; name: string; debt?: boolean; cats: string[]; archived?: boolean };
+
+/** What the Health page needs: the emergency fund ("a:<account>" | "g:<goal>"), essential groups, rent. */
+export type HealthSettings = { ef?: string | null; essential?: string[] | null; rent?: string | null };
 export type Goal = {
   id: string;
   name: string;
@@ -40,6 +59,8 @@ export type Settings = {
   groups: Group[];
   cats: Category[];
   goals: Goal[];
+  accounts?: Account[];
+  health?: HealthSettings | null;
   example?: boolean;
 };
 
@@ -55,6 +76,8 @@ export type YearDoc = {
   notes: Record<string, string>;
   /** month key -> category id -> the part of that month's figure that won't repeat (a car, a renovation) */
   oneoff?: Record<string, Record<string, OneOff>>;
+  /** month key -> account id -> its balance at the end of the month */
+  balances?: MonthMap;
 };
 
 /** Part of an actual figure, not added to it. Comparisons and forecasts can leave it out. */

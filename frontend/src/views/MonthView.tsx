@@ -94,6 +94,7 @@ export function MonthView() {
         </div>
       )}
       <div className="kpis">{tiles}</div>
+      {!future && <Unpaid />}
       <div className="groups">
         {book.settings.groups.map((g) => <GroupSection key={g.id} g={g} gAct={t.byGroup[g.id] || 0} gPlan={pl.byGroup[g.id] || 0} />)}
         {!book.settings.groups.length && <div className="panel">Add groups and categories on the <button className="link" onClick={() => go("categories")}>Categories</button> tab to start.</div>}
@@ -106,6 +107,36 @@ export function MonthView() {
           onCommit={(text) => change((l) => void setNote(l, y, m, text), [`y:${y}`])} />
       </div>
     </>
+  );
+}
+
+/** Repeating amounts not yet recorded this month, each one click from recorded. */
+function Unpaid() {
+  const { book, change, view, notify } = useApp();
+  const { y, m } = view;
+  const list = book.unpaid(y, m);
+  if (!list.length) return null;
+  const record = (ids: string[]) => {
+    change((l) => { for (const id of ids) setActual(l, y, m, id, book.cats[id].repeat!); }, [`y:${y}`]);
+    notify(ids.length === 1 ? `Recorded ${book.cats[ids[0]].name}.` : `Recorded ${ids.length} repeating amounts.`, true);
+  };
+  return (
+    <div className="panel unpaid">
+      <div className="panel-h">
+        <h3>Repeating, not recorded yet</h3><span className="muted small">Click one when it's paid or received</span>
+        {list.length > 1 && <div className="end"><button className="btn" onClick={() => record(list.map((c) => c.id))}>Record all {list.length}</button></div>}
+      </div>
+      <div className="pick-chips">
+        {list.map((c) => {
+          const g = book.groups[c.group];
+          return (
+            <button key={c.id} className="pick" onClick={() => record([c.id])} title={`Record ${money(c.repeat!)} for ${c.name} in ${MONTHS_LONG[m - 1]}`}>
+              {g && <Swatch g={g} />} {c.name} <b className="num">{money(c.repeat!)}</b> <span aria-hidden>＋</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -329,6 +360,7 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
       )}
       <div>
         <AmountInput id={`actual-${c.id}`} value={a} label={`${c.name} actual for ${MONTHS[m - 1]}`}
+          placeholder={c.repeat ? money(c.repeat) : undefined} title={c.repeat ? `Repeats at ${money(c.repeat)} a month` : undefined}
           onCommit={(v) => change((l) => void setActual(l, y, m, c.id, v), [`y:${y}`])} />
       </div>
       <div className="c-meter">{progress}</div>

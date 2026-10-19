@@ -1,7 +1,7 @@
 /** Edits applied to a draft copy of the ledger (see store.change). Each returns the save key it touched. */
 
-import { emptyYear, mk } from "./ledger";
-import type { Ledger, OneOff, YearDoc } from "./types";
+import { addMonths, emptyYear, mk, nextYM, parseYM, ymKey } from "./ledger";
+import type { Ledger, OneOff, YearDoc, YM } from "./types";
 
 export function yearOf(l: Ledger, y: number): YearDoc {
   return (l.years[String(y)] ??= emptyYear());
@@ -48,4 +48,24 @@ export function setNote(l: Ledger, y: number, m: number, text: string): string {
   if (text.trim()) yd.notes[mk(m)] = text;
   else delete yd.notes[mk(m)];
   return `y:${y}`;
+}
+
+/** An account's balance at the end of a month (null clears it). */
+export function setBalance(l: Ledger, y: number, m: number, aid: string, v: number | null): string {
+  const all = (yearOf(l, y).balances ??= {});
+  const row = (all[mk(m)] ??= {});
+  if (v == null) delete row[aid];
+  else row[aid] = v;
+  if (!Object.keys(row).length) delete all[mk(m)];
+  return `y:${y}`;
+}
+
+/** The bill a fund was for has been paid: what's left over starts the next cycle, `every` months on
+ *  (a one-time fund is removed). `saved` is what the fund held, `paid` what the bill came to. */
+export function payFund(l: Ledger, cid: string, saved: number, paid: number, today: YM): void {
+  const c = l.settings.cats.find((x) => x.id === cid);
+  if (!c?.fund) return;
+  if (!c.fund.every) { delete c.fund; return; }
+  const due = addMonths(parseYM(c.fund.due), c.fund.every);
+  c.fund = { ...c.fund, start: Math.max(0, saved - paid), from: ymKey(nextYM(today)), due: ymKey(due) };
 }
