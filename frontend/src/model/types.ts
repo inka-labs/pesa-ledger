@@ -72,7 +72,7 @@ export type Totals = {
   byCat: Record<string, number>;
   has: boolean;
   /** one-off parts of the figures: included above, or (in a Book that leaves them out) what was left out */
-  oneOff: { income: number; saved: number; spent: number; any: boolean };
+  oneOff: { income: number; saved: number; spent: number; any: boolean; byGroup: Record<string, number> };
 };
 
 export type YM = { y: number; m: number };

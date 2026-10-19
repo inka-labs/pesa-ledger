@@ -3,7 +3,7 @@ import { money, pct } from "../model/format";
 import { MONTHS } from "../model/ledger";
 import type { Totals } from "../model/types";
 import { Alt, Delta, Kpi, OneOffNote, OneOffToggle, Swatch, YearSelect } from "../ui/bits";
-import { YearChart } from "../ui/charts";
+import { HatchSwatch, ShareBar, YearChart } from "../ui/charts";
 
 export function YearView() {
   const app = useApp();
@@ -54,8 +54,14 @@ export function YearView() {
         <div className="legend">
           <span><span className="ln" style={{ background: "var(--s0)" }} />Income</span>
           {groups.map((g) => <span key={g.id}><Swatch g={g} />{g.name}</span>)}
+          {planY.has && <span><span className="ln budget" />Budget</span>}
+          {!book.regularOnly && yearT.oneOff.any && <span><HatchSwatch />One-off</span>}
         </div>
         <YearChart book={book} y={y} />
+      </div>
+      <div className="panel">
+        <div className="panel-h"><h3>Where the income went</h3><span className="muted small">{last === 12 ? `All of ${y}` : `Jan–${MONTHS[last - 1]} ${y}`}, as a share of income</span></div>
+        <ShareBar book={book} t={t} />
       </div>
       <div className="panel">
         <div className="panel-h"><h3>Month by month</h3><span className="muted small">Budget is set on the Budget tab</span></div>

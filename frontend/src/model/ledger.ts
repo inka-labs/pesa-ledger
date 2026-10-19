@@ -39,7 +39,7 @@ export function emptyYear(): YearDoc {
 }
 
 function blank(): Totals {
-  return { income: 0, saved: 0, spent: 0, left: 0, byGroup: {}, byCat: {}, has: false, oneOff: { income: 0, saved: 0, spent: 0, any: false } };
+  return { income: 0, saved: 0, spent: 0, left: 0, byGroup: {}, byCat: {}, has: false, oneOff: { income: 0, saved: 0, spent: 0, any: false, byGroup: {} } };
 }
 
 /** Indexes over one ledger. Build one per render (cheap) and ask it everything. */
@@ -130,6 +130,8 @@ export class Book {
           if (e !== "none") {
             r.oneOff.any = true;
             r.oneOff[e === "in" ? "income" : e === "aside" ? "saved" : "spent"] += part;
+            const gid = this.cats[cid]?.group;
+            if (gid) r.oneOff.byGroup[gid] = (r.oneOff.byGroup[gid] || 0) + part;
           }
         }
         this.add(r, cid, this.regularOnly ? v - part : v);
@@ -273,6 +275,16 @@ export class Book {
     if (key.startsWith("g:")) return t.byGroup[key.slice(2)] || 0;
     if (key.startsWith("c:")) return t.byCat[key.slice(2)] || 0;
     return t[key as "income" | "saved" | "spent" | "left"];
+  }
+
+  /** How much of a measure's figure for these months is one-off (in a regular book: how much was left out). */
+  metricOneOff(y: number, m1: number, key: Metric, m2 = m1): number {
+    const o = this.rangeTotals(y, m1, m2).oneOff;
+    if (!o.any) return 0;
+    if (key.startsWith("g:")) return o.byGroup[key.slice(2)] || 0;
+    if (key.startsWith("c:")) { let s = 0; for (let m = m1; m <= m2; m++) s += this.oneOffPart(y, m, key.slice(2)); return s; }
+    if (key === "left") return o.income - o.saved - o.spent;
+    return o[key as "income" | "saved" | "spent"] || 0;
   }
 
   metricLabel(key: Metric): string {

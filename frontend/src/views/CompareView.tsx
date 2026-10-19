@@ -1,9 +1,9 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useApp } from "../context";
 import { money, pct } from "../model/format";
 import { MONTHS } from "../model/ledger";
 import { Alt, Delta, Kpi, OneOffNote, OneOffToggle, Swatch, YearSelect } from "../ui/bits";
-import { CompareChart } from "../ui/charts";
+import { CompareChart, Movers } from "../ui/charts";
 
 export function CompareView() {
   const app = useApp();
@@ -16,6 +16,7 @@ export function CompareView() {
   const span = upto === 12 ? "full year" : `Jan–${MONTHS[upto - 1]}`;
   const va = book.metric(a, 1, metric, upto), vb = book.metric(b, 1, metric, upto);
   const label = book.metricLabel(metric);
+  const [mode, setMode] = useState<"month" | "running">("month");
 
   const row = (key: string, name: ReactNode, x: number, y: number, up: boolean, cls = "") => {
     const d = x - y, p = y ? d / Math.abs(y) : null;
@@ -72,11 +73,22 @@ export function CompareView() {
             </select>
           </div>
         </div>
-        <div className="legend">
-          <span><span className="ln" style={{ background: "var(--cmp-a)" }} />{a}</span>
-          <span><span className="ln" style={{ background: "var(--cmp-b)" }} />{b}</span>
+        <div className="bar legend-bar">
+          <div className="legend">
+            <span><span className="ln" style={{ background: "var(--cmp-a)" }} />{a}</span>
+            <span><span className="ln" style={{ background: "var(--cmp-b)" }} />{b}</span>
+            {!book.regularOnly && book.hasOneOffs() && <span><span className="ring" />Includes a one-off</span>}
+          </div>
+          <div className="seg" role="group" aria-label="How to show it">
+            <button className={mode === "month" ? "on" : ""} aria-pressed={mode === "month"} onClick={() => setMode("month")}>Each month</button>
+            <button className={mode === "running" ? "on" : ""} aria-pressed={mode === "running"} onClick={() => setMode("running")}>Running total</button>
+          </div>
         </div>
-        <CompareChart book={book} a={a} b={b} metric={metric} />
+        <CompareChart book={book} a={a} b={b} metric={metric} mode={mode} />
+      </div>
+      <div className="panel">
+        <div className="panel-h"><h3>What changed most</h3><span className="muted small">{span}, {a} against {b}. Click a category to chart it.</span></div>
+        <Movers book={book} ta={ta} tb={tb} a={a} b={b} upto={upto} onPick={(cmpMetric) => { setView({ cmpMetric }); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
       </div>
       <div className="panel">
         <div className="panel-h"><h3>Every category, {span}</h3></div>

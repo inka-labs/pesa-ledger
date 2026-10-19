@@ -161,6 +161,41 @@ textarea { width: 100%; min-height: 70px; resize: vertical; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-2); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend .ln { width: 16px; height: 2px; border-radius: 1px; display: inline-block; }
+.legend .ln.budget { height: 0; border-top: 2px dashed var(--muted); background: none; }
+.legend .ring { width: 12px; height: 12px; border-radius: 50%; border: 1.5px dashed var(--ink-2); display: inline-block; }
+.legend-bar { justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.sw.hatch { background: repeating-linear-gradient(45deg, var(--ink-2) 0 2px, transparent 2px 5px); border: 1px solid var(--ink-2); }
+.chart .budget-tick { stroke: var(--muted); stroke-width: 2; stroke-dasharray: 3 3; }
+.chart .endlabel { fill: var(--ink); font-weight: 600; font-size: 10px; }
+.chart .gap-good { fill: var(--good); }
+.chart .gap-bad { fill: var(--bad); }
+.gap-strip { margin-top: 6px; display: grid; gap: 2px; }
+.seg { display: inline-flex; background: var(--sunk); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.seg button { border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: 12px; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
+.seg button.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
+
+/* where the income went */
+.share { display: grid; gap: 12px; }
+.share-bar { display: flex; gap: 2px; height: 22px; border-radius: 6px; overflow: hidden; }
+.share-bar i { display: block; min-width: 2px; }
+.share-bar i.left, .sw.left { background: repeating-linear-gradient(45deg, var(--line) 0 3px, var(--sunk) 3px 7px); }
+.share-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: 13px; }
+.share-list li { display: inline-flex; gap: 8px; align-items: center; }
+.share-list .muted { font-size: 12px; }
+.sw.left { border: 1px solid var(--muted); }
+
+/* what changed most */
+.movers { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.mover { width: 100%; display: grid; grid-template-columns: minmax(110px, 220px) 1fr 110px; gap: 12px; align-items: center; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 8px; cursor: pointer; text-align: left; }
+.mover:hover { background: var(--sunk); }
+.mname { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mtrack { position: relative; height: 14px; }
+.mtrack .mzero { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); opacity: .6; }
+.mtrack i { position: absolute; top: 0; bottom: 0; border-radius: 3px; min-width: 2px; }
+.mtrack i.gap-good { background: var(--good); }
+.mtrack i.gap-bad { background: var(--bad); }
+.mval { text-align: right; }
+@media (max-width: 640px) { .mover { grid-template-columns: minmax(0, 1fr) 90px; } .mtrack { grid-column: 1 / -1; grid-row: 2; } }
 .tip { position: absolute; z-index: 5; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, .14); min-width: 180px; }
 .tip b { display: block; margin-bottom: 4px; font-family: var(--f-display); }
 .tip .tr { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
