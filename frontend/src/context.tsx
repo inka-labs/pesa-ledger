@@ -3,12 +3,12 @@ import type { Book } from "./model/ledger";
 import type { Rates, Read } from "./model/money";
 import type { Ledger, Metric } from "./model/types";
 
-export type Tab = "month" | "year" | "compare" | "budget" | "goals" | "settings" | "categories" | "appearance";
+export type Tab = "overview" | "month" | "year" | "compare" | "budget" | "goals" | "settings" | "categories" | "appearance";
 export type Section = { id: string; label: string; tabs: { id: Tab; label: string }[] };
 
 /** Three places: what happened (Track), what's ahead (Plan), and how the ledger is set up (Settings). */
 export const SECTIONS: Section[] = [
-  { id: "track", label: "Track", tabs: [{ id: "month", label: "Month" }, { id: "year", label: "Year" }, { id: "compare", label: "Compare" }] },
+  { id: "track", label: "Track", tabs: [{ id: "overview", label: "Overview" }, { id: "month", label: "Month" }, { id: "year", label: "Year" }, { id: "compare", label: "Compare" }] },
   { id: "plan", label: "Plan", tabs: [{ id: "budget", label: "Budget" }, { id: "goals", label: "Goals" }] },
   { id: "setup", label: "Settings", tabs: [{ id: "settings", label: "General" }, { id: "categories", label: "Categories" }, { id: "appearance", label: "Appearance" }] },
 ];
@@ -25,6 +25,8 @@ export type View = {
   cmpSame: boolean;
   planYear: number;
   catHint: boolean;
+  /** a category to bring into view and focus on the Month page (set when jumping to it) */
+  focusCat?: string | null;
 };
 
 export type Ctx = {
@@ -37,8 +39,13 @@ export type Ctx = {
   altRate: number | null;
   /** read an amount box, converting other currencies to the main one */
   read: (text: string) => Read;
-  /** a short message at the bottom of the screen */
-  notify: (text: string) => void;
+  /** a short message at the bottom of the screen; `undoable` adds an Undo button to it */
+  notify: (text: string, undoable?: boolean) => void;
+  /** put back the ledger as it was before the last change */
+  undo: () => void;
+  canUndo: boolean;
+  /** open search-and-jump (⌘K) */
+  openSearch: () => void;
   theme: "system" | "light" | "dark";
   setTheme: (t: "system" | "light" | "dark") => void;
   /** change a copy of the ledger; `touches` says what to save ("settings", "y:2026") */

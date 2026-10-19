@@ -3,16 +3,10 @@ import { api, type Backup, type Stored, type Version } from "../api";
 import { useApp } from "../context";
 import { buildCSV, importSummary } from "../model/csv";
 import { parseAmount } from "../model/format";
-import { thisMonth, mk } from "../model/ledger";
+import { downloadCSV } from "../ui/download";
 import { TextInput } from "../ui/bits";
 import { ImportButton } from "./Welcome";
 
-function download(name: string, text: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
-  const a = Object.assign(document.createElement("a"), { href: url, download: name });
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 function when(b: Backup) {
   const d = b.taken ? new Date(b.taken) : null;
@@ -81,7 +75,7 @@ function CurrencyPanel() {
 }
 
 export function SettingsView({ version, onRestored }: { version: Version | null; onRestored: (s: Stored) => void }) {
-  const { book, change, replace } = useApp();
+  const { book, change, replace, notify } = useApp();
   const st = book.settings;
   const [msg, setMsg] = useState<{ text: string; err?: boolean } | null>(null);
   const [backups, setBackups] = useState<Backup[] | null>(null);
@@ -114,7 +108,7 @@ export function SettingsView({ version, onRestored }: { version: Version | null;
               <ImportButton className="btn" current={book.ledger} onDone={(r) => { replace(r.ledger); setMsg({ text: importSummary(r) }); }} onError={(text) => setMsg({ err: true, text })}>
                 Import CSV
               </ImportButton>
-              <button className="btn" onClick={() => { const t = thisMonth(); download(`pesa-ledger-${t.y}-${mk(t.m)}.csv`, buildCSV(book.ledger)); }}>Export CSV</button>
+              <button className="btn" onClick={() => downloadCSV(buildCSV(book.ledger))}>Export CSV</button>
             </div>
           </div>
 
@@ -122,13 +116,13 @@ export function SettingsView({ version, onRestored }: { version: Version | null;
             <h3>Start over</h3>
             {st.example && (
               <div className="bar"><span className="small">You're using example figures.</span>
-                <button className="btn" onClick={() => change((l) => { l.years = {}; l.settings.goals = []; l.settings.example = false; }, ["settings", ...Object.keys(book.ledger.years).map((y) => `y:${y}`)])}>Clear example figures</button></div>
+                <button className="btn" onClick={() => { change((l) => { l.years = {}; l.settings.goals = []; l.settings.example = false; }, ["settings", ...Object.keys(book.ledger.years).map((y) => `y:${y}`)]); notify("Example figures cleared.", true); }}>Clear example figures</button></div>
             )}
             <div className="bar">
               {confirm === "wipe" ? (
                 <>
                   <span className="small">Delete every figure, budget and note? Categories and goals stay. Today's backup still has them.</span>
-                  <button className="btn danger" onClick={() => { replace({ ...book.ledger, years: {} }); setConfirm(null); }}>Delete all figures</button>
+                  <button className="btn danger" onClick={() => { replace({ ...book.ledger, years: {} }); setConfirm(null); notify("Every figure, budget and note was deleted.", true); }}>Delete all figures</button>
                   <button className="btn ghost" onClick={() => setConfirm(null)}>Keep them</button>
                 </>
               ) : <button className="btn ghost danger" onClick={() => setConfirm("wipe")}>Delete all figures…</button>}

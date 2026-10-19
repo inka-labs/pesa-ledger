@@ -51,7 +51,7 @@ export function AmountInput(props: {
       onChange={(e) => { setDraft(e.target.value); if (bad) setBad(""); }}
       onBlur={() => { focused.current = false; commit(); }}
       onKeyDown={(e) => {
-        if (e.key === "Enter") { commit(); e.currentTarget.blur(); }
+        if (e.key === "Enter") e.currentTarget.blur(); // leaving the box saves it (once)
         if (e.key === "Escape") { setDraft(amountText(value)); setBad(""); }
       }}
     />
@@ -98,7 +98,7 @@ export function Delta({ cur, prev, upGood, label }: { cur: number | null; prev: 
 export function Kpi({ label, value, lead, children }: { label: string; value: number; lead?: boolean; children?: ReactNode }) {
   const { book } = useApp();
   return (
-    <div className={`kpi${lead ? " lead" : ""}`}>
+    <div className={`kpi${lead ? " lead" : ""}${lead && value < 0 ? " neg" : ""}`}>
       <span className="lbl">{label}</span>
       <span className="v"><span className="cc">{book.settings.currency}</span>{money(value)}</span>
       <span className="sub">{children}</span>

@@ -86,7 +86,7 @@ function KindsPanel() {
 }
 
 function GroupPanel({ g, first, last }: { g: Group; first: boolean; last: boolean }) {
-  const { book, change } = useApp();
+  const { book, change, notify } = useApp();
   const [name, setName] = useState("");
   const cats = book.catsIn(g.id, true);
   const edit = (fn: (l: Ledger) => void) => change(fn, ["settings"]);
@@ -115,7 +115,7 @@ function GroupPanel({ g, first, last }: { g: Group; first: boolean; last: boolea
           <button className="iconbtn" aria-label="Move group up" disabled={first} onClick={() => moveGroup(-1)}>↑</button>
           <button className="iconbtn" aria-label="Move group down" disabled={last} onClick={() => moveGroup(1)}>↓</button>
         </span>
-        {!cats.length && <button className="btn ghost danger" onClick={() => edit((l) => void (l.settings.groups = l.settings.groups.filter((x) => x.id !== g.id)))}>Remove group</button>}
+        {!cats.length && <button className="btn ghost danger" onClick={() => { edit((l) => void (l.settings.groups = l.settings.groups.filter((x) => x.id !== g.id))); notify(`Removed the group “${g.name}”.`, true); }}>Remove group</button>}
       </div>
       <div className="cat-list">
         {cats.length > 0 && <div className="cat-line head lbl"><span>Category</span><span>Order</span><span>Group</span><span /></div>}
@@ -130,7 +130,7 @@ function GroupPanel({ g, first, last }: { g: Group; first: boolean; last: boolea
 }
 
 function CategoryLine({ c, first, last }: { c: Category; first: boolean; last: boolean }) {
-  const { book, change } = useApp();
+  const { book, change, notify } = useApp();
   const edit = (fn: (l: Ledger) => void) => change(fn, ["settings"]);
   const cat = (l: Ledger) => l.settings.cats.find((x) => x.id === c.id)!;
   const move = (dir: -1 | 1) => edit((l) => {
@@ -140,10 +140,13 @@ function CategoryLine({ c, first, last }: { c: Category; first: boolean; last: b
     const j = cats.indexOf(sibling);
     [cats[i], cats[j]] = [cats[j], cats[i]];
   });
-  const remove = () => edit((l) => {
-    l.settings.cats = l.settings.cats.filter((x) => x.id !== c.id);
-    l.settings.goals.forEach((g) => (g.cats = g.cats.filter((x) => x !== c.id)));
-  });
+  const remove = () => {
+    edit((l) => {
+      l.settings.cats = l.settings.cats.filter((x) => x.id !== c.id);
+      l.settings.goals.forEach((g) => (g.cats = g.cats.filter((x) => x !== c.id)));
+    });
+    notify(`Removed “${c.name}”.`, true);
+  };
   return (
     <div className={`cat-line${c.archived ? " archived" : ""}`}>
       <TextInput className="cname" value={c.name} label="Category name" onCommit={(v) => v.trim() && edit((l) => void (cat(l).name = v.trim()))} />

@@ -7,6 +7,9 @@ a small local server and a web page, with your figures kept in a folder in your 
 The app has three sections:
 
 **Track**: what happened
+- **Overview:** where the app opens. This month in four numbers, and a *Needs attention* list with a button to fix
+  each item: categories over budget, months ahead with no budget or heading short, goals falling behind. Also the
+  last six months at a glance, your goals, and a getting-started checklist until the basics are set up.
 - **Month:** each category's budget and actual side by side, with what's left or overspent, the change from last
   month and from the same month last year. Copy last month's amounts or fill from the budget in one click.
 - **Year:** where each month's money went, as a chart and a full month-by-month table against budget.
@@ -36,6 +39,15 @@ The app has three sections:
 
 Money in isn't budgeted: it's what comes in. Budgets cover money set aside and money out, and for months that haven't happened
 the forecast expects income at your recent average (the last three months with income).
+
+### Getting around
+
+- **Search and jump:** ⌘K (Ctrl K on Windows) or `/`. Type a page, a month (`mar 2025`), a category (`rent` opens it
+  in this month with the cursor in its figure) or an action (`export`, `back up`, `theme`, `undo`).
+- **Undo:** ⌘Z (Ctrl Z) outside a text box, the Undo button in the header, or the Undo link in the message after
+  anything is deleted. The last 50 changes can be undone.
+- **Months:** click the month's name to pick any month (months with figures are marked), or use ← and →.
+- **Groups:** click a group's name on the Month page to fold it away; it stays folded next time.
 
 ### Other currencies
 

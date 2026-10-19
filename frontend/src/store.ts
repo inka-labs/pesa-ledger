@@ -12,6 +12,7 @@ export type LoadState = { kind: "loading" } | { kind: "signedout"; message: stri
 export type SaveState = { kind: "idle" | "saving" | "saved" } | { kind: "error"; message: string };
 
 const DELAY = 500;
+const HISTORY = 50;
 
 export function useLedger() {
   const [load, setLoad] = useState<LoadState>({ kind: "loading" });
@@ -21,6 +22,15 @@ export function useLedger() {
   const dirty = useRef(new Set<string>());
   const timer = useRef<number | undefined>(undefined);
   const flushing = useRef(false);
+  // earlier versions of the ledger, newest last, for Undo
+  const history = useRef<Ledger[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const remember = (l: Ledger | null) => {
+    if (!l) return;
+    history.current.push(l);
+    if (history.current.length > HISTORY) history.current.shift();
+    setCanUndo(true);
+  };
 
   const accept = useCallback((stored: Stored) => {
     const l = normalise(stored);
@@ -89,6 +99,9 @@ export function useLedger() {
       if (!latest.current) return;
       const next = structuredClone(latest.current);
       mutate(next);
+      // a change that changes nothing isn't saved or remembered (so Undo always undoes something)
+      if (JSON.stringify(next) === JSON.stringify(latest.current)) return;
+      remember(latest.current);
       latest.current = next;
       setLedger(next);
       touches.forEach((k) => dirty.current.add(k));
@@ -101,6 +114,7 @@ export function useLedger() {
   const replace = useCallback(
     (next: Ledger) => {
       const before = Object.keys(latest.current?.years ?? {});
+      remember(latest.current);
       latest.current = next;
       setLedger(next);
       dirty.current.add("settings");
@@ -110,10 +124,27 @@ export function useLedger() {
     [schedule],
   );
 
+  /** Put back the ledger as it was before the last change, and save whatever that touches. */
+  const undo = useCallback(() => {
+    const prev = history.current.pop();
+    setCanUndo(history.current.length > 0);
+    if (!prev || !latest.current) return false;
+    const now = latest.current;
+    latest.current = prev;
+    setLedger(prev);
+    if (JSON.stringify(prev.settings) !== JSON.stringify(now.settings)) dirty.current.add("settings");
+    for (const y of new Set([...Object.keys(prev.years), ...Object.keys(now.years)]))
+      if (JSON.stringify(prev.years[y]) !== JSON.stringify(now.years[y])) dirty.current.add(`y:${y}`);
+    schedule();
+    return true;
+  }, [schedule]);
+
   /** Restoring a backup: the server already wrote it, so just show it. */
   const restored = useCallback(
     (stored: Stored) => {
       dirty.current.clear();
+      history.current = [];
+      setCanUndo(false);
       accept(stored);
       setSave({ kind: "saved" });
     },
@@ -128,5 +159,5 @@ export function useLedger() {
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
 
-  return { load, ledger, save, change, replace, restored, retry: flush, reload };
+  return { load, ledger, save, change, replace, restored, undo, canUndo, retry: flush, reload };
 }

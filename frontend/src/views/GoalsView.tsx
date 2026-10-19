@@ -7,7 +7,7 @@ import type { Goal } from "../model/types";
 import { Swatch } from "../ui/bits";
 
 export function GoalsView() {
-  const { book, change } = useApp();
+  const { book, change, notify } = useApp();
   const [editing, setEditing] = useState<string | null>(null);
   const goals = book.settings.goals;
   const save = (g: Goal) => {
@@ -18,7 +18,11 @@ export function GoalsView() {
     }, ["settings"]);
     setEditing(null);
   };
-  const remove = (id: string) => change((l) => void (l.settings.goals = l.settings.goals.filter((g) => g.id !== id)), ["settings"]);
+  const remove = (id: string) => {
+    const name = book.settings.goals.find((g) => g.id === id)?.name;
+    change((l) => void (l.settings.goals = l.settings.goals.filter((g) => g.id !== id)), ["settings"]);
+    notify(`Deleted the goal “${name}”.`, true);
+  };
 
   return (
     <>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "../context";
 import { setActual, setBudget, setNote } from "../model/edit";
 import { money } from "../model/format";
@@ -19,6 +19,34 @@ export function MonthView() {
   const future = before(book.today, { y, m });
   const prevRow = book.year(p.y)?.actual?.[mk(p.m)];
   const val = (tt: typeof t, k: "income" | "saved" | "spent" | "left") => (tt.has ? tt[k] : null);
+
+  // ← and → move between months when you're not typing in a box
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (e.metaKey || e.ctrlKey || e.altKey || el?.matches?.("input, textarea, select") || document.querySelector(".cmdk, .mpick-pop")) return;
+      if (e.key === "ArrowLeft") setView(prevYM({ y, m }));
+      if (e.key === "ArrowRight") setView(nextYM({ y, m }));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [y, m, setView]);
+
+  // arriving from search or the overview with a category: show it and put the cursor in its figure
+  useEffect(() => {
+    if (!view.focusCat) return;
+    const id = view.focusCat;
+    const c = book.cats[id];
+    if (c && collapsedGroups().has(c.group)) setCollapsed(c.group, false);
+    requestAnimationFrame(() => {
+      const row = document.getElementById(`row-${id}`);
+      row?.scrollIntoView({ block: "center", behavior: "smooth" });
+      row?.classList.add("flash");
+      setTimeout(() => row?.classList.remove("flash"), 1600);
+      (document.getElementById(`actual-${id}`) as HTMLInputElement | null)?.focus({ preventScroll: true });
+    });
+    setView({ focusCat: null });
+  }, [view.focusCat, book, setView]);
 
   const copyPrev = () =>
     change((l) => {
@@ -47,9 +75,9 @@ export function MonthView() {
     <>
       <div className="panel-h">
         <div className="monthnav">
-          <button className="btn" aria-label="Previous month" onClick={() => setView(prevYM({ y, m }))}>‹</button>
-          <h2>{MONTHS_LONG[m - 1]} {y}</h2>
-          <button className="btn" aria-label="Next month" onClick={() => setView(nextYM({ y, m }))}>›</button>
+          <button className="btn" aria-label="Previous month" title="Previous month (←)" onClick={() => setView(prevYM({ y, m }))}>‹</button>
+          <MonthPicker />
+          <button className="btn" aria-label="Next month" title="Next month (→)" onClick={() => setView(nextYM({ y, m }))}>›</button>
         </div>
         <div className="end">
           {(y !== book.today.y || m !== book.today.m) && <button className="btn ghost" onClick={() => setView(book.today)}>This month</button>}
@@ -79,8 +107,76 @@ export function MonthView() {
   );
 }
 
+/** Groups folded away on the Month page, remembered in this browser. */
+const COLLAPSE_KEY = "pesa-ledger.collapsed";
+function collapsedGroups(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(COLLAPSE_KEY) || "[]")); } catch { return new Set(); }
+}
+function setCollapsed(gid: string, folded: boolean) {
+  const s = collapsedGroups();
+  if (folded) s.add(gid); else s.delete(gid);
+  try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...s])); } catch { /* private window */ }
+  window.dispatchEvent(new Event("pesa-collapse"));
+}
+function useCollapsed(gid: string): [boolean, () => void] {
+  const [folded, setFolded] = useState(() => collapsedGroups().has(gid));
+  useEffect(() => {
+    const sync = () => setFolded(collapsedGroups().has(gid));
+    window.addEventListener("pesa-collapse", sync);
+    return () => window.removeEventListener("pesa-collapse", sync);
+  }, [gid]);
+  return [folded, () => setCollapsed(gid, !folded)];
+}
+
+/** Click the month's name to jump to any month: pick a year, then a month. Months with figures are marked. */
+function MonthPicker() {
+  const { book, view, setView } = useApp();
+  const [open, setOpen] = useState(false);
+  const [year, setYear] = useState(view.y);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (open) setYear(view.y); }, [open, view.y]);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  return (
+    <div className="mpick" ref={ref}>
+      <button className="mtitle" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)} title="Choose a month">
+        <h2>{MONTHS_LONG[view.m - 1]} {view.y}</h2><span className="caret" aria-hidden>▾</span>
+      </button>
+      {open && (
+        <div className="mpick-pop" role="dialog" aria-label="Choose a month">
+          <div className="bar yr">
+            <button className="iconbtn" aria-label="Previous year" onClick={() => setYear(year - 1)}>‹</button>
+            <b>{year}</b>
+            <button className="iconbtn" aria-label="Next year" onClick={() => setYear(year + 1)}>›</button>
+          </div>
+          <div className="mgrid">
+            {MONTHS.map((mn, i) => {
+              const has = book.monthTotals(year, i + 1).has;
+              const isNow = year === book.today.y && i + 1 === book.today.m;
+              return (
+                <button key={mn} className={`mcell2${year === view.y && i + 1 === view.m ? " on" : ""}${isNow ? " now" : ""}`}
+                  onClick={() => { setView({ y: year, m: i + 1 }); setOpen(false); }} title={has ? "Has figures" : "No figures yet"}>
+                  {mn}{has && <i className="has" aria-label="has figures" />}
+                </button>
+              );
+            })}
+          </div>
+          <button className="btn ghost" onClick={() => { setView(book.today); setOpen(false); }}>This month</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GroupSection({ g, gAct, gPlan }: { g: Group; gAct: number; gPlan: number }) {
   const { book, change, view } = useApp();
+  const [folded, toggle] = useCollapsed(g.id);
   const { y, m } = view;
   const [name, setName] = useState("");
   const cats = book.catsIn(g.id, true).filter((c) => !c.archived || book.actual(y, m, c.id) != null);
@@ -95,13 +191,18 @@ function GroupSection({ g, gAct, gPlan }: { g: Group; gAct: number; gPlan: numbe
   return (
     <section className="grp">
       <div className="grp-h">
-        <Swatch g={g} />
-        <h3>{g.name}</h3>
+        <button className="fold" aria-expanded={!folded} aria-label={`${folded ? "Show" : "Hide"} ${g.name}`} onClick={toggle}>
+          <span className={`chev${folded ? "" : " open"}`} aria-hidden>▸</span>
+          <Swatch g={g} />
+          <h3>{g.name}</h3>
+          {folded && <span className="muted small">{cats.length} {cats.length === 1 ? "category" : "categories"}</span>}
+        </button>
         <span className="tot">
           <span className="num">{money(gAct)}</span>{" "}
           <span className="muted">{effect === "in" ? "received" : effect === "none" ? "tracked, not in the totals" : `of ${money(gPlan)} budgeted`}</span>
         </span>
       </div>
+      {!folded && <>
       <div>
         {cats.length > 0 && (
           <div className="row head lbl">
@@ -115,6 +216,7 @@ function GroupSection({ g, gAct, gPlan }: { g: Group; gAct: number; gPlan: numbe
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`Add a category to ${g.name}`} aria-label={`New category in ${g.name}`} />
         <button className="btn">Add</button>
       </form>
+      </>}
     </section>
   );
 }
@@ -149,7 +251,7 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
     );
   }
   return (
-    <div className="row">
+    <div className="row" id={`row-${c.id}`}>
       <div className="name">{c.name}{c.archived && <small>Archived</small>}</div>
       {income ? <div className="c-plan none" /> : (
         <div className="c-plan">
@@ -160,7 +262,7 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
         </div>
       )}
       <div>
-        <AmountInput value={a} label={`${c.name} actual for ${MONTHS[m - 1]}`}
+        <AmountInput id={`actual-${c.id}`} value={a} label={`${c.name} actual for ${MONTHS[m - 1]}`}
           onCommit={(v) => change((l) => void setActual(l, y, m, c.id, v), [`y:${y}`])} />
       </div>
       <div className="c-meter">{progress}</div>
