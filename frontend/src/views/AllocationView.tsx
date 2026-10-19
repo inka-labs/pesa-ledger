@@ -1,6 +1,6 @@
 /** Allocation: how income divides up, against the long-standing rules (50/30/20, 70/20/10, the Babylon tenth,
  *  six jars...) or the person's own split. Pick a rule, see actual and budget against it for a period, say
- *  what goes in which bucket, and see how every rule reads the same money. */
+ *  what goes in which bucket; each card shows how well its rule fits the same money. */
 
 import { useState } from "react";
 import { useApp } from "../context";
@@ -42,7 +42,7 @@ export function AllocationView() {
       <div className="rule-cards" role="list">
         {[...RULES, ...(book.settings.allocation?.custom?.length ? [ruleById(book, CUSTOM_ID)!] : [])].map((r) => (
           <button key={r.id} role="listitem" className={`rule-card${r.id === rule.id ? " on" : ""}`} onClick={() => setPeek(r.id === chosen?.id ? null : r.id)} aria-pressed={r.id === rule.id}>
-            <span className="rc-h"><b>{r.name}</b>{r.id === chosen?.id && <span className="chip ok">Yours</span>}</span>
+            <span className="rc-h"><b>{r.name}</b><FitChip rule={r} t={base} />{r.id === chosen?.id && <span className="chip ok">Yours</span>}</span>
             <span className="rc-bar">{r.buckets.map((b, i) => <i key={b.id} style={{ width: `${b.pct}%`, background: col(i) }} title={`${b.name} ${b.pct}%`} />)}</span>
             <span className="small muted">{r.idea}</span>
           </button>
@@ -60,9 +60,17 @@ export function AllocationView() {
 
       <Mapping rule={rule} />
 
-      {base && base.income > 0 && <EveryRule t={base} label={p.actual ? "what happened" : "the budget"} chosen={chosen?.id} onPick={(id) => setPeek(id)} onUse={use} />}
     </>
   );
+}
+
+/** How many of a rule's buckets the period's money hits, on its card. */
+function FitChip({ rule, t }: { rule: Rule; t: Totals | null }) {
+  const { book } = useApp();
+  if (!t || t.income <= 0) return null;
+  const a = allocate(book, rule, t);
+  const tone = a.rows.some((x) => x.tone === "bad") ? "bad" : a.score < a.rows.length ? "warn" : "good";
+  return <span className={`hchip ${tone} fit`} title={`${a.score} of ${a.rows.length} buckets on target for this period`}>{a.score}/{a.rows.length}</span>;
 }
 
 function RulePanel({ rule, actual, budget, isChosen, onUse }: { rule: Rule; actual: Totals | null; budget: Totals | null; isChosen: boolean; onUse: () => void }) {
@@ -173,34 +181,6 @@ function Mapping({ rule }: { rule: Rule }) {
         })}
       </div>
     </details>
-  );
-}
-
-/** Every rule against the same money: how many buckets each would call on target, and the split it sees. */
-function EveryRule({ t, label, chosen, onPick, onUse }: { t: Totals; label: string; chosen?: string; onPick: (id: string) => void; onUse: (id: string) => void }) {
-  const { book } = useApp();
-  const rules = [...RULES, ...(book.settings.allocation?.custom?.length ? [ruleById(book, CUSTOM_ID)!] : [])];
-  const rows = rules.map((r) => ({ r, a: allocate(book, r, t) })).sort((x, y) => y.a.score / y.a.rows.length - x.a.score / x.a.rows.length);
-  return (
-    <div className="panel">
-      <div className="panel-h"><h3>Every rule against your money</h3><span className="muted small">Each rule's buckets, filled with {label} for the period. Best fit first.</span></div>
-      <div className="every">
-        {rows.map(({ r, a }) => (
-          <div key={r.id} className="every-row">
-            <button className="link every-name" onClick={() => { onPick(r.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}><b>{r.name}</b></button>
-            <span className="every-split">
-              {a.rows.map((x, i) => (
-                <span key={x.bucket.id} className={`es es-${x.tone}`} title={`${x.bucket.name}: ${pc(x.share)} (${KIND[x.bucket.kind]} ${x.bucket.pct}%)`}>
-                  <span className="sw" style={{ background: col(i) }} />{x.bucket.name} <b className="num">{pc(x.share)}</b><span className="muted"> / {x.bucket.pct}%</span>
-                </span>
-              ))}
-            </span>
-            <span className={`hchip ${a.rows.some((x) => x.tone === "bad") ? "bad" : a.score < a.rows.length ? "warn" : "good"}`}>{a.score}/{a.rows.length}</span>
-            {r.id === chosen ? <span className="chip ok">Yours</span> : <button className="btn ghost" onClick={() => onUse(r.id)}>Use</button>}
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 
