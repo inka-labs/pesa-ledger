@@ -2,7 +2,8 @@ import { useState, type ReactNode } from "react";
 import { useApp } from "../context";
 import { money, pct } from "../model/format";
 import { MONTHS } from "../model/ledger";
-import { Alt, Delta, Kpi, OneOffNote, OneOffToggle, Swatch, YearSelect } from "../ui/bits";
+import { Alt, Delta, FoldAll, GroupToggle, Kpi, OneOffNote, OneOffToggle, YearSelect } from "../ui/bits";
+import { useFolded } from "../ui/fold";
 import { CompareChart, Movers } from "../ui/charts";
 
 export function CompareView() {
@@ -17,6 +18,8 @@ export function CompareView() {
   const va = book.metric(a, 1, metric, upto), vb = book.metric(b, 1, metric, upto);
   const label = book.metricLabel(metric);
   const [mode, setMode] = useState<"month" | "running">("month");
+  const { folded, toggle, setAll } = useFolded("compare");
+  const shown = (gid: string) => book.catsIn(gid, true).filter((c) => ta.byCat[c.id] || tb.byCat[c.id] || !c.archived);
 
   const row = (key: string, name: ReactNode, x: number, y: number, up: boolean, cls = "") => {
     const d = x - y, p = y ? d / Math.abs(y) : null;
@@ -87,7 +90,7 @@ export function CompareView() {
         <Movers book={book} ta={ta} tb={tb} a={a} b={b} upto={upto} onPick={(cmpMetric) => { setView({ cmpMetric }); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
       </div>
       <div className="panel">
-        <div className="panel-h"><h3>Every category, {span}</h3></div>
+        <div className="panel-h"><h3>Every category, {span}</h3><span className="muted small">Click a group to fold it</span><FoldAll ids={book.settings.groups.map((g) => g.id)} folded={folded} setAll={setAll} /></div>
         <div className="scroll">
           <table className="t">
             <thead><tr><th>Category</th><th>{a}</th><th>{b}</th><th>Change</th><th>Change %</th></tr></thead>
@@ -99,10 +102,8 @@ export function CompareView() {
               {book.settings.groups.flatMap((g) => {
                 const up = book.effectOfGroup(g) !== "out";
                 return [
-                  row(g.id, <><Swatch g={g} /> {g.name}</>, ta.byGroup[g.id] || 0, tb.byGroup[g.id] || 0, up, "gh"),
-                  ...book.catsIn(g.id, true)
-                    .filter((c) => ta.byCat[c.id] || tb.byCat[c.id] || !c.archived)
-                    .map((c) => row(c.id, c.name, ta.byCat[c.id] || 0, tb.byCat[c.id] || 0, up, "cat")),
+                  row(g.id, <GroupToggle g={g} folded={folded.has(g.id)} onToggle={() => toggle(g.id)} count={shown(g.id).length} />, ta.byGroup[g.id] || 0, tb.byGroup[g.id] || 0, up, "gh"),
+                  ...(folded.has(g.id) ? [] : shown(g.id)).map((c) => row(c.id, c.name, ta.byCat[c.id] || 0, tb.byCat[c.id] || 0, up, "cat")),
                 ];
               })}
             </tbody>

@@ -2,7 +2,8 @@ import { useApp } from "../context";
 import { money, pct } from "../model/format";
 import { MONTHS } from "../model/ledger";
 import type { Totals } from "../model/types";
-import { Alt, Delta, Kpi, OneOffNote, OneOffToggle, Swatch, YearSelect } from "../ui/bits";
+import { Alt, Delta, FoldAll, GroupToggle, Kpi, OneOffNote, OneOffToggle, YearSelect } from "../ui/bits";
+import { useFolded } from "../ui/fold";
 import { ShareBar, YearChart } from "../ui/charts";
 
 export function YearView() {
@@ -17,6 +18,8 @@ export function YearView() {
   const months = MONTHS.map((_, i) => book.monthTotals(y, i + 1));
   const yearT = book.rangeTotals(y, 1, 12);
   const planY = book.planRange(y, 1, 12);
+  const { folded, toggle, setAll } = useFolded("year");
+  const groupIds = book.settings.groups.map((g) => g.id);
 
   const cell = (v: number | undefined, key: number) => (v ? <td key={key}>{money(v)}</td> : <td key={key} className="empty">–</td>);
   const ofBudget = (a: number, p: number | null | undefined) => (p ? <td>{Math.round((a / p) * 100)}%</td> : <td className="empty">–</td>);
@@ -57,20 +60,23 @@ export function YearView() {
         <ShareBar book={book} t={t} />
       </div>
       <div className="panel">
-        <div className="panel-h"><h3>Month by month</h3><span className="muted small">Budget is set on the Budget tab</span></div>
+        <div className="panel-h">
+          <h3>Month by month</h3><span className="muted small">Click a group to fold it. Budget is set on the Budget tab</span>
+          <FoldAll ids={groupIds} folded={folded} setAll={setAll} />
+        </div>
         <div className="scroll">
           <table className="t">
             <thead><tr><th>Category</th>{MONTHS.map((mn) => <th key={mn}>{mn}</th>)}<th>Total</th><th>Budget</th><th>% of budget</th></tr></thead>
             <tbody>
               {book.settings.groups.flatMap((g) => [
                 <tr className="gh" key={g.id}>
-                  <td><Swatch g={g} /> {g.name}</td>
+                  <td><GroupToggle g={g} folded={folded.has(g.id)} onToggle={() => toggle(g.id)} count={book.catsIn(g.id, true).filter((c) => !c.archived || yearT.byCat[c.id]).length} /></td>
                   {months.map((mt, i) => cell(mt.byGroup[g.id], i))}
                   <td>{money(yearT.byGroup[g.id] || 0)}</td>
                   <td>{planY.byGroup[g.id] ? money(planY.byGroup[g.id]) : "–"}</td>
                   {ofBudget(yearT.byGroup[g.id] || 0, planY.byGroup[g.id])}
                 </tr>,
-                ...book.catsIn(g.id, true).filter((c) => !c.archived || yearT.byCat[c.id]).map((c) => {
+                ...(folded.has(g.id) ? [] : book.catsIn(g.id, true)).filter((c) => !c.archived || yearT.byCat[c.id]).map((c) => {
                   const py = book.planYear(y, c.id);
                   return (
                     <tr className="cat" key={c.id}>

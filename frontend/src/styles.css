@@ -194,6 +194,8 @@ table.t tr.gh td, table.t tr.gh td:first-child { background: var(--sunk); font-w
 table.t tr.sum td { font-weight: 600; }
 table.t tr.cat td:first-child { padding-left: 24px; color: var(--ink-2); }
 table.t td.empty { color: var(--muted); }
+table.t .fold.trow { gap: 6px; font-weight: 600; font-size: 12.5px; }
+table.t .fold.trow:hover { color: var(--accent); }
 
 /* budget grid */
 table.bg { table-layout: auto; }

@@ -134,6 +134,27 @@ export function OneOffNote({ t, what }: { t: Totals; what: string }) {
   return <div className="notice">One-offs left out of {what}: {parts.join(", ")} ({book.settings.currency}).</div>;
 }
 
+/** A group's name in a table, as a button that folds its categories away. */
+export function GroupToggle({ g, folded, onToggle, count }: { g: Group; folded: boolean; onToggle: () => void; count: number }) {
+  return (
+    <button className="fold trow" aria-expanded={!folded} onClick={onToggle} title={folded ? `Show ${g.name}'s categories` : `Fold ${g.name}`}>
+      <span className={`chev${folded ? "" : " open"}`} aria-hidden>▸</span>
+      <Swatch g={g} /> {g.name}
+      {folded && count > 0 && <span className="muted small"> · {count}</span>}
+    </button>
+  );
+}
+
+/** "Collapse all" / "Expand all" for a table of groups. */
+export function FoldAll({ ids, folded, setAll }: { ids: string[]; folded: Set<string>; setAll: (ids: string[], fold: boolean) => void }) {
+  const allFolded = ids.length > 0 && ids.every((id) => folded.has(id));
+  return (
+    <div className="end">
+      <button className="btn ghost" onClick={() => setAll(ids, !allFolded)}>{allFolded ? "Expand all" : "Collapse all"}</button>
+    </div>
+  );
+}
+
 export function YearSelect({ value, onChange, id, label }: { value: number; onChange: (y: number) => void; id: string; label: string }) {
   const { book } = useApp();
   return (
