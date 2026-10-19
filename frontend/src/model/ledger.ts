@@ -35,11 +35,11 @@ export const parseYM = (s: string): YM => { const [y, m] = s.split("-").map(Numb
 export const fmtYM = ({ y, m }: YM) => `${MONTHS[m - 1]} ${y}`;
 
 export function emptyYear(): YearDoc {
-  return { actual: {}, budget: {}, plan: {}, notes: {} };
+  return { actual: {}, budget: {}, plan: {}, notes: {}, oneoff: {} };
 }
 
 function blank(): Totals {
-  return { income: 0, saved: 0, spent: 0, left: 0, byGroup: {}, byCat: {}, has: false };
+  return { income: 0, saved: 0, spent: 0, left: 0, byGroup: {}, byCat: {}, has: false, oneOff: { income: 0, saved: 0, spent: 0, any: false } };
 }
 
 /** Indexes over one ledger. Build one per render (cheap) and ask it everything. */
@@ -48,10 +48,18 @@ export class Book {
   readonly groups: Record<string, Group> = {};
   readonly kinds: Record<string, Kind> = {};
 
-  constructor(readonly ledger: Ledger, readonly today: YM = thisMonth()) {
+  /** `regularOnly` leaves one-offs out of every actual figure (see `regular`). */
+  constructor(readonly ledger: Ledger, readonly today: YM = thisMonth(), readonly regularOnly = false) {
     ledger.settings.cats.forEach((c) => (this.cats[c.id] = c));
     ledger.settings.groups.forEach((g) => (this.groups[g.id] = g));
     kindsOf(ledger.settings).forEach((k) => (this.kinds[k.id] = k));
+  }
+
+  private _regular?: Book;
+  /** The same ledger with one-offs left out: for comparing years and judging the usual month. */
+  get regular(): Book {
+    if (this.regularOnly) return this;
+    return (this._regular ??= new Book(this.ledger, this.today, true));
   }
 
   get settings() {
@@ -113,9 +121,38 @@ export class Book {
     const r = blank();
     for (let m = m1; m <= m2; m++) {
       const row = this.year(y)?.actual?.[mk(m)];
-      if (row) for (const [cid, v] of Object.entries(row)) if (isNum(v)) this.add(r, cid, v);
+      if (!row) continue;
+      for (const [cid, v] of Object.entries(row)) {
+        if (!isNum(v)) continue;
+        const part = this.oneOffPart(y, m, cid);
+        if (part) {
+          const e = this.effectOf(cid);
+          if (e !== "none") {
+            r.oneOff.any = true;
+            r.oneOff[e === "in" ? "income" : e === "aside" ? "saved" : "spent"] += part;
+          }
+        }
+        this.add(r, cid, this.regularOnly ? v - part : v);
+      }
     }
     return r;
+  }
+
+  oneOff(y: number, m: number, cid: string) {
+    const o = this.year(y)?.oneoff?.[mk(m)]?.[cid];
+    return o && isNum(o.amount) ? o : null;
+  }
+
+  /** How much of a month's figure is one-off: never more than the figure itself. */
+  oneOffPart(y: number, m: number, cid: string): number {
+    const o = this.oneOff(y, m, cid);
+    const v = this.year(y)?.actual?.[mk(m)]?.[cid];
+    if (!o || !isNum(v)) return 0;
+    return v >= 0 ? Math.min(Math.max(o.amount, 0), v) : Math.max(Math.min(o.amount, 0), v);
+  }
+
+  hasOneOffs(): boolean {
+    return Object.values(this.ledger.years).some((yd) => Object.values(yd.oneoff ?? {}).some((r) => Object.keys(r).length > 0));
   }
 
   lastDataMonth(y: number): number {
@@ -145,11 +182,12 @@ export class Book {
     return isNum(v) ? v : null;
   }
 
-  /** What's likely to come in: the average income of the last `n` months (up to today) that had any. */
+  /** What's likely to come in: the average income of the last `n` months (up to today) that had any.
+   *  One-off income (a bonus, a sale) is left out: it isn't expected again. */
   expectedIncome(n = 3): { amount: number; months: number } {
     let p = this.today, sum = 0, found = 0;
     for (let i = 0; i < 24 && found < n; i++) {
-      const t = this.monthTotals(p.y, p.m);
+      const t = this.regular.monthTotals(p.y, p.m);
       if (t.income > 0) { sum += t.income; found++; }
       p = prevYM(p);
     }

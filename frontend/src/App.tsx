@@ -21,6 +21,8 @@ import { SettingsView } from "./views/SettingsView";
 import { Welcome } from "./views/Welcome";
 import { YearView } from "./views/YearView";
 
+const REGULAR_KEY = "pesa-ledger.leave-out-one-offs";
+
 const tabFromHash = (): Tab => {
   const h = location.hash.slice(1) as Tab;
   return TABS.some((t) => t.id === h) ? h : "overview";
@@ -46,6 +48,7 @@ export default function App() {
   const today = thisMonth();
   const [view, setViewState] = useState<View>({
     y: today.y, m: today.m, yearView: today.y, cmpA: today.y, cmpB: today.y - 1, cmpMetric: "spent", cmpSame: true, planYear: today.y, catHint: false,
+    regular: (() => { try { return localStorage.getItem(REGULAR_KEY) === "1"; } catch { return false; } })(),
   });
   const [version, setVersion] = useState<Version | null>(null);
   const { theme, setTheme, cycle } = useTheme();
@@ -65,7 +68,10 @@ export default function App() {
     if (load.kind === "ready") api.version().then(setVersion).catch(() => undefined);
   }, [load.kind]);
 
-  const setView = useCallback((patch: Partial<View>) => setViewState((v) => ({ ...v, ...patch })), []);
+  const setView = useCallback((patch: Partial<View>) => {
+    if (patch.regular != null) try { localStorage.setItem(REGULAR_KEY, patch.regular ? "1" : "0"); } catch { /* private window */ }
+    setViewState((v) => ({ ...v, ...patch }));
+  }, []);
   const go = useCallback((t: Tab, patch?: Partial<View>) => {
     if (patch) setView(patch);
     location.hash = t;

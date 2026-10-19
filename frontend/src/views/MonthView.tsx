@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "../context";
-import { setActual, setBudget, setNote } from "../model/edit";
-import { money } from "../model/format";
+import { setActual, setBudget, setNote, setOneOff } from "../model/edit";
+import { amountText, money } from "../model/format";
 import { before, mk, MONTHS, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
 import { newId } from "../model/csv";
 import type { Category, Group } from "../model/types";
@@ -67,6 +67,8 @@ export function MonthView() {
       <Delta cur={val(t, k)} prev={val(tp, k)} upGood={k !== "spent"} label={pLabel} />
       {ly.has && <Delta cur={val(t, k)} prev={ly[k]} upGood={k !== "spent"} label={`${MONTHS[m - 1]} ${y - 1}`} />}
       {k === "saved" && t.income > 0 && <span>{Math.round((t.saved / t.income) * 100)}% of income</span>}
+      {k !== "left" && t.oneOff[k] !== 0 && <span className="oneoff-sub">incl. {money(t.oneOff[k])} one-off</span>}
+      {k === "left" && t.oneOff.any && <span className="oneoff-sub">{money(t.left + t.oneOff.saved + t.oneOff.spent - t.oneOff.income)} without one-offs</span>}
       <Alt v={t[k]} />
     </Kpi>
   ));
@@ -221,6 +223,70 @@ function GroupSection({ g, gAct, gPlan }: { g: Group; gAct: number; gPlan: numbe
   );
 }
 
+/** Mark how much of this month's figure won't repeat (the car, a renovation, a bonus). It stays in the
+ *  month's totals; Year and Compare can leave it out, and forecasts never count on it again. */
+function OneOffControl({ c, actual }: { c: Category; actual: number | null }) {
+  const { book, change, view, read, notify } = useApp();
+  const { y, m } = view;
+  const o = book.oneOff(y, m, c.id);
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [bad, setBad] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    setAmount(amountText(o?.amount ?? actual)); setNote(o?.note ?? ""); setBad("");
+    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", esc); };
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (actual == null && !o) return null;
+  const save = (e: React.FormEvent) => {
+    e.preventDefault();
+    const r = read(amount);
+    if ("error" in r) { setBad(r.error); return; }
+    if (r.value == null || r.value === 0) { setBad("Enter the one-off part of the figure."); return; }
+    if (actual != null && Math.abs(r.value) > Math.abs(actual)) { setBad(`It's part of the figure, so at most ${money(actual)}.`); return; }
+    change((l) => void setOneOff(l, y, m, c.id, { amount: r.value!, note }), [`y:${y}`]);
+    setOpen(false);
+  };
+  const clear = () => {
+    change((l) => void setOneOff(l, y, m, c.id, null), [`y:${y}`]);
+    notify(`${c.name} in ${MONTHS[m - 1]} counts as regular again.`, true);
+    setOpen(false);
+  };
+  return (
+    <div className="oneoff" ref={ref}>
+      {o ? (
+        <button className="oneoff-tag" onClick={() => setOpen((x) => !x)} title="Part of this figure won't repeat. Click to change.">
+          One-off {money(o.amount)}{o.note ? ` · ${o.note}` : ""}
+        </button>
+      ) : (
+        <button className="oneoff-add" onClick={() => setOpen((x) => !x)} title="Mark all or part of this figure as a one-off">One-off?</button>
+      )}
+      {open && (
+        <form className="oneoff-pop" role="dialog" aria-label={`One-off in ${c.name}`} onSubmit={save}>
+          <p className="small muted">How much of {MONTHS_LONG[m - 1]}'s {money(actual ?? 0)} won't repeat? It stays in this month's totals, and Year and Compare can leave it out.</p>
+          <label className="lbl" htmlFor={`oo-a-${c.id}`}>One-off amount</label>
+          <input id={`oo-a-${c.id}`} className={`amt${bad ? " invalid" : ""}`} inputMode="decimal" value={amount} autoFocus
+            onFocus={(e) => e.currentTarget.select()} onChange={(e) => { setAmount(e.target.value); setBad(""); }} />
+          {bad && <span className="small d-bad">{bad}</span>}
+          <label className="lbl" htmlFor={`oo-n-${c.id}`}>What was it?</label>
+          <input id={`oo-n-${c.id}`} value={note} maxLength={200} placeholder="e.g. Car purchase, house renovation" onChange={(e) => setNote(e.target.value)} />
+          <div className="bar">
+            <button className="btn primary">Save</button>
+            {o && <button type="button" className="btn ghost danger" onClick={clear}>Not a one-off</button>}
+            <button type="button" className="btn ghost" onClick={() => setOpen(false)}>Cancel</button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
 function CategoryRow({ c, g }: { c: Category; g: Group }) {
   const { book, change, view } = useApp();
   const { y, m } = view;
@@ -252,7 +318,7 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
   }
   return (
     <div className="row" id={`row-${c.id}`}>
-      <div className="name">{c.name}{c.archived && <small>Archived</small>}</div>
+      <div className="name">{c.name}{c.archived && <small>Archived</small>}{effect !== "none" && <OneOffControl c={c} actual={a} />}</div>
       {income ? <div className="c-plan none" /> : (
         <div className="c-plan">
           <AmountInput value={own} placeholder={annual != null ? money(annual / 12) : "–"}

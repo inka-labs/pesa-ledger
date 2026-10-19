@@ -48,9 +48,14 @@ export function OverviewView() {
   if (ratesError) items.push({ tone: "info", text: <>Exchange rates couldn't be updated. {ratesError}</>, action: "Check", tab: "settings" });
 
   // The last six months' left over, for a sense of direction
-  const six: { ym: YM; left: number | null }[] = [];
+  const six: { ym: YM; left: number | null; usual: number | null }[] = [];
   let p = today;
-  for (let i = 0; i < 6; i++) { const mt = book.monthTotals(p.y, p.m); six.unshift({ ym: p, left: mt.has ? mt.left : null }); p = prevYM(p); }
+  for (let i = 0; i < 6; i++) {
+    const mt = book.monthTotals(p.y, p.m);
+    const usual = mt.oneOff.any ? book.regular.monthTotals(p.y, p.m).left : null;
+    six.unshift({ ym: p, left: mt.has ? mt.left : null, usual });
+    p = prevYM(p);
+  }
   const maxAbs = Math.max(1, ...six.map((s) => Math.abs(s.left ?? 0)));
 
   return (
@@ -97,9 +102,10 @@ export function OverviewView() {
           <div className="panel">
             <div className="panel-h"><h3>Left over, last six months</h3><div className="end"><button className="btn ghost" onClick={() => go("year", { yearView: today.y })}>Year view</button></div></div>
             <div className="six">
-              {six.map(({ ym, left }) => (
-                <button key={`${ym.y}-${ym.m}`} className="sixrow" onClick={() => go("month", { ...ym })} title={`Open ${fmtYM(ym)}`}>
-                  <span className="lbl6">{MONTHS[ym.m - 1]}</span>
+              {six.map(({ ym, left, usual }) => (
+                <button key={`${ym.y}-${ym.m}`} className="sixrow" onClick={() => go("month", { ...ym })}
+                  title={usual != null ? `Open ${fmtYM(ym)}. Without its one-offs: ${cur} ${money(usual)}` : `Open ${fmtYM(ym)}`}>
+                  <span className="lbl6">{MONTHS[ym.m - 1]}{usual != null && <sup className="oneoff-mark" aria-label="has a one-off">1×</sup>}</span>
                   <span className="track6">
                     {left != null && <i className={left < 0 ? "neg" : ""} style={{ width: `${(Math.abs(left) / maxAbs) * 100}%` }} />}
                   </span>

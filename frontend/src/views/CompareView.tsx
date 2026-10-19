@@ -2,11 +2,13 @@ import type { ReactNode } from "react";
 import { useApp } from "../context";
 import { money, pct } from "../model/format";
 import { MONTHS } from "../model/ledger";
-import { Alt, Delta, Kpi, Swatch, YearSelect } from "../ui/bits";
+import { Alt, Delta, Kpi, OneOffNote, OneOffToggle, Swatch, YearSelect } from "../ui/bits";
 import { CompareChart } from "../ui/charts";
 
 export function CompareView() {
-  const { book, view, setView } = useApp();
+  const app = useApp();
+  const { view, setView } = app;
+  const book = view.regular ? app.book.regular : app.book;
   const { cmpA: a, cmpB: b, cmpMetric: metric, cmpSame } = view;
   const lastA = book.lastDataMonth(a), lastB = book.lastDataMonth(b);
   const upto = cmpSame ? Math.max(1, Math.min(lastA || 12, lastB || 12)) : 12;
@@ -37,8 +39,11 @@ export function CompareView() {
         <div className="end">
           <label className="bar small">Compare <YearSelect id="ca" label="First year" value={a} onChange={(cmpA) => setView({ cmpA })} /> with <YearSelect id="cb" label="Second year" value={b} onChange={(cmpB) => setView({ cmpB })} /></label>
           <label className="bar small"><input type="checkbox" checked={cmpSame} onChange={(e) => setView({ cmpSame: e.target.checked })} /> Same months only</label>
+          <OneOffToggle />
         </div>
       </div>
+      <OneOffNote t={ta} what={String(a)} />
+      <OneOffNote t={tb} what={String(b)} />
       <div className="kpis">
         <Kpi label={`${label} · ${a}`} value={va || 0} lead>
           <Delta cur={va} prev={vb} upGood={book.upIsGood(metric)} label={String(b)} />

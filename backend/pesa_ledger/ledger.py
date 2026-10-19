@@ -8,6 +8,7 @@ A year file holds, per month key "01".."12":
     actual[month][category id]  what really came in or went out
     budget[month][category id]  a budget set for that month on its own
     notes[month]                free text
+    oneoff[month][category id]  {amount, note}: the part of that figure that won't repeat
 and plan[category id], a yearly budget spread evenly over the months that have no budget of their own.
 
 Before the first change of each day the whole ledger is copied to backups/auto-<date>.json, so any
@@ -102,11 +103,19 @@ class Settings(Strict):
     example: bool = False
 
 
+class OneOff(Strict):
+    """The part of a month's figure that won't repeat (a car, a renovation, a bonus), so comparisons
+    and forecasts can leave it out. It's part of actual[month][category], not added to it."""
+    amount: Amount
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] = ""
+
+
 class YearDoc(Strict):
     actual: dict[MonthKey, dict[Id, Amount]] = Field(default_factory=dict)
     budget: dict[MonthKey, dict[Id, Amount]] = Field(default_factory=dict)
     plan: dict[Id, Amount] = Field(default_factory=dict)
     notes: dict[MonthKey, Annotated[str, StringConstraints(max_length=10000)]] = Field(default_factory=dict)
+    oneoff: dict[MonthKey, dict[Id, OneOff]] = Field(default_factory=dict)
 
 
 class LedgerError(ValueError):

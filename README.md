@@ -40,6 +40,13 @@ The app has three sections:
 Money in isn't budgeted: it's what comes in. Budgets cover money set aside and money out, and for months that haven't happened
 the forecast expects income at your recent average (the last three months with income).
 
+### One-offs
+
+A car, a deposit, a renovation, a bonus: money that won't repeat. On the Month page, point at a category and click
+**One-off?** to say how much of that month's figure won't repeat (all of it, or part) and what it was. It stays in
+the month's totals; the Year and Compare pages get a **Leave out one-offs** switch to compare usual months, the
+Overview marks months that had one (`1×`), and one-off income never counts towards the forecast's expected income.
+
 ### Getting around
 
 - **Search and jump:** ⌘K (Ctrl K on Windows) or `/`. Type a page, a month (`mar 2025`), a category (`rent` opens it

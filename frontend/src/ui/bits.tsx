@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { amountText, money, pct } from "../model/format";
-import type { Group } from "../model/types";
+import type { Group, Totals } from "../model/types";
 import { colorOf } from "../model/theme";
 import { useApp } from "../context";
 
@@ -112,6 +112,26 @@ export function Alt({ v }: { v: number }) {
   const code = book.settings.alt?.code;
   if (!code || !altRate) return null;
   return <span>≈ {code} {money(v / altRate)}</span>;
+}
+
+/** "Leave out one-offs", for pages that compare periods. Hidden until something is marked one-off. */
+export function OneOffToggle() {
+  const { book, view, setView } = useApp();
+  if (!book.hasOneOffs()) return null;
+  return (
+    <label className="bar small" title="Leave out the parts of figures marked one-off (a car, a renovation), to compare usual months">
+      <input type="checkbox" checked={view.regular} onChange={(e) => setView({ regular: e.target.checked })} /> Leave out one-offs
+    </label>
+  );
+}
+
+/** What a one-off-free page left out, so the totals never silently disagree with the Month page. */
+export function OneOffNote({ t, what }: { t: Totals; what: string }) {
+  const { book, view } = useApp();
+  if (!view.regular || !t.oneOff.any) return null;
+  const parts = ([["income", "income"], ["saved", "savings"], ["spent", "spending"]] as const)
+    .filter(([k]) => t.oneOff[k]).map(([k, label]) => `${money(t.oneOff[k])} of ${label}`);
+  return <div className="notice">One-offs left out of {what}: {parts.join(", ")} ({book.settings.currency}).</div>;
 }
 
 export function YearSelect({ value, onChange, id, label }: { value: number; onChange: (y: number) => void; id: string; label: string }) {

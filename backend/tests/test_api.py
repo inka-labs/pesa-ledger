@@ -116,3 +116,10 @@ def test_restore_rejects_odd_names(client):
 def test_version(client):
     body = client.get("/api/version").json()
     assert body["name"] == "Pesa Ledger" and "autostart" in body
+
+
+def test_one_offs_round_trip_and_are_checked(client):
+    year = {"actual": {"11": {"car": 1150000}}, "oneoff": {"11": {"car": {"amount": 1150000, "note": " Car "}}}}
+    assert client.put("/api/years/2025", json=year).status_code == 200
+    assert client.get("/api/ledger").json()["years"]["2025"]["oneoff"]["11"]["car"] == {"amount": 1150000, "note": "Car"}
+    assert client.put("/api/years/2025", json={"oneoff": {"11": {"car": {"note": "no amount"}}}}).status_code == 400

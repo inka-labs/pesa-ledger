@@ -1,7 +1,7 @@
 /** Edits applied to a draft copy of the ledger (see store.change). Each returns the save key it touched. */
 
 import { emptyYear, mk } from "./ledger";
-import type { Ledger, YearDoc } from "./types";
+import type { Ledger, OneOff, YearDoc } from "./types";
 
 export function yearOf(l: Ledger, y: number): YearDoc {
   return (l.years[String(y)] ??= emptyYear());
@@ -9,8 +9,20 @@ export function yearOf(l: Ledger, y: number): YearDoc {
 
 export function setActual(l: Ledger, y: number, m: number, cid: string, v: number | null): string {
   const row = (yearOf(l, y).actual[mk(m)] ??= {});
-  if (v == null) delete row[cid];
-  else row[cid] = v;
+  if (v == null) {
+    delete row[cid];
+    setOneOff(l, y, m, cid, null); // a one-off is part of a figure, so it goes with it
+  } else row[cid] = v;
+  return `y:${y}`;
+}
+
+/** Mark part of a month's figure as one-off (null: it's all regular again). */
+export function setOneOff(l: Ledger, y: number, m: number, cid: string, o: OneOff | null): string {
+  const all = (yearOf(l, y).oneoff ??= {});
+  const row = (all[mk(m)] ??= {});
+  if (!o || !o.amount) delete row[cid];
+  else row[cid] = { amount: o.amount, note: (o.note ?? "").trim() };
+  if (!Object.keys(row).length) delete all[mk(m)];
   return `y:${y}`;
 }
 

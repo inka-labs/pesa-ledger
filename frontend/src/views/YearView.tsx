@@ -2,11 +2,13 @@ import { useApp } from "../context";
 import { money, pct } from "../model/format";
 import { MONTHS } from "../model/ledger";
 import type { Totals } from "../model/types";
-import { Alt, Delta, Kpi, Swatch, YearSelect } from "../ui/bits";
+import { Alt, Delta, Kpi, OneOffNote, OneOffToggle, Swatch, YearSelect } from "../ui/bits";
 import { YearChart } from "../ui/charts";
 
 export function YearView() {
-  const { book, view, setView } = useApp();
+  const app = useApp();
+  const { view, setView } = app;
+  const book = view.regular ? app.book.regular : app.book;
   const y = view.yearView;
   const last = book.lastDataMonth(y) || 12;
   const t = book.rangeTotals(y, 1, last);
@@ -34,8 +36,9 @@ export function YearView() {
       <div className="panel-h">
         <h2>{y} at a glance</h2>
         <span className="muted">{last === 12 ? "Full year" : `Jan–${MONTHS[last - 1]}, the months with figures`}</span>
-        <div className="end"><YearSelect id="ysel" label="Year" value={y} onChange={(yearView) => setView({ yearView })} /></div>
+        <div className="end"><OneOffToggle /><YearSelect id="ysel" label="Year" value={y} onChange={(yearView) => setView({ yearView })} /></div>
       </div>
+      <OneOffNote t={yearT} what={String(y)} />
       <div className="kpis">
         {(["income", "saved", "spent", "left"] as const).map((k, i) => (
           <Kpi key={k} label={{ income: "Income", saved: "Saved", spent: "Spent", left: "Left over" }[k]} value={t[k]} lead={i === 3}>

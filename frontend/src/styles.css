@@ -298,6 +298,22 @@ kbd { font-family: var(--f-num); font-size: 11px; border: 1px solid var(--line);
 .row.flash { animation: flash 1.6s ease; }
 @keyframes flash { 0%, 40% { background: var(--accent-soft); } 100% { background: transparent; } }
 
+/* One-offs: part of a figure that won't repeat */
+.oneoff { position: relative; display: block; margin-top: 2px; }
+.oneoff-tag, .oneoff-add { border: 0; background: transparent; cursor: pointer; font: inherit; font-size: 11px; padding: 1px 0; color: var(--muted); text-align: left; }
+.oneoff-tag { background: var(--accent-soft); color: var(--ink-2); font-weight: 600; padding: 1px 7px; border-radius: 999px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oneoff-add { opacity: 0; }
+.row:hover .oneoff-add, .oneoff-add:focus-visible { opacity: 1; }
+.oneoff-add:hover { color: var(--ink); text-decoration: underline; }
+@media (hover: none) { .oneoff-add { opacity: 1; } }
+/* opens inline under the name: a group card clips anything that floats out of it */
+.oneoff-pop { margin-top: 8px; background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 6px; max-width: min(340px, 100%); }
+.oneoff-pop p { margin: 0 0 4px; }
+.oneoff-pop .bar { margin-top: 6px; flex-wrap: wrap; }
+.oneoff-sub { color: var(--ink-2); }
+.kpi.lead .oneoff-sub { color: inherit; font-weight: 600; }
+.oneoff-mark { font-size: 9px; color: var(--muted); margin-left: 2px; }
+
 /* colour picker */
 .cpick { position: relative; }
 .cpick summary { list-style: none; cursor: pointer; padding: 4px; border-radius: 6px; display: inline-flex; }

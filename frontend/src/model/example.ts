@@ -41,7 +41,7 @@ export function exampleLedger(today: YM): Ledger {
   const years: Record<string, YearDoc> = {};
   [today.y - 1, today.y].forEach((y, yi) => {
     const grow = yi ? 1.08 : 1;
-    const yd: YearDoc = { actual: {}, budget: {}, plan: {}, notes: {} };
+    const yd: YearDoc = { actual: {}, budget: {}, plan: {}, notes: {}, oneoff: {} };
     for (const [cid, v] of Object.entries(BASE)) if (cid !== "snk_0" && !cid.startsWith("inc_")) yd.plan[cid] = Math.round((v * 12 * grow) / 1000) * 1000;
     // the car is serviced every four months: a lumpy budget, set month by month
     for (let m = 1; m <= 12; m++) yd.budget[mk(m)] = { snk_0: m % 4 === 0 ? Math.round((BASE.snk_0 * 4 * grow) / 1000) * 1000 : 0 };

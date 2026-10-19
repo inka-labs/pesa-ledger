@@ -53,7 +53,12 @@ export type YearDoc = {
   /** yearly budget per category, spread evenly over months without a budget of their own */
   plan: Record<string, number>;
   notes: Record<string, string>;
+  /** month key -> category id -> the part of that month's figure that won't repeat (a car, a renovation) */
+  oneoff?: Record<string, Record<string, OneOff>>;
 };
+
+/** Part of an actual figure, not added to it. Comparisons and forecasts can leave it out. */
+export type OneOff = { amount: number; note?: string };
 
 export type Ledger = { settings: Settings; years: Record<string, YearDoc> };
 
@@ -66,6 +71,8 @@ export type Totals = {
   byGroup: Record<string, number>;
   byCat: Record<string, number>;
   has: boolean;
+  /** one-off parts of the figures: included above, or (in a Book that leaves them out) what was left out */
+  oneOff: { income: number; saved: number; spent: number; any: boolean };
 };
 
 export type YM = { y: number; m: number };

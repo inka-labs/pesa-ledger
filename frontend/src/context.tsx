@@ -25,6 +25,8 @@ export type View = {
   cmpSame: boolean;
   planYear: number;
   catHint: boolean;
+  /** leave one-offs out of the Year and Compare pages */
+  regular: boolean;
   /** a category to bring into view and focus on the Month page (set when jumping to it) */
   focusCat?: string | null;
 };

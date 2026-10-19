@@ -54,6 +54,6 @@ export function normalise(stored: Stored): Ledger | null {
   if (!stored.settings) return null;
   const years: Ledger["years"] = {};
   for (const [y, d] of Object.entries(stored.years))
-    years[y] = { actual: d.actual ?? {}, budget: d.budget ?? {}, plan: d.plan ?? {}, notes: d.notes ?? {} };
+    years[y] = { actual: d.actual ?? {}, budget: d.budget ?? {}, plan: d.plan ?? {}, notes: d.notes ?? {}, oneoff: d.oneoff ?? {} };
   return { settings: { ...stored.settings, goals: stored.settings.goals ?? [] }, years };
 }
