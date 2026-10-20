@@ -128,6 +128,13 @@ export function applyPalette(id: string | undefined, tint: Tint = "soft") {
   el.textContent = paletteCSS(id, tint);
 }
 
+/** The colour a group shows right now, as lower-case hex (its own, or its palette place read from the page). */
+export function resolvedColor(g: Pick<Group, "slot" | "color">): string {
+  if (g.color) return g.color.toLowerCase();
+  if (typeof document === "undefined") return `slot:${g.slot}`;
+  return getComputedStyle(document.documentElement).getPropertyValue(`--s${g.slot ?? 0}`).trim().toLowerCase() || `slot:${g.slot}`;
+}
+
 /** A group's colour: its own, or its place in the palette (0 = the text colour). */
 export function colorOf(g: Pick<Group, "slot" | "color">): string {
   return g.color || `var(--s${g.slot ?? 0})`;

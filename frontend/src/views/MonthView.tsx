@@ -208,7 +208,7 @@ function MonthPicker() {
 }
 
 function GroupSection({ g, gAct, gPlan }: { g: Group; gAct: number; gPlan: number }) {
-  const { book, change, view } = useApp();
+  const { book, change, view, notify } = useApp();
   const [folded, toggle] = useCollapsed(g.id);
   const { y, m } = view;
   const [name, setName] = useState("");
@@ -218,6 +218,7 @@ function GroupSection({ g, gAct, gPlan }: { g: Group; gAct: number; gPlan: numbe
   const add = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    if (book.catsIn(g.id, true).some((c) => c.name.trim().toLowerCase() === name.trim().toLowerCase())) { notify(`${g.name} already has “${name.trim()}”.`); return; }
     change((l) => void l.settings.cats.push({ id: newId("c"), name: name.trim(), group: g.id }), ["settings"]);
     setName("");
   };

@@ -214,6 +214,16 @@ def load() -> dict:
 
 # Writing ---------------------------------------------------------------------------------------
 
+def _unique(names: list[str], message: str, fold: bool = True) -> None:
+    """Refuse a list with the same name twice (ignoring capitals and spacing, unless `fold` is off)."""
+    seen = set()
+    for n in names:
+        key = " ".join(n.split()).lower() if fold else n
+        if key in seen:
+            raise LedgerError(message.format(f"“{n}”" if fold else n))
+        seen.add(key)
+
+
 def save_settings(payload: dict) -> dict:
     try:
         settings = Settings.model_validate(payload)
@@ -233,6 +243,13 @@ def save_settings(payload: dict) -> dict:
         raise LedgerError("A category belongs to a group that doesn't exist.")
     if len({a.id for a in settings.accounts}) != len(settings.accounts):
         raise LedgerError("Two accounts have the same id.")
+    _unique([k.name for k in settings.kinds], "Two group types are called {}.")
+    _unique([g.name for g in settings.groups], "Two groups are called {}.")
+    for gid in group_ids:
+        _unique([c.name for c in settings.cats if c.group == gid], "A group has two categories called {}.")
+    # no two groups share a colour: their own colours differ, and so do the palette places of groups without one
+    _unique([g.color.lower() for g in settings.groups if g.color], "Two groups have the colour {}.", fold=False)
+    _unique([str(g.slot) for g in settings.groups if not g.color], "Two groups use palette colour {}.", fold=False)
     data = settings.model_dump(by_alias=True, exclude_none=True)
     daily_backup()
     write_json(home() / "settings.json", data)

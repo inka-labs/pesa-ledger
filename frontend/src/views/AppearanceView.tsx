@@ -12,11 +12,12 @@ export function AppearanceView() {
   const tint = book.settings.tint ?? "soft";
   const edit = (fn: (l: Ledger) => void) => change(fn, ["settings"]);
   const resetColours = () => edit((l) => {
-    let slot = 1;
+    // the first income group takes the text colour; every other group its own palette place, in order
+    let slot = 1, text = false;
     for (const g of l.settings.groups) {
       g.color = null;
       const effect = (l.settings.kinds ?? []).find((k) => k.id === g.kind)?.effect ?? (g.kind === "income" ? "in" : "out");
-      g.slot = effect === "in" ? 0 : slot++;
+      if (effect === "in" && !text) { g.slot = 0; text = true; } else g.slot = slot++;
     }
   });
 

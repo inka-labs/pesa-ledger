@@ -145,3 +145,19 @@ def test_allocation_rules(client, settings):
     assert client.put("/api/settings", json=body).status_code == 200
     assert client.put("/api/settings", json={**body, "allocation": {"custom": [{"id": "x", "name": "X", "pct": 140}]}}).status_code == 400
     assert client.put("/api/settings", json={**body, "allocation": {"maps": {"r": {"zz:1": "a"}}}}).status_code == 400
+
+
+def test_names_and_colours_are_unique(client, settings):
+    g0, g1 = settings["groups"][0], settings["groups"][1]
+    clash = lambda **kw: {**settings, "groups": [g0, {**g1, **kw}] + settings["groups"][2:]}
+    r = client.put("/api/settings", json=clash(name=" " + g0["name"].upper() + " "))
+    assert r.status_code == 400 and "Two groups are called" in r.json()["detail"]
+    assert client.put("/api/settings", json=clash(slot=g0["slot"], color=None)).status_code == 400
+    both = {**settings, "groups": [{**g0, "color": "#AABBCC"}, {**g1, "color": "#aabbcc"}] + settings["groups"][2:]}
+    assert client.put("/api/settings", json=both).status_code == 400
+    kinds = [{"id": "a", "name": "Spending", "effect": "out"}, {"id": "b", "name": "spending", "effect": "out"}]
+    assert client.put("/api/settings", json={**settings, "kinds": kinds}).status_code == 400
+    c0 = settings["cats"][0]
+    dup = {**settings, "cats": settings["cats"] + [{**c0, "id": "dupe"}]}
+    assert client.put("/api/settings", json=dup).status_code == 400
+    assert client.put("/api/settings", json=settings).status_code == 200

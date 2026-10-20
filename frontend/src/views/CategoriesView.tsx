@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { useApp } from "../context";
-import { newId, nextSlot } from "../model/csv";
+import { newId, nextSlot, textSlotTaken } from "../model/csv";
 import { EFFECTS, kindsOf } from "../model/ledger";
 import type { Category, Effect, Group, Ledger } from "../model/types";
 import { ColorPicker } from "../ui/ColorPicker";
 import { AmountInput, TextInput } from "../ui/bits";
 
+const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+/** Whether a name is already taken in a list (ignoring capitals and spaces), other than by `except`. */
+const taken = (list: { id: string; name: string }[], name: string, except?: string) => list.some((x) => x.id !== except && norm(x.name) === norm(name));
+
 export function CategoriesView() {
-  const { book, change, view } = useApp();
+  const { book, change, view, notify } = useApp();
   const kinds = book.kindList();
   const [name, setName] = useState("");
   const [kind, setKind] = useState(kinds.find((k) => k.effect === "out")?.id ?? kinds[0].id);
@@ -15,8 +19,9 @@ export function CategoriesView() {
   const addGroup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    if (taken(book.settings.groups, name)) { notify(`There's already a group called “${name.trim()}”.`); return; }
     const effect = book.kinds[kind]?.effect;
-    edit((l) => void l.settings.groups.push({ id: newId("g"), name: name.trim(), kind, slot: effect === "in" ? 0 : nextSlot(l.settings.groups) }));
+    edit((l) => void l.settings.groups.push({ id: newId("g"), name: name.trim(), kind, slot: effect === "in" && !textSlotTaken(l.settings.groups) ? 0 : nextSlot(l.settings.groups) }));
     setName("");
   };
   return (
@@ -43,7 +48,7 @@ export function CategoriesView() {
 
 /** The types groups can have. Each says how its figures count; add as many as you like. */
 function KindsPanel() {
-  const { book, change } = useApp();
+  const { book, change, notify } = useApp();
   const kinds = book.kindList();
   const [name, setName] = useState("");
   const [effect, setEffect] = useState<Effect>("out");
@@ -53,6 +58,7 @@ function KindsPanel() {
   const add = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    if (taken(kinds, name)) { notify(`There's already a group type called “${name.trim()}”.`); return; }
     edit((l) => void l.settings.kinds!.push({ id: newId("k"), name: name.trim(), effect }));
     setName("");
   };
@@ -62,7 +68,11 @@ function KindsPanel() {
       <div className="kinds">
         {kinds.map((k) => (
           <div className="kind-line" key={k.id}>
-            <TextInput value={k.name} label="Type name" onCommit={(v) => v.trim() && edit((l) => void (kindIn(l, k.id).name = v.trim()))} />
+            <TextInput value={k.name} label="Type name" onCommit={(v) => {
+              if (!v.trim()) return false;
+              if (taken(kinds, v, k.id)) { notify(`There's already a group type called “${v.trim()}”.`); return false; }
+              edit((l) => void (kindIn(l, k.id).name = v.trim()));
+            }} />
             <select value={k.effect} aria-label={`How ${k.name} counts`} onChange={(e) => edit((l) => void (kindIn(l, k.id).effect = e.target.value as Effect))}>
               {EFFECTS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
             </select>
@@ -98,6 +108,7 @@ function GroupPanel({ g, first, last }: { g: Group; first: boolean; last: boolea
   const add = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    if (taken(cats, name)) { notify(`${g.name} already has “${name.trim()}”.`); return; }
     edit((l) => void l.settings.cats.push({ id: newId("c"), name: name.trim(), group: g.id }));
     setName("");
   };
@@ -106,7 +117,11 @@ function GroupPanel({ g, first, last }: { g: Group; first: boolean; last: boolea
       <div className="group-line">
         <ColorPicker g={g} onPick={(p) => edit((l) => Object.assign(group(l), p))} />
         <TextInput className="gname" value={g.name} label="Group name"
-          onCommit={(v) => v.trim() && edit((l) => void (group(l).name = v.trim()))} />
+          onCommit={(v) => {
+            if (!v.trim()) return false;
+            if (taken(book.settings.groups, v, g.id)) { notify(`There's already a group called “${v.trim()}”.`); return false; }
+            edit((l) => void (group(l).name = v.trim()));
+          }} />
         <select value={g.kind} aria-label="Group type" onChange={(e) => edit((l) => void (group(l).kind = e.target.value))}>
           {book.kindList().map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
           {!book.kinds[g.kind] && <option value={g.kind}>Removed type</option>}
@@ -118,7 +133,7 @@ function GroupPanel({ g, first, last }: { g: Group; first: boolean; last: boolea
         {!cats.length && <button className="btn ghost danger" onClick={() => { edit((l) => void (l.settings.groups = l.settings.groups.filter((x) => x.id !== g.id))); notify(`Removed the group “${g.name}”.`, true); }}>Remove group</button>}
       </div>
       <div className="cat-list">
-        {cats.length > 0 && <div className="cat-line head lbl"><span>Category</span><span>Order</span><span>Group</span><span title="An amount that comes in or goes out every month, like rent or a salary">Every month</span><span /></div>}
+        {cats.length > 0 && <div className="cat-line head lbl"><span>Category</span><span>Order</span><span title="An amount that comes in or goes out every month, like rent or a salary">Every month</span><span /></div>}
         {cats.map((c, i) => <CategoryLine key={c.id} c={c} first={i === 0} last={i === cats.length - 1} />)}
         <form className="add-line" onSubmit={add}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Add a category" aria-label={`New category in ${g.name}`} />
@@ -149,19 +164,28 @@ function CategoryLine({ c, first, last }: { c: Category; first: boolean; last: b
   };
   return (
     <div className={`cat-line${c.archived ? " archived" : ""}`}>
-      <TextInput className="cname" value={c.name} label="Category name" onCommit={(v) => v.trim() && edit((l) => void (cat(l).name = v.trim()))} />
+      <TextInput className="cname" value={c.name} label="Category name" onCommit={(v) => {
+        if (!v.trim()) return false;
+        if (taken(book.catsIn(c.group, true), v, c.id)) { notify(`${book.groups[c.group]?.name} already has “${v.trim()}”.`); return false; }
+        edit((l) => void (cat(l).name = v.trim()));
+      }} />
       <span className="moves">
         <button className="iconbtn" aria-label={`Move ${c.name} up`} disabled={first} onClick={() => move(-1)}>↑</button>
         <button className="iconbtn" aria-label={`Move ${c.name} down`} disabled={last} onClick={() => move(1)}>↓</button>
       </span>
-      <select className="cgroup" value={c.group} aria-label={`Move ${c.name} to another group`} onChange={(e) => edit((l) => void (cat(l).group = e.target.value))}>
-        {book.settings.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-      </select>
       {book.effectOf(c.id) !== "none" ? (
         <AmountInput className="crepeat" value={c.repeat ?? null} placeholder="–" label={`${c.name}: amount every month`}
           title="Repeats every month (rent, salary, a subscription). The Month page offers it, and it's the budget when none is set."
           onCommit={(v) => edit((l) => { const x = cat(l); if (v == null) delete x.repeat; else x.repeat = v; })} />
       ) : <span />}
+      <span className="cact-wrap">
+      {book.settings.groups.length > 1 && (
+        <select className="cmove" value="" aria-label={`Move ${c.name} to another group`} title="Move to another group"
+          onChange={(e) => { const to = book.groups[e.target.value]; if (!to) return; edit((l) => void (cat(l).group = to.id)); notify(`Moved “${c.name}” to ${to.name}.`, true); }}>
+          <option value="">Move…</option>
+          {book.settings.groups.filter((g) => g.id !== c.group).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+        </select>
+      )}
       {book.catHasData(c.id) ? (
         <button className="btn ghost cact" title={c.archived ? "Show it again in the month and budget" : "Hide it from new months. Past figures stay"}
           onClick={() => edit((l) => { const x = cat(l); if (x.archived) delete x.archived; else x.archived = true; })}>
@@ -170,6 +194,7 @@ function CategoryLine({ c, first, last }: { c: Category; first: boolean; last: b
       ) : (
         <button className="btn ghost danger cact" onClick={remove}>Remove</button>
       )}
+      </span>
     </div>
   );
 }

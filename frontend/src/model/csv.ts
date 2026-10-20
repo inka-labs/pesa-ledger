@@ -41,6 +41,9 @@ function monthOf(s: string): number | null {
 let counter = 0;
 export const newId = (prefix: string) => prefix + Date.now().toString(36).slice(-4) + (counter++).toString(36) + Math.random().toString(36).slice(2, 5);
 
+/** Whether a group already shows the text colour (palette place 0): only one may. */
+export const textSlotTaken = (groups: Group[]) => groups.some((g) => !g.color && g.slot === 0);
+
 export function nextSlot(groups: Group[]): number {
   const used = new Set(groups.map((g) => g.slot));
   let slot = 1;
@@ -80,7 +83,7 @@ export function importCSV(text: string, current: Ledger | null): ImportResult {
         kind = DEFAULT_KINDS.find((k) => k.effect === effect)!;
         st.kinds = [...kindsOf(st), kind];
       }
-      g = { id: newId("g"), name, kind: kind.id, slot: effect === "in" ? 0 : nextSlot(st.groups) };
+      g = { id: newId("g"), name, kind: kind.id, slot: effect === "in" && !textSlotTaken(st.groups) ? 0 : nextSlot(st.groups) };
       st.groups.push(g);
     }
     return g;

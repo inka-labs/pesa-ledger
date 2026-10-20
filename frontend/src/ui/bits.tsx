@@ -58,8 +58,9 @@ export function AmountInput(props: {
   );
 }
 
-/** Text committed when you leave the box (names, notes): saves one change, not one per keystroke. */
-export function TextInput(props: { value: string; onCommit: (v: string) => void; label: string; placeholder?: string; className?: string; style?: React.CSSProperties; multiline?: boolean; id?: string }) {
+/** Text committed when you leave the box (names, notes): saves one change, not one per keystroke.
+ *  `onCommit` can return false to refuse the text (a name already in use), which puts the old one back. */
+export function TextInput(props: { value: string; onCommit: (v: string) => void | boolean; label: string; placeholder?: string; className?: string; style?: React.CSSProperties; multiline?: boolean; id?: string }) {
   const { value, onCommit, label, placeholder, className, style, multiline, id } = props;
   const [draft, setDraft] = useState(value);
   const focused = useRef(false);
@@ -67,7 +68,7 @@ export function TextInput(props: { value: string; onCommit: (v: string) => void;
   const common = {
     id, className, style, value: draft, placeholder, "aria-label": label,
     onFocus: () => (focused.current = true),
-    onBlur: () => { focused.current = false; if (draft !== value) onCommit(draft); },
+    onBlur: () => { focused.current = false; if (draft !== value && onCommit(draft) === false) setDraft(value); },
   };
   return multiline ? (
     <textarea {...common} onChange={(e) => setDraft(e.target.value)} />
