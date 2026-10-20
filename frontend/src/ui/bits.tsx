@@ -152,12 +152,13 @@ export function EmptyState({ icon: Icon, title, children, action }: { icon: Reac
   );
 }
 
-/** "≈ USD 1,234" in the second currency, when one is set. */
+/** "≈ USD 1,234 · EUR 1,100" in the other currencies, when any are set. */
 export function Alt({ v }: { v: number }) {
-  const { book, altRate } = useApp();
-  const code = book.settings.alt?.code;
-  if (!code || !altRate) return null;
-  return <span>≈ {code} {money(v / altRate)}</span>;
+  const { altRates } = useApp();
+  if (!altRates.length) return null;
+  // the first three, and every one of them on hover
+  const all = altRates.map((a) => `${a.code} ${money(v / a.rate)}`);
+  return <span title={all.length > 3 ? all.join(" · ") : undefined}>≈ {all.slice(0, 3).join(" · ")}</span>;
 }
 
 /** "Leave out one-offs", for pages that compare periods. Hidden until something is marked one-off. */

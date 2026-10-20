@@ -19,7 +19,7 @@ export function starterSettings(): Settings {
     snk: ["Car service & insurance", "Medical", "Entertainment", "Gifts & occasions"],
   };
   const cats = groups.flatMap((g) => names[g.id].map((name, i) => ({ id: `${g.id}_${i}`, name, group: g.id })));
-  return { v: 1, currency: "KES", alt: { code: "USD", rate: 129, auto: true }, kinds: structuredClone(DEFAULT_KINDS), palette: "pesa", groups, cats, goals: [], example: false };
+  return { v: 1, currency: "KES", alts: [{ code: "USD", rate: 129, auto: true }], kinds: structuredClone(DEFAULT_KINDS), palette: "pesa", groups, cats, goals: [], example: false };
 }
 
 export function emptyGroupsSettings(): Settings {

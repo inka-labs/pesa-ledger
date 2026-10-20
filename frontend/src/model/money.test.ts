@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { altRate, readMoney, type Rates } from "./money";
+import { altRate, altRates, readMoney, type Rates } from "./money";
 import { starterSettings } from "./example";
 
 const RATES: Rates = { base: "KES", rates: { KES: 1, USD: 1 / 129, EUR: 1 / 140 }, date: "2026-10-19", source: "test", fetched_at: 0, stale: false };
@@ -28,12 +28,22 @@ describe("reading amounts in other currencies", () => {
   });
 });
 
-describe("the second currency's rate", () => {
-  it("uses the live rate by default and the typed one when set by hand", () => {
+describe("other currencies' rates", () => {
+  it("use the live rate by default and the typed one when set by hand", () => {
     const s = starterSettings();
     expect(altRate(s, RATES)).toBeCloseTo(129);
-    expect(altRate({ ...s, alt: { code: "USD", rate: 125, auto: false } }, RATES)).toBe(125);
-    expect(altRate({ ...s, alt: { code: "USD", rate: 125 } }, null)).toBe(125); // offline: falls back
-    expect(altRate({ ...s, alt: null }, RATES)).toBeNull();
+    expect(altRate({ ...s, alts: [{ code: "USD", rate: 125, auto: false }] }, RATES)).toBe(125);
+    expect(altRate({ ...s, alts: [{ code: "USD", rate: 125 }] }, null)).toBe(125); // offline: falls back
+    expect(altRate({ ...s, alts: [] }, RATES)).toBeNull();
+  });
+
+  it("cover several currencies in order, leaving out any without a rate yet", () => {
+    const s = { ...starterSettings(), alts: [{ code: "eur" }, { code: "USD" }, { code: "XYZ" }] };
+    expect(altRates(s, RATES).map((r) => r.code)).toEqual(["EUR", "USD"]); // XYZ has no rate
+    expect(altRates(s, RATES)[0].rate).toBeCloseTo(140);
+  });
+
+  it("read an older ledger's single second currency", () => {
+    expect(altRate({ ...starterSettings(), alts: undefined, alt: { code: "USD", rate: 125, auto: false } }, RATES)).toBe(125);
   });
 });

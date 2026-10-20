@@ -3,6 +3,9 @@ import { api, type Backup, type Stored, type Version } from "../api";
 import { useApp } from "../context";
 import { buildCSV, importSummary } from "../model/csv";
 import { parseAmount } from "../model/format";
+import { rateFor } from "../model/money";
+import type { OtherCurrency } from "../model/types";
+import { CurrencySelect, currencyName } from "../ui/CurrencySelect";
 import { downloadCSV } from "../ui/download";
 import { TextInput } from "../ui/bits";
 import { ImportButton } from "./Welcome";
@@ -18,57 +21,78 @@ function CurrencyPanel() {
   const { book, change, rates, ratesError, refreshRates } = useApp();
   const st = book.settings;
   const [busy, setBusy] = useState(false);
-  const settings = (fn: (s: typeof st) => void) => change((l) => fn(l.settings), ["settings"]);
-  const code = st.alt?.code ?? "";
-  const live = st.alt?.auto !== false;
-  const liveRate = code && rates?.rates[code.toUpperCase()] ? 1 / rates.rates[code.toUpperCase()] : null;
+  const [switchTo, setSwitchTo] = useState<string | null>(null);
+  const [adding, setAdding] = useState("");
+  const settings = (fn: (s: typeof st) => void) => change((l) => { fn(l.settings); l.settings.alt = null; }, ["settings"]);
+  const alts = st.alts ?? [];
   const updated = rates?.fetched_at ? new Date(rates.fetched_at * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
+  const edit = (i: number, patch: Partial<OtherCurrency>) => settings((s) => { const list = [...(s.alts ?? [])]; list[i] = { ...list[i], ...patch }; s.alts = list; });
+  const move = (i: number, d: -1 | 1) => settings((s) => { const list = [...(s.alts ?? [])]; [list[i], list[i + d]] = [list[i + d], list[i]]; s.alts = list; });
   return (
     <div className="panel">
       <h3>Currency</h3>
-      <div className="form-grid">
-        <label className="field"><span className="lbl">Main currency</span>
-          <TextInput value={st.currency} label="Main currency"
-            onCommit={(v) => /^[A-Za-z]{3}$/.test(v.trim()) && settings((s) => void (s.currency = v.trim().toUpperCase()))} /></label>
-        <label className="field"><span className="lbl">Also show totals in</span>
-          <TextInput value={code} label="Second currency" placeholder="USD"
-            onCommit={(v) => settings((s) => void (s.alt = { ...(s.alt ?? {}), code: v.trim().toUpperCase().slice(0, 3) }))} /></label>
-      </div>
-      {code && (
-        <div className="rate">
-          <span className="lbl">Exchange rate</span>
-          {live ? (
-            liveRate ? (
-              <>
-                <span className="big">1 {code} = {liveRate.toFixed(2)} {st.currency}</span>
-                <span className="small muted">
-                  Live rate from{" "}
-                  <a href={rates?.source_url || "#"} target="_blank" rel="noreferrer">{rates?.source}</a>
-                  {rates?.date && `, published ${rates.date}`}. Checked {updated}.
-                </span>
-              </>
-            ) : <span className="small muted">{ratesError || "Loading the live rate…"}</span>
-          ) : (
-            <div className="bar">
-              <span className="small">{st.currency} per 1 {code}</span>
-              <TextInput value={st.alt?.rate ? String(st.alt.rate) : ""} label="Exchange rate" style={{ width: 120 }}
-                onCommit={(v) => { const r = parseAmount(v); if (r && !Number.isNaN(r) && r > 0) settings((s) => void (s.alt = { ...(s.alt ?? { code }), rate: r })); }} />
-              {liveRate && <span className="small muted">Live rate today: {liveRate.toFixed(2)}</span>}
+      <div className="field">
+        <span className="lbl">Main currency</span>
+        <CurrencySelect value={st.currency} label="Main currency" onChange={(c) => c !== st.currency && setSwitchTo(c)} />
+        {switchTo && (
+          <div className="notice">
+            Your figures are kept as you entered them, not converted: switching to <b>{switchTo}</b> relabels every amount as {currencyName(switchTo)}.
+            <div className="bar" style={{ marginTop: 8 }}>
+              <button className="btn primary" onClick={() => { settings((s) => { s.currency = switchTo; s.alts = (s.alts ?? []).filter((a) => a.code.toUpperCase() !== switchTo); }); setSwitchTo(null); }}>Switch to {switchTo}</button>
+              <button className="btn ghost" onClick={() => setSwitchTo(null)}>Keep {st.currency}</button>
             </div>
-          )}
-          {ratesError && liveRate && <span className="small d-bad">{ratesError} Showing the last rates fetched.</span>}
-        </div>
-      )}
-      <div className="bar">
-        <label className="bar small">
-          <input type="checkbox" checked={!live} onChange={(e) => settings((s) => void (s.alt = { ...(s.alt ?? { code }), auto: !e.target.checked, rate: s.alt?.rate ?? (liveRate ? Math.round(liveRate * 100) / 100 : null) }))} />
-          Set the rate myself
-        </label>
-        <button className="btn ghost" disabled={busy} onClick={() => { setBusy(true); refreshRates().finally(() => setBusy(false)); }}>{busy ? "Checking…" : "Check rates now"}</button>
+          </div>
+        )}
       </div>
+
+      <div className="field">
+        <span className="lbl">Also show amounts in</span>
+        {alts.length === 0 && <span className="small muted">Add a currency to see totals in it too, like ≈ USD 2,080 under each figure.</span>}
+        <div className="cur-list">
+          {alts.map((a, i) => {
+            const live = a.auto !== false;
+            const liveRate = rates?.rates[a.code.toUpperCase()] ? 1 / rates.rates[a.code.toUpperCase()] : null;
+            const rate = rateFor(a, rates);
+            return (
+              <div key={a.code + i} className="cur-row">
+                <span className="cur-name"><b>{a.code.toUpperCase()}</b> <span className="muted small">{currencyName(a.code)}</span>{i === 0 && <span className="chip">First</span>}</span>
+                <span className="cur-rate">
+                  {live
+                    ? rate ? <>1 {a.code.toUpperCase()} = <b className="num">{rate.toFixed(rate < 1 ? 4 : 2)}</b> {st.currency}</> : <span className="muted small">{ratesError ? "No live rate" : "Loading the rate…"}</span>
+                    : <>
+                        <TextInput value={a.rate ? String(a.rate) : ""} label={`${st.currency} per 1 ${a.code}`} style={{ width: 96 }}
+                          onCommit={(v) => { const r = parseAmount(v); if (!r || Number.isNaN(r) || r <= 0) return false; edit(i, { rate: r }); }} />
+                        <span className="small muted">{st.currency} per 1{liveRate ? ` · live ${liveRate.toFixed(2)}` : ""}</span>
+                      </>}
+                </span>
+                <label className="small bar"><input type="checkbox" checked={!live}
+                  onChange={(e) => edit(i, { auto: !e.target.checked, rate: a.rate ?? (liveRate ? Math.round(liveRate * 100) / 100 : null) })} /> My own rate</label>
+                <span className="moves">
+                  <button className="iconbtn" aria-label={`Move ${a.code} up`} disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
+                  <button className="iconbtn" aria-label={`Move ${a.code} down`} disabled={i === alts.length - 1} onClick={() => move(i, 1)}>↓</button>
+                  <button className="iconbtn" aria-label={`Stop showing ${a.code}`} onClick={() => settings((s) => { s.alts = (s.alts ?? []).filter((_, j) => j !== i); })}>✕</button>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {alts.length < 6 && (
+          <div className="bar">
+            <CurrencySelect value={adding} label="Add a currency" placeholder="Add a currency…" exclude={[st.currency, ...alts.map((a) => a.code)]}
+              onChange={(c) => { settings((s) => { s.alts = [...(s.alts ?? []), { code: c, auto: true }]; }); setAdding(""); }} />
+          </div>
+        )}
+      </div>
+
+      <div className="bar">
+        <button className="btn ghost" disabled={busy} onClick={() => { setBusy(true); refreshRates().finally(() => setBusy(false)); }}>{busy ? "Checking…" : "Check rates now"}</button>
+        {rates?.source && <span className="small muted">Live rates from <a href={rates.source_url || "#"} target="_blank" rel="noreferrer">{rates.source}</a>{rates.date && `, published ${rates.date}`}. Checked {updated}.</span>}
+      </div>
+      {ratesError && <span className="small d-bad">{ratesError}</span>}
       <p className="small muted">
-        In any amount box you can type another currency, like <code>USD 415</code> or <code>$415</code>. It's converted to {st.currency} at
-        the live rate. Only the currency code is sent to the rate service, never your figures.
+        Figures show in the first three under each total; hover to see the rest. In any amount box you can type another currency, like
+        {" "}<code>USD 415</code>, <code>€200</code> or <code>415 eur</code>, and it's converted to {st.currency} at the live rate. Only currency
+        codes are sent to the rate service, never your figures.
       </p>
     </div>
   );

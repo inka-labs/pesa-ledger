@@ -145,7 +145,10 @@ class OtherCurrency(Strict):
 class Settings(Strict):
     v: int = 1
     currency: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=5)] = "KES"
+    # older ledgers' single second currency; `alts` replaces it
     alt: OtherCurrency | None = None
+    # currencies to also show amounts in, first one first
+    alts: list[OtherCurrency] = Field(default_factory=list, max_length=8)
     kinds: list[Kind] = Field(default_factory=lambda: [Kind(**k) for k in DEFAULT_KINDS], min_length=1, max_length=30)
     # a Matplotlib colormap name, or "pesa" (the built-in palette)
     palette: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,30}$")] = "pesa"

@@ -583,3 +583,13 @@ code { font-family: var(--f-num); font-size: 12.5px; background: var(--sunk); pa
 .map-row.cat { padding-left: 34px; font-size: 13px; color: var(--ink-2); }
 .map-group { border-bottom: 1px solid var(--line); padding-bottom: 4px; }
 .panel > .seg { justify-self: start; }
+
+/* currencies */
+.cur-list { display: grid; }
+.cur-row { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(180px, 1.3fr) auto auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.cur-row:last-child { border-bottom: 0; }
+.cur-name { display: flex; align-items: baseline; gap: 6px; min-width: 0; flex-wrap: wrap; }
+.cur-rate { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+@media (max-width: 640px) { .cur-row { grid-template-columns: minmax(0, 1fr) auto; } .cur-rate { grid-column: 1 / -1; } }
+.field > select { max-width: 360px; }
+.cur-row label.bar { flex-wrap: nowrap; white-space: nowrap; gap: 6px; }

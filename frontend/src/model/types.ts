@@ -57,12 +57,16 @@ export type Goal = {
 };
 
 export type Tint = "off" | "soft" | "rich";
+/** Another currency: `auto` (the default) uses the live rate, otherwise `rate` (main-currency units per 1). */
+export type OtherCurrency = { code: string; rate?: number | null; auto?: boolean };
 
 export type Settings = {
   v: number;
   currency: string;
   /** a second currency to show totals in; `auto` (the default) uses the live rate, otherwise `rate` */
-  alt?: { code: string; rate?: number | null; auto?: boolean } | null;
+  alt?: OtherCurrency | null;
+  /** currencies to also show amounts in, first one first (replaces `alt`) */
+  alts?: OtherCurrency[];
   /** group types; older ledgers have none saved and use DEFAULT_KINDS */
   kinds?: Kind[];
   /** "pesa" or a Matplotlib colormap name */

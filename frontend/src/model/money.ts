@@ -1,7 +1,7 @@
 /** Amounts in other currencies: what someone types ("USD 415", "$415", "415 eur") and the live rates
  *  the local server fetches (backend/pesa_ledger/rates.py). */
 
-import type { Settings } from "./types";
+import type { OtherCurrency, Settings } from "./types";
 
 export type Rates = {
   base: string;
@@ -39,12 +39,23 @@ export function readMoney(text: string, base: string, rates: Rates | null): Read
 }
 
 /** Units of the main currency per 1 of the second currency: the live rate unless set by hand. */
-export function altRate(settings: Settings, rates: Rates | null): number | null {
-  const alt = settings.alt;
-  if (!alt?.code) return null;
-  if (alt.auto !== false) {
-    const r = rates?.rates[alt.code.toUpperCase()];
-    return r ? 1 / r : alt.rate ?? null;
+/** Main-currency units per 1 of another currency: the live rate, or the one set by hand. */
+export function rateFor(c: OtherCurrency, rates: Rates | null): number | null {
+  if (!c.code) return null;
+  if (c.auto !== false) {
+    const r = rates?.rates[c.code.toUpperCase()];
+    return r ? 1 / r : c.rate ?? null;
   }
-  return alt.rate ?? null;
+  return c.rate ?? null;
+}
+
+/** Every other currency to show amounts in, with its rate (those without one yet are left out). */
+export function altRates(settings: Settings, rates: Rates | null): { code: string; rate: number }[] {
+  const list = settings.alts?.length ? settings.alts : settings.alt?.code ? [settings.alt] : [];
+  return list.flatMap((c) => { const rate = rateFor(c, rates); return rate ? [{ code: c.code.toUpperCase(), rate }] : []; });
+}
+
+/** The first other currency's rate (kept for callers that show just one). */
+export function altRate(settings: Settings, rates: Rates | null): number | null {
+  return altRates(settings, rates)[0]?.rate ?? null;
 }

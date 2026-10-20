@@ -39,6 +39,8 @@ export type Ctx = {
   refreshRates: () => Promise<void>;
   /** units of the main currency per 1 of the second currency */
   altRate: number | null;
+  /** every other currency to show amounts in, in order, with main-currency units per 1 */
+  altRates: { code: string; rate: number }[];
   /** read an amount box, converting other currencies to the main one */
   read: (text: string) => Read;
   /** a short message at the bottom of the screen; `undoable` adds an Undo button to it */

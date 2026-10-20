@@ -12,7 +12,7 @@ import { CommandPalette, type Command } from "./ui/CommandPalette";
 import { buildCSV } from "./model/csv";
 import { downloadCSV } from "./ui/download";
 import { Book, thisMonth } from "./model/ledger";
-import { altRate, readMoney, type Rates } from "./model/money";
+import { altRate, altRates, readMoney, type Rates } from "./model/money";
 import { useLedger } from "./store";
 import { BudgetView } from "./views/BudgetView";
 import { CategoriesView } from "./views/CategoriesView";
@@ -153,6 +153,7 @@ export default function App() {
       undo: doUndo, canUndo, openSearch,
       refreshRates: () => loadRates(true),
       altRate: altRate(ledger.settings, rates),
+      altRates: altRates(ledger.settings, rates),
       read: (text: string) => readMoney(text, ledger.settings.currency, rates),
     };
   }, [ledger, change, replace, view, setView, go, notify, rates, ratesError, loadRates, theme, setTheme, doUndo, canUndo, openSearch]);
