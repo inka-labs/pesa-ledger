@@ -318,14 +318,17 @@ table.bg tr.gh td, table.bg tr.sum td { padding: 6px 8px; }
 .group-line input, .group-line select, .cat-line input, .cat-line select, .add-line input { width: 100%; min-width: 0; }
 .add-line { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
 .add-line:has(> :nth-child(2):last-child) { grid-template-columns: minmax(0, 1fr) auto; }
-@media (max-width: 600px) {
+@media (max-width: 760px) {
   .group-line { grid-template-columns: auto minmax(0, 1fr) auto; }
   .group-line select { grid-column: 2; }
-  .cat-line { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
-  .cat-line input.crepeat { max-width: 150px; }
+  /* phones: the name gets its own full-width line; the amount, order and actions share the next */
+  .cat-line { grid-template-columns: minmax(0, 1fr) auto auto; row-gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .cat-line .cname { grid-column: 1 / -1; }
+  .cat-line input.crepeat { grid-column: 1; grid-row: 2; max-width: 150px; }
+  .cat-line .moves { grid-column: 2; grid-row: 2; }
   .cat-line.head { display: none; }
   .cat-line .crepeat { grid-column: 1; }
-  .cat-line .cact-wrap { grid-column: 2; }
+  .cat-line .cact-wrap { grid-column: 3; grid-row: 2; }
 }
 
 /* search and jump */
@@ -453,7 +456,7 @@ kbd { font-family: var(--f-num); font-size: 11px; border: 1px solid var(--line);
 
 /* group types */
 .kinds { display: grid; gap: 6px; }
-.kind-line { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 180px) minmax(0, 2fr) 92px; gap: 8px; align-items: center; }
+.kind-line { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(0, 170px) minmax(0, 1.6fr) 92px; gap: 8px; align-items: center; }
 .kind-line input, .kind-line select { width: 100%; min-width: 0; }
 @media (max-width: 700px) { .kind-line { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .kind-line .help { grid-column: 1 / -1; } }
 

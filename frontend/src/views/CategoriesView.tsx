@@ -83,7 +83,7 @@ function KindsPanel() {
           </div>
         ))}
         <form className="kind-line" onSubmit={add}>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New type, e.g. Investments, Debt repayment" aria-label="New type name" />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New type, e.g. Investments" aria-label="New type name" />
           <select value={effect} onChange={(e) => setEffect(e.target.value as Effect)} aria-label="How the new type counts">
             {EFFECTS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
           </select>

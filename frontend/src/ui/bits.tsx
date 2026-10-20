@@ -66,7 +66,7 @@ export function TextInput(props: { value: string; onCommit: (v: string) => void 
   const focused = useRef(false);
   useEffect(() => { if (!focused.current) setDraft(value); }, [value]);
   const common = {
-    id, className, style, value: draft, placeholder, "aria-label": label,
+    id, className, style, value: draft, placeholder, "aria-label": label, title: draft.length > 24 ? draft : undefined, // a long name in a narrow box, in full
     onFocus: () => (focused.current = true),
     onBlur: () => { focused.current = false; if (draft !== value && onCommit(draft) === false) setDraft(value); },
   };
