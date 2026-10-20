@@ -4,10 +4,12 @@ import type { Ledger } from "../model/types";
 import { ColorPicker } from "../ui/ColorPicker";
 
 const THEMES = [["system", "Match this computer"], ["light", "Light"], ["dark", "Dark"]] as const;
+const TINTS = [["off", "Plain"], ["soft", "Soft tint"], ["rich", "Rich tint"]] as const;
 
 export function AppearanceView() {
   const { book, change, theme, setTheme } = useApp();
   const current = book.settings.palette ?? "pesa";
+  const tint = book.settings.tint ?? "soft";
   const edit = (fn: (l: Ledger) => void) => change(fn, ["settings"]);
   const resetColours = () => edit((l) => {
     let slot = 1;
@@ -29,6 +31,13 @@ export function AppearanceView() {
               <label key={id} className="bar small"><input type="radio" name="theme" checked={theme === id} onChange={() => setTheme(id)} /> {label}</label>
             ))}
           </div>
+          <h3>Background</h3>
+          <div className="seg" role="group" aria-label="Background">
+            {TINTS.map(([id, label]) => (
+              <button key={id} className={tint === id ? "on" : ""} aria-pressed={tint === id} onClick={() => edit((l) => void (l.settings.tint = id))}>{label}</button>
+            ))}
+          </div>
+          <p className="small muted">How much the palette colours the page, the cards and the borders behind your figures. Text keeps its contrast either way.</p>
         </div>
         <div className="panel">
           <div className="panel-h"><h3>Group colours</h3><div className="end"><button className="btn ghost" onClick={resetColours}>Reset to palette order</button></div></div>
@@ -48,7 +57,7 @@ export function AppearanceView() {
         <div className="panel-h">
           <h3>Palette</h3>
           <span className="muted small">
-            Colours for groups, charts and the app's accent. Every palette except Pesa is one of{" "}
+            Colours for groups, charts, the app's accent and (with a tint) its background. Every palette except Pesa is one of{" "}
             <a href="https://matplotlib.org/stable/users/explain/colors/colormaps.html" target="_blank" rel="noreferrer">Matplotlib's colormaps</a>.
           </span>
         </div>

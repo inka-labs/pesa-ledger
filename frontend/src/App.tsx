@@ -79,7 +79,8 @@ export default function App() {
   const hideExample = () => { setExampleHidden(true); try { sessionStorage.setItem(EXAMPLE_KEY, "1"); } catch { /* private window */ } };
   // the palette recolours groups, charts and (for Matplotlib palettes) the accent
   const palette = ledger?.settings.palette;
-  useEffect(() => applyPalette(palette), [palette]);
+  const tint = ledger?.settings.tint ?? "soft";
+  useEffect(() => applyPalette(palette, tint), [palette, tint]);
 
   useEffect(() => {
     const onHash = () => setTab(tabFromHash());

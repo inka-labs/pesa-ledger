@@ -9,14 +9,16 @@ describe("palettes", () => {
     expect(paletteById("tab10").colors[0]).toBe("#1f77b4"); // Matplotlib's own value
   });
 
-  it("picks an accent readable on the page in each theme, with readable text on it", () => {
+  it("picks an accent readable as text on the page in each theme, with readable text on it", () => {
     for (const p of PALETTES) {
       for (const mode of ["light", "dark"] as const) {
         const { accent, ink } = accentFor(p.colors, mode);
-        expect(p.colors).toContain(accent);
+        expect(contrast(accent, mode === "light" ? "#fcfdfb" : "#161c19")).toBeGreaterThanOrEqual(4.5);
         expect(contrast(ink, accent)).toBeGreaterThanOrEqual(3);
       }
     }
+    // a pale palette's accent is deepened from its own colour rather than swapped for another
+    expect(contrast(accentFor(paletteById("Set2").colors, "light").accent, "#fcfdfb")).toBeGreaterThanOrEqual(4.5);
     // viridis: dark purple on a light page, a lighter green-yellow on a dark one
     expect(accentFor(paletteById("viridis").colors, "light").accent).toBe("#440154");
     expect(contrast(accentFor(paletteById("viridis").colors, "dark").accent, "#161c19")).toBeGreaterThanOrEqual(3);
@@ -28,6 +30,9 @@ describe("palettes", () => {
     expect(css).toContain("--s9: #1b9e77;");
     expect(css).toContain('[data-theme="dark"]');
     expect(paletteCSS("pesa")).not.toContain("--accent:"); // the built-in palette keeps the app's green
+    // a tint colours the page from the accent; plain leaves it alone
+    expect(paletteCSS("viridis", "soft")).toMatch(/--bg: #[0-9a-f]{6};/);
+    expect(paletteCSS("viridis", "off")).not.toContain("--bg:");
   });
 
   it("leaves out colours that would vanish against the page", () => {

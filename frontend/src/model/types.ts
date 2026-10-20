@@ -56,6 +56,8 @@ export type Goal = {
   cats: string[];
 };
 
+export type Tint = "off" | "soft" | "rich";
+
 export type Settings = {
   v: number;
   currency: string;
@@ -65,6 +67,8 @@ export type Settings = {
   kinds?: Kind[];
   /** "pesa" or a Matplotlib colormap name */
   palette?: string;
+  /** how much the palette colours the page background: none, a little (default), or more */
+  tint?: Tint;
   groups: Group[];
   cats: Category[];
   goals: Goal[];

@@ -149,6 +149,8 @@ class Settings(Strict):
     kinds: list[Kind] = Field(default_factory=lambda: [Kind(**k) for k in DEFAULT_KINDS], min_length=1, max_length=30)
     # a Matplotlib colormap name, or "pesa" (the built-in palette)
     palette: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,30}$")] = "pesa"
+    # how much the palette colours the page behind the figures
+    tint: Literal["off", "soft", "rich"] = "soft"
     groups: list[Group] = Field(max_length=40)
     cats: list[Category] = Field(max_length=1000)
     goals: list[Goal] = Field(default_factory=list, max_length=200)

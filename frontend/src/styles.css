@@ -29,7 +29,8 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--f-body); }
+/* --glow: a soft wash of the palette's first colours at the top of the page (set by the palette; none when plain) */
+body { background: var(--glow, none) no-repeat, var(--bg); background-attachment: fixed; color: var(--ink); font: 14px/1.5 var(--f-body); min-height: 100vh; }
 /* a sidebar of pages and the page beside it, using the screen's width so twelve months of figures fit side by side */
 .shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
 .shell.bare { grid-template-columns: minmax(0, 1fr); }
@@ -51,7 +52,7 @@ input.amt { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
 .prose { max-width: 70ch; color: var(--ink-2); }
 
 /* sidebar */
-.side { position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 22px 14px 16px; border-right: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 55%, var(--bg)); }
+.side { position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 22px 14px 16px; border-right: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 70%, transparent); backdrop-filter: blur(6px); }
 .brand { display: flex; align-items: baseline; gap: 8px; padding: 0 8px; }
 .brand h1 { font-size: 21px; font-weight: 700; }
 .brand .mark { font-size: 11px; font-weight: 600; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 4px; padding: 0 5px; }
@@ -572,3 +573,4 @@ code { font-family: var(--f-num); font-size: 12.5px; background: var(--sunk); pa
 .map-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 240px); gap: 10px; align-items: center; padding: 5px 0; }
 .map-row.cat { padding-left: 34px; font-size: 13px; color: var(--ink-2); }
 .map-group { border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.panel > .seg { justify-self: start; }
