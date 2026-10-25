@@ -2,7 +2,7 @@ import { useApp } from "../context";
 import { money, pct } from "../model/format";
 import { MONTHS } from "../model/ledger";
 import type { Totals } from "../model/types";
-import { Alt, Delta, FoldAll, GroupToggle, Kpi, OneOffNote, OneOffToggle, YearSelect } from "../ui/bits";
+import { Alt, CycleNote, Delta, FoldAll, GroupToggle, Kpi, OneOffNote, OneOffToggle, YearSelect } from "../ui/bits";
 import { useFolded } from "../ui/fold";
 import { ShareBar, YearChart } from "../ui/charts";
 
@@ -40,6 +40,7 @@ export function YearView() {
         <span className="muted">{last === 12 ? "Full year" : `Jan–${MONTHS[last - 1]}, the months with figures`}</span>
         <div className="end"><OneOffToggle /><YearSelect id="ysel" label="Year" value={y} onChange={(yearView) => setView({ yearView })} /></div>
       </div>
+      <CycleNote />
       <OneOffNote t={yearT} what={String(y)} />
       <div className="kpis">
         {(["income", "saved", "spent", "left"] as const).map((k, i) => (

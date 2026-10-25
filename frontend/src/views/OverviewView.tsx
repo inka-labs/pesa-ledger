@@ -4,7 +4,7 @@
 import { useState, type ReactNode } from "react";
 import { useApp, type Tab, type View } from "../context";
 import { money } from "../model/format";
-import { addMonths, before, fmtYM, MONTHS, MONTHS_LONG, nextYM, parseYM, prevYM } from "../model/ledger";
+import { addMonths, before, cycleLabel, fmtYM, MONTHS, MONTHS_LONG, nextYM, parseYM, prevYM } from "../model/ledger";
 import { healthChecks, type Check } from "../model/health";
 import { setActual } from "../model/edit";
 import type { YM } from "../model/types";
@@ -83,7 +83,7 @@ export function OverviewView() {
     <>
       <div className="panel-h">
         <h2>{MONTHS_LONG[today.m - 1]} {today.y}</h2>
-        <span className="muted">Your money this month</span>
+        <span className="muted">{cycleLabel(book.settings, today) ?? "Your money this month"}</span>
         <div className="end">
           <button className="btn primary" onClick={() => go("month", { ...today })}><PenLine size={15} aria-hidden /> Record {MONTHS[today.m - 1]}</button>
           <button className="btn" onClick={() => go("budget", { planYear: next.y })}><Wallet size={15} aria-hidden /> Plan {MONTHS[next.m - 1]}</button>

@@ -116,6 +116,12 @@ class Allocation(Strict):
     leftover: bool = True
 
 
+class PayCycle(Strict):
+    """Pay that lands near the end of a month and pays for the next one: each month in the ledger then
+    holds that month's pay and the following month's spending. `payday` is the usual day it lands."""
+    payday: Annotated[int, Field(ge=1, le=31)] = 28
+
+
 class Health(Strict):
     """What the Health page needs to know: the emergency fund ("a:<account>" or "g:<goal>"), the groups that
     are essential costs, and the rent category."""
@@ -160,6 +166,7 @@ class Settings(Strict):
     accounts: list[Account] = Field(default_factory=list, max_length=100)
     health: Health | None = None
     allocation: Allocation | None = None
+    paycycle: PayCycle | None = None
     example: bool = False
 
 

@@ -1,7 +1,7 @@
 /** The ledger's arithmetic: totals, budgets, forecasts, comparisons and goals. Pure functions over a
  *  Ledger, so the views never compute money themselves and the tests cover all of it. */
 
-import type { Category, Effect, Goal, Group, Kind, Ledger, Metric, Totals, YearDoc, YM } from "./types";
+import type { Category, Effect, Goal, Group, Kind, Ledger, Metric, PayCycle, Totals, YearDoc, YM } from "./types";
 
 /** The three types every ledger starts with (and what older ledgers, saved before custom types, use). */
 export const DEFAULT_KINDS: Kind[] = [
@@ -28,11 +28,25 @@ export const isNum = (v: unknown): v is number => typeof v === "number" && Numbe
 export function thisMonth(d = new Date()): YM {
   return { y: d.getFullYear(), m: d.getMonth() + 1 };
 }
+/** The month whose figures you're living on today. With a pay cycle that's last month's until payday. */
+export function currentMonth(settings?: { paycycle?: PayCycle | null } | null, d = new Date()): YM {
+  const t = thisMonth(d), pc = settings?.paycycle;
+  if (!pc) return t;
+  // a payday past the end of a short month means its last day
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return d.getDate() >= Math.min(pc.payday, last) ? t : prevYM(t);
+}
 export const prevYM = ({ y, m }: YM): YM => (m === 1 ? { y: y - 1, m: 12 } : { y, m: m - 1 });
 export const nextYM = ({ y, m }: YM): YM => (m === 12 ? { y: y + 1, m: 1 } : { y, m: m + 1 });
 export const before = (a: YM, b: YM) => a.y < b.y || (a.y === b.y && a.m < b.m);
 export const parseYM = (s: string): YM => { const [y, m] = s.split("-").map(Number); return { y, m }; };
 export const fmtYM = ({ y, m }: YM) => `${MONTHS[m - 1]} ${y}`;
+/** "September pay → October spending", when months are pay cycles; null otherwise. */
+export function cycleLabel(settings: { paycycle?: PayCycle | null }, ym: YM, long = true): string | null {
+  if (!settings.paycycle) return null;
+  const n = addMonths(ym, 1), names = long ? MONTHS_LONG : MONTHS;
+  return `${names[ym.m - 1]} pay → ${names[n.m - 1]}${n.y !== ym.y ? ` ${n.y}` : ""} spending`;
+}
 export const ymKey = ({ y, m }: YM) => `${y}-${mk(m)}`;
 /** `n` months after (or before, when negative) a month. */
 export const addMonths = ({ y, m }: YM, n: number): YM => { const i = y * 12 + (m - 1) + n; return { y: Math.floor(i / 12), m: (i % 12) + 1 }; };
@@ -340,7 +354,9 @@ export class Book {
   fund(cid: string) {
     const f = this.cats[cid]?.fund;
     if (!f) return null;
-    const from = parseYM(f.from), due = parseYM(f.due);
+    const from = parseYM(f.from);
+    // a bill due in a month is paid from the month before's pay when months are pay cycles
+    const due = this.settings.paycycle ? prevYM(parseYM(f.due)) : parseYM(f.due);
     let contributed = 0, monthsWith = 0;
     for (let p = from; !before(this.today, p); p = nextYM(p)) {
       const v = this.actual(p.y, p.m, cid);

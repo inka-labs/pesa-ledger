@@ -181,6 +181,13 @@ export function OneOffNote({ t, what }: { t: Totals; what: string }) {
   return <div className="notice">One-offs left out of {what}: {parts.join(", ")} ({book.settings.currency}).</div>;
 }
 
+/** On pages that list months, a reminder of what a month holds when months are pay cycles. */
+export function CycleNote() {
+  const { book } = useApp();
+  if (!book.settings.paycycle) return null;
+  return <p className="cycle-note">Months are pay months: <b>Sep</b> is September's pay and the October spending it paid for.</p>;
+}
+
 /** A group's name in a table, as a button that folds its categories away. */
 export function GroupToggle({ g, folded, onToggle, count }: { g: Group; folded: boolean; onToggle: () => void; count: number }) {
   return (

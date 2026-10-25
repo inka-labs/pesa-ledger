@@ -142,6 +142,8 @@ textarea { width: 100%; min-height: 70px; resize: vertical; }
 .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 14px; align-items: start; }
 
 /* month header */
+.cycle-note { margin: -4px 0 14px; color: var(--muted); font-size: 13.5px; }
+.cycle-note b { color: var(--ink); font-weight: 600; }
 .monthnav { display: flex; align-items: center; gap: 6px; }
 .monthnav h2 { min-width: 180px; text-align: center; }
 .monthnav .btn { padding: 6px 11px; font-size: 16px; line-height: 1; }
@@ -561,7 +563,9 @@ code { font-family: var(--f-num); font-size: 12.5px; background: var(--sunk); pa
 .panel > .seg { justify-self: start; }
 
 /* currencies */
-.cur-list { display: grid; }
+.cur-list { display: grid; container-type: inline-size; }
+/* a narrow panel: the rate on its own line under the name */
+@container (max-width: 600px) { .cur-row { grid-template-columns: minmax(0, 1fr) auto auto; grid-auto-flow: dense; } .cur-rate { grid-column: 1 / -1; } }
 .cur-row { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(180px, 1.3fr) auto auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .cur-row:last-child { border-bottom: 0; }
 .cur-name { display: flex; align-items: baseline; gap: 6px; min-width: 0; flex-wrap: wrap; }

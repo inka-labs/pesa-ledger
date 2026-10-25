@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useApp } from "../context";
 import { setActual, setBudget, setNote, setOneOff } from "../model/edit";
 import { amountText, money } from "../model/format";
-import { before, mk, MONTHS, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
+import { before, cycleLabel, mk, MONTHS, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
 import { newId } from "../model/csv";
 import type { Category, Group } from "../model/types";
 import { Alt, AmountInput, Delta, Kpi, Swatch, TextInput } from "../ui/bits";
@@ -17,6 +17,7 @@ export function MonthView() {
   const pl = book.planRange(y, m, m);
   const pLabel = MONTHS[p.m - 1] + (p.y !== y ? ` ${p.y}` : "");
   const future = before(book.today, { y, m });
+  const cycle = cycleLabel(book.settings, { y, m });
   const prevRow = book.year(p.y)?.actual?.[mk(p.m)];
   const val = (tt: typeof t, k: "income" | "saved" | "spent" | "left") => (tt.has ? tt[k] : null);
 
@@ -82,11 +83,12 @@ export function MonthView() {
           <button className="btn" aria-label="Next month" title="Next month (→)" onClick={() => setView(nextYM({ y, m }))}>›</button>
         </div>
         <div className="end">
-          {(y !== book.today.y || m !== book.today.m) && <button className="btn ghost" onClick={() => setView(book.today)}>This month</button>}
+          {(y !== book.today.y || m !== book.today.m) && <button className="btn ghost" onClick={() => setView(book.today)}>{book.settings.paycycle ? "Current pay" : "This month"}</button>}
           <button className="btn" disabled={!prevRow} onClick={copyPrev} title={`Fill empty boxes with ${pLabel}'s amounts`}>Copy {pLabel} into empty boxes</button>
           <button className="btn" disabled={!pl.has} onClick={fillBudget} title="Fill empty actual boxes with this month's budget">Fill empty from budget</button>
         </div>
       </div>
+      {cycle && <p className="cycle-note"><b>{cycle}</b>: the pay that landed in {MONTHS_LONG[m - 1]} and what it paid for.</p>}
       {future && (
         <div className="notice">
           This month is still ahead. Set its budget in the Budget column, or plan the whole year on the{" "}
@@ -194,13 +196,13 @@ function MonthPicker() {
               const isNow = year === book.today.y && i + 1 === book.today.m;
               return (
                 <button key={mn} className={`mcell2${year === view.y && i + 1 === view.m ? " on" : ""}${isNow ? " now" : ""}`}
-                  onClick={() => { setView({ y: year, m: i + 1 }); setOpen(false); }} title={has ? "Has figures" : "No figures yet"}>
+                  onClick={() => { setView({ y: year, m: i + 1 }); setOpen(false); }} title={[cycleLabel(book.settings, { y: year, m: i + 1 }), has ? "Has figures" : "No figures yet"].filter(Boolean).join(" · ")}>
                   {mn}{has && <i className="has" aria-label="has figures" />}
                 </button>
               );
             })}
           </div>
-          <button className="btn ghost" onClick={() => { setView(book.today); setOpen(false); }}>This month</button>
+          <button className="btn ghost" onClick={() => { setView(book.today); setOpen(false); }}>{book.settings.paycycle ? "Current pay" : "This month"}</button>
         </div>
       )}
     </div>

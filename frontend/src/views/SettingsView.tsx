@@ -3,6 +3,7 @@ import { api, type Backup, type Stored, type Version } from "../api";
 import { useApp } from "../context";
 import { buildCSV, importSummary } from "../model/csv";
 import { parseAmount } from "../model/format";
+import { currentMonth, cycleLabel } from "../model/ledger";
 import { rateFor } from "../model/money";
 import type { OtherCurrency } from "../model/types";
 import { CurrencySelect, currencyName } from "../ui/CurrencySelect";
@@ -98,6 +99,42 @@ function CurrencyPanel() {
   );
 }
 
+/** Whether pay arrives at the end of a month and pays for the next one. Nothing is moved: it changes
+ *  how months are labelled, which month is "now", and when a fund's bill is paid from. */
+function PayPanel() {
+  const { book, change, notify } = useApp();
+  const pc = book.settings.paycycle;
+  const set = (v: { payday: number } | null) => change((l) => { l.settings.paycycle = v; }, ["settings"]);
+  const now = currentMonth(book.settings), example = cycleLabel({ paycycle: pc ?? { payday: 28 } }, now);
+  return (
+    <div className="panel">
+      <h3>When you're paid</h3>
+      <label className="bar small">
+        <input type="checkbox" checked={!!pc} onChange={(e) => { set(e.target.checked ? { payday: 28 } : null); notify(e.target.checked ? "Months now read as pay cycles." : "Months now read as calendar months.", true); }} />
+        My pay arrives at the end of the month and pays for the next one
+      </label>
+      {pc && (
+        <label className="field">
+          <span className="lbl">Payday</span>
+          <span className="bar small">
+            <select value={pc.payday} aria-label="Payday" onChange={(e) => set({ payday: Number(e.target.value) })}>
+              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d === 31 ? "Last day" : `The ${ordinal(d)}`}</option>)}
+            </select>
+            <span className="muted">of each month</span>
+          </span>
+        </label>
+      )}
+      <p className="small muted">
+        {pc
+          ? <>Each month holds that month's pay and the spending it paid for in the next: <b>{example}</b>. Until payday the app opens on last month's pay. A fund's bill is paid from the month before it's due. Your figures stay where they are.</>
+          : <>Turn this on if, say, September's salary is what you live on in October and you record October's spending under September. Your figures stay where they are; only how months are read changes.</>}
+      </p>
+    </div>
+  );
+}
+
+const ordinal = (d: number) => d + (d % 10 === 1 && d !== 11 ? "st" : d % 10 === 2 && d !== 12 ? "nd" : d % 10 === 3 && d !== 13 ? "rd" : "th");
+
 export function SettingsView({ version, onRestored }: { version: Version | null; onRestored: (s: Stored) => void }) {
   const { book, change, replace, notify } = useApp();
   const st = book.settings;
@@ -120,6 +157,7 @@ export function SettingsView({ version, onRestored }: { version: Version | null;
       <div className="cols">
         <div className="stack">
           <CurrencyPanel />
+          <PayPanel />
 
           <div className="panel">
             <h3>Import and export</h3>

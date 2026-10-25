@@ -11,7 +11,7 @@ import { OverviewView } from "./views/OverviewView";
 import { CommandPalette, type Command } from "./ui/CommandPalette";
 import { buildCSV } from "./model/csv";
 import { downloadCSV } from "./ui/download";
-import { Book, thisMonth } from "./model/ledger";
+import { Book, currentMonth, thisMonth } from "./model/ledger";
 import { altRate, altRates, readMoney, type Rates } from "./model/money";
 import { useLedger } from "./store";
 import { BudgetView } from "./views/BudgetView";
@@ -82,6 +82,15 @@ export default function App() {
   const tint = ledger?.settings.tint ?? "soft";
   useEffect(() => applyPalette(palette, tint), [palette, tint]);
 
+  // with a pay cycle, "now" is last month's figures until payday: open there once the ledger loads,
+  // and again whenever the pay cycle setting changes
+  const payday = ledger ? ledger.settings.paycycle?.payday ?? 0 : null;
+  useEffect(() => {
+    if (payday == null) return;
+    const now = currentMonth(payday ? { paycycle: { payday } } : null);
+    setViewState((v) => ({ ...v, y: now.y, m: now.m, yearView: now.y, cmpA: now.y, cmpB: now.y - 1, planYear: now.y }));
+  }, [payday]);
+
   useEffect(() => {
     const onHash = () => setTab(tabFromHash());
     window.addEventListener("hashchange", onHash);
@@ -149,7 +158,7 @@ export default function App() {
   const ctx: Ctx | null = useMemo(() => {
     if (!ledger) return null;
     return {
-      book: new Book(ledger), change, replace, view, setView, go, notify, rates, ratesError, theme, setTheme,
+      book: new Book(ledger, currentMonth(ledger.settings)), change, replace, view, setView, go, notify, rates, ratesError, theme, setTheme,
       undo: doUndo, canUndo, openSearch,
       refreshRates: () => loadRates(true),
       altRate: altRate(ledger.settings, rates),

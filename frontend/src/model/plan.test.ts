@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Book, emptyYear } from "./ledger";
+import { Book, currentMonth, cycleLabel, emptyYear } from "./ledger";
 import { starterSettings } from "./example";
 import { payFund, setBalance } from "./edit";
 import { efTargetMonths, healthChecks, healthStats } from "./health";
@@ -120,5 +120,33 @@ describe("health", () => {
 
   it("wants a bigger emergency fund when income varies more", () => {
     expect([efTargetMonths(0.1), efTargetMonths(0.3), efTargetMonths(0.6)]).toEqual([6, 9, 12]);
+  });
+});
+
+describe("pay cycles", () => {
+  const pc = { paycycle: { payday: 28 } };
+  it("keep last month as now until payday", () => {
+    expect(currentMonth(pc, new Date(2026, 9, 25))).toEqual({ y: 2026, m: 9 });
+    expect(currentMonth(pc, new Date(2026, 9, 28))).toEqual({ y: 2026, m: 10 });
+    expect(currentMonth(pc, new Date(2026, 0, 3))).toEqual({ y: 2025, m: 12 });
+    expect(currentMonth(null, new Date(2026, 9, 25))).toEqual({ y: 2026, m: 10 });
+  });
+
+  it("treat a payday past the month's end as its last day", () => {
+    expect(currentMonth({ paycycle: { payday: 31 } }, new Date(2026, 1, 28))).toEqual({ y: 2026, m: 2 });
+  });
+
+  it("name a month by its pay and the spending it covers", () => {
+    expect(cycleLabel(pc, { y: 2026, m: 9 })).toBe("September pay → October spending");
+    expect(cycleLabel(pc, { y: 2026, m: 12 }, false)).toBe("Dec pay → Jan 2027 spending");
+    expect(cycleLabel({}, { y: 2026, m: 9 })).toBeNull();
+  });
+
+  it("pay a fund's bill from the month before it's due", () => {
+    const l = ledger();
+    l.settings.paycycle = { payday: 28 };
+    const f = new Book(l, TODAY).fund("snk_0")!;
+    expect(f.monthsLeft).toBe(3); // Oct to Dec: December's pay covers January's bill
+    expect(f.planned).toBe(20_000);
   });
 });

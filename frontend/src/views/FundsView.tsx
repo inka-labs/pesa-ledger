@@ -6,7 +6,7 @@ import { useCallback, useState } from "react";
 import { useApp } from "../context";
 import { payFund } from "../model/edit";
 import { amountText, money } from "../model/format";
-import { addMonths, fmtYM, parseYM, ymKey } from "../model/ledger";
+import { addMonths, fmtYM, parseYM, prevYM, ymKey } from "../model/ledger";
 import type { Fund, Ledger } from "../model/types";
 import { EmptyState, Ring, Swatch } from "../ui/bits";
 import { PiggyBank } from "lucide-react";
@@ -78,7 +78,7 @@ function FundCard({ cid, editing, onEdit }: { cid: string; editing: boolean; onE
         <div className="fig"><span className="big">{money(f.saved)}</span><span className="muted small">of {book.settings.currency} {money(c.fund!.target)}</span></div>
       </div>
       <dl>
-        <dt>Due</dt><dd>{fmtYM(due)} · {f.monthsLeft} mo</dd>
+        <dt>Due</dt><dd>{fmtYM(due)} · {f.monthsLeft} mo{book.settings.paycycle && <span className="muted"> · paid from {fmtYM(prevYM(due))}'s pay</span>}</dd>
         <dt>Needed per month</dt><dd>{f.status === "ready" ? "Nothing more" : money(f.neededPerMonth)}</dd>
         <dt>Your average</dt><dd>{money(f.average)}</dd>
         <dt>Budgeted until due</dt><dd>{money(f.planned)}</dd>

@@ -79,8 +79,13 @@ export type Settings = {
   accounts?: Account[];
   health?: HealthSettings | null;
   allocation?: AllocationSettings | null;
+  /** set when pay arrives near the end of a month and pays for the next: each month then holds that
+   *  month's pay and the next month's spending, and `payday` is when the pay usually lands */
+  paycycle?: PayCycle | null;
   example?: boolean;
 };
+
+export type PayCycle = { payday: number };
 
 /** month key "01".."12" -> category id -> amount */
 export type MonthMap = Record<string, Record<string, number>>;

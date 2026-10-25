@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useApp } from "../context";
 import { money, pct } from "../model/format";
 import { MONTHS } from "../model/ledger";
-import { Alt, Delta, FoldAll, GroupToggle, Kpi, OneOffNote, OneOffToggle, YearSelect } from "../ui/bits";
+import { Alt, CycleNote, Delta, FoldAll, GroupToggle, Kpi, OneOffNote, OneOffToggle, YearSelect } from "../ui/bits";
 import { useFolded } from "../ui/fold";
 import { CompareChart, Movers } from "../ui/charts";
 
@@ -46,6 +46,7 @@ export function CompareView() {
           <OneOffToggle />
         </div>
       </div>
+      <CycleNote />
       <OneOffNote t={ta} what={String(a)} />
       <OneOffNote t={tb} what={String(b)} />
       <div className="kpis">
