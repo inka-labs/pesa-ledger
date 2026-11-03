@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import { useApp } from "../context";
-import { allocate, CUSTOM_ID, defaultBucket, period, PERIODS, ruleById, RULES, type BucketResult, type PeriodId, type Rule } from "../model/allocation";
+import { allocate, askOrder, bucketOf, CUSTOM_ID, defaultBucket, defineBucket, period, PERIODS, placedByYou, ruleById, RULES, type BucketResult, type PeriodId, type Rule } from "../model/allocation";
 import { money } from "../model/format";
 import { newId } from "../model/csv";
 import type { AllocationSettings, Ledger, Totals } from "../model/types";
@@ -50,6 +50,7 @@ export function AllocationView() {
         <CustomCard onUse={() => use(CUSTOM_ID)} />
       </div>
 
+      <GuessNote rule={rule} />
       {!base || base.income <= 0 ? (
         <EmptyState icon={ChartPie} title={`Nothing to divide up for ${PERIODS.find((x) => x.id === per)!.label.toLowerCase()} yet`}>
           {per === "next" ? "Set next month's budget on the Budget tab and it shows here against the rule." : "Record some income and spending for these months and they'll be measured against the rule."}
@@ -58,9 +59,23 @@ export function AllocationView() {
         <RulePanel rule={rule} actual={p.actual} budget={p.budget} isChosen={rule.id === chosen?.id} onUse={() => use(rule.id)} />
       )}
 
-      <Mapping rule={rule} />
+      <Mapping key={rule.id} rule={rule} />
 
     </>
+  );
+}
+
+/** While categories are only guessed into buckets, say so: the figures depend on it. */
+function GuessNote({ rule }: { rule: Rule }) {
+  const { book } = useApp();
+  const n = book.settings.groups.filter((g) => ["aside", "out"].includes(book.effectOfGroup(g)))
+    .flatMap((g) => book.catsIn(g.id)).filter((c) => !placedByYou(book, rule, c.id)).length;
+  if (!n) return null;
+  return (
+    <div className="notice">
+      {n} {n === 1 ? "category is" : "categories are"} in a bucket only because of {n === 1 ? "its name" : "their names"}.{" "}
+      <button className="link" onClick={() => { const d = document.getElementById("sort") as HTMLDetailsElement | null; if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth" }); } }}>Sort them</button> so the figures below mean what you intend.
+    </div>
   );
 }
 
@@ -113,7 +128,7 @@ function RulePanel({ rule, actual, budget, isChosen, onUse }: { rule: Rule; actu
             : `${r.gap > 0 ? "Over" : "Under"} by ${cur} ${money(need)}`;
           return (
             <div key={bk.id} className="at-row">
-              <span className="at-name"><span className="sw" style={{ background: col(i) }} /> <b>{bk.name}</b>{bk.hint && <small className="muted">{bk.hint}</small>}</span>
+              <span className="at-name"><span className="sw" style={{ background: col(i) }} /> <b>{bk.name}</b><small className="muted">{defineBucket(rule, bk).test}</small></span>
               <span className="small">{SIGN[bk.kind]} {bk.pct}% <span className="muted">({KIND[bk.kind]})</span></span>
               <span className="r">{ra ? <><b className="num">{pc(ra.share)}</b> <span className="muted small num">{money(ra.amount)}</span></> : <span className="muted">–</span>}</span>
               <span className="r">{rb ? <><b className="num">{pc(rb.share)}</b> <span className="muted small num">{money(rb.amount)}</span></> : <span className="muted">–</span>}</span>
@@ -124,7 +139,7 @@ function RulePanel({ rule, actual, budget, isChosen, onUse }: { rule: Rule; actu
       </div>
       <p className="small muted">
         Shares are of income for the period, one-offs left out.
-        {main.rows.some((r) => r.leftover > 0) && <> Money left over ({cur} {money(main.rows.find((r) => r.leftover > 0)!.leftover)}{a && b ? " actual" : ""}) counts as savings; you can change that under “What goes where”.</>}
+        {main.rows.some((r) => r.leftover > 0) && <> Money left over ({cur} {money(main.rows.find((r) => r.leftover > 0)!.leftover)}{a && b ? " actual" : ""}) counts as savings; you can change that under “Sort your categories”.</>}
         {main.unassigned > 0 && <> {cur} {money(main.unassigned)} isn't assigned to any bucket: a zero-based budget would give it a job.</>}
         {main.unassigned < 0 && <> More went out than came in, by {cur} {money(-main.unassigned)}.</>}
       </p>
@@ -132,50 +147,91 @@ function RulePanel({ rule, actual, budget, isChosen, onUse }: { rule: Rule; actu
   );
 }
 
-/** Which bucket each group and category is in, for the rule on screen. */
+/** Sorting categories into the rule's buckets: what each bucket means, as questions to ask in order, then every
+ *  category with the bucket it's in, marked when it was only guessed from its name. */
 function Mapping({ rule }: { rule: Rule }) {
-  const { book, change } = useApp();
-  const [open, setOpen] = useState<string | null>(null);
+  const { book, change, notify } = useApp();
   const map = book.settings.allocation?.maps?.[rule.id] ?? {};
-  const set = (key: string, bucket: string | null) => change((l: Ledger) => {
+  const write = (fn: (m: Record<string, string>) => void) => change((l: Ledger) => {
     const a = (l.settings.allocation ??= {});
-    const m = ((a.maps ??= {})[rule.id] ??= {});
-    if (bucket) m[key] = bucket; else delete m[key];
+    fn(((a.maps ??= {})[rule.id] ??= {}));
   }, ["settings"]);
+  const set = (key: string, bucket: string | null) => write((m) => { if (bucket) m[key] = bucket; else delete m[key]; });
   const groups = book.settings.groups.filter((g) => ["aside", "out"].includes(book.effectOfGroup(g)) && book.catsIn(g.id).length);
+  const cats = groups.flatMap((g) => book.catsIn(g.id));
+  const guessed = cats.filter((c) => !placedByYou(book, rule, c.id));
+  const [onlyGuessed, setOnlyGuessed] = useState(false);
+  // open while there's sorting to do; then it stays as the person leaves it
+  const [open, setOpen] = useState(guessed.length > 0);
   const name = (id: string | null) => rule.buckets.find((b) => b.id === id)?.name ?? "–";
+  const accept = () => {
+    write((m) => guessed.forEach((c) => { const d = defaultBucket(book, rule, c.id); if (d) m[`c:${c.id}`] = d; }));
+    notify(`${guessed.length} guesses kept as your choices.`, true);
+  };
   return (
-    <details className="panel hsetup">
-      <summary><h3>What goes where</h3><span className="muted small">Which of {rule.name}'s buckets each group falls in. Open a group to place single categories.</span></summary>
-      <label className="bar small"><input type="checkbox" checked={book.settings.allocation?.leftover !== false}
-        onChange={(e) => change((l: Ledger) => { (l.settings.allocation ??= {}).leftover = e.target.checked; }, ["settings"])} /> Count money left over as savings</label>
+    <details id="sort" className="panel hsetup" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>
+        <h3>Sort your categories</h3>
+        <span className="muted small">{cats.length - guessed.length} of {cats.length} placed by you{guessed.length ? ` · ${guessed.length} guessed from their names` : ""}</span>
+      </summary>
+
+      <div>
+        <p className="small muted">For each category, ask these in order. The first yes decides its bucket.</p>
+        <ol className="defs">
+          {askOrder(rule).map((b) => {
+            const d = defineBucket(rule, b), i = rule.buckets.indexOf(b);
+            return (
+              <li key={b.id} className="def">
+                <span className="def-h"><span className="sw" style={{ background: col(i) }} /> <b>{b.name}</b> <span className="muted small">{SIGN[b.kind]} {b.pct}%</span></span>
+                <span className="def-q">{d.test}</span>
+                {d.inc && <span className="small"><span className="def-k">In</span> {d.inc}</span>}
+                {d.exc.map((x) => <span key={x} className="small muted"><span className="def-k">Not</span> {x}</span>)}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      <div className="bar">
+        <label className="bar small"><input type="checkbox" checked={book.settings.allocation?.leftover !== false}
+          onChange={(e) => change((l: Ledger) => { (l.settings.allocation ??= {}).leftover = e.target.checked; }, ["settings"])} /> Count money left over as savings</label>
+        <div className="bar map-tools">
+          {guessed.length > 0 && <label className="bar small"><input type="checkbox" checked={onlyGuessed} onChange={(e) => setOnlyGuessed(e.target.checked)} /> Only guessed</label>}
+          {guessed.length > 0 && <button className="btn" onClick={accept} title="Keep every guess as your own choice; you can still change any">Keep all {guessed.length} guesses</button>}
+        </div>
+      </div>
+
       <div className="map-list">
         {groups.map((g) => {
-          const cats = book.catsIn(g.id);
-          // what most of its categories fall in when nobody has chosen
-          const tally: Record<string, number> = {};
-          cats.forEach((c) => { const d = defaultBucket(book, rule, c.id); if (d) tally[d] = (tally[d] || 0) + 1; });
-          const def = Object.entries(tally).sort((x, y) => y[1] - x[1])[0]?.[0] ?? null;
+          const list = book.catsIn(g.id).filter((c) => !onlyGuessed || !placedByYou(book, rule, c.id));
+          if (!list.length) return null;
+          const whole = map[`g:${g.id}`];
           return (
             <div key={g.id} className="map-group">
-              <div className="map-row">
-                <button className="fold" aria-expanded={open === g.id} onClick={() => setOpen(open === g.id ? null : g.id)}>
-                  <span className={`chev${open === g.id ? " open" : ""}`} aria-hidden>▸</span><Swatch g={g} /> <b>{g.name}</b>
-                </button>
-                <select value={map[`g:${g.id}`] ?? ""} onChange={(e) => set(`g:${g.id}`, e.target.value || null)} aria-label={`${g.name}'s bucket`}>
-                  <option value="">Automatic{def ? ` (${name(def)})` : ""}</option>
-                  {rule.buckets.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              <div className="map-row head">
+                <span className="map-name"><Swatch g={g} /> <b>{g.name}</b></span>
+                <select value={whole ?? ""} onChange={(e) => set(`g:${g.id}`, e.target.value || null)} aria-label={`Bucket for all of ${g.name}`}>
+                  <option value="">Each category on its own</option>
+                  {rule.buckets.map((b) => <option key={b.id} value={b.id}>All in {b.name}</option>)}
                 </select>
               </div>
-              {open === g.id && cats.map((c) => (
-                <div key={c.id} className="map-row cat">
-                  <span>{c.name}</span>
-                  <select value={map[`c:${c.id}`] ?? ""} onChange={(e) => set(`c:${c.id}`, e.target.value || null)} aria-label={`${c.name}'s bucket`}>
-                    <option value="">{map[`g:${g.id}`] ? "Same as group" : "Automatic"} ({name(map[`g:${g.id}`] ?? defaultBucket(book, rule, c.id))})</option>
-                    {rule.buckets.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
-                </div>
-              ))}
+              {list.map((c) => {
+                const now = bucketOf(book, rule, c.id), mine = placedByYou(book, rule, c.id);
+                return (
+                  <div key={c.id} className="map-row cat">
+                    <span className="map-name">{c.name}{!mine && <span className="chip warn" title={`Guessed from the name; it's in ${name(now)} until you choose`}>Guessed</span>}</span>
+                    <span className="bucket-pick" role="radiogroup" aria-label={`${c.name}'s bucket`}>
+                      {rule.buckets.map((b, i) => (
+                        <button key={b.id} role="radio" aria-checked={now === b.id} className={`bp${now === b.id ? (mine ? " on" : " guess") : ""}`}
+                          style={{ ["--bc" as string]: col(i) }} title={defineBucket(rule, b).test}
+                          onClick={() => set(`c:${c.id}`, whole === b.id ? null : b.id)}>
+                          {b.name}
+                        </button>
+                      ))}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           );
         })}
@@ -195,7 +251,8 @@ function CustomCard({ onUse }: { onUse: () => void }) {
   const total = rows.reduce((s, r) => s + (Number(r.pct) || 0), 0);
   const save = () => {
     if (Math.round(total) !== 100) { notify(`The shares add up to ${total}%; make them 100%.`); return; }
-    change((l: Ledger) => { (l.settings.allocation ??= {}).custom = rows.map((r) => ({ ...r, name: r.name.trim() || "Bucket", pct: Number(r.pct) })); }, ["settings"]);
+    if (rows.some((r) => !r.means?.trim())) { notify("Say what goes in each bucket, so every category has a clear home."); return; }
+    change((l: Ledger) => { (l.settings.allocation ??= {}).custom = rows.map((r) => ({ ...r, name: r.name.trim() || "Bucket", pct: Number(r.pct), means: r.means!.trim() })); }, ["settings"]);
     setEditing(false);
     onUse();
   };
@@ -211,12 +268,15 @@ function CustomCard({ onUse }: { onUse: () => void }) {
       <span className="rc-h"><b>Your own split</b><span className={`small ${Math.round(total) === 100 ? "muted" : "d-bad"}`}>{total}% of 100%</span></span>
       {rows.map((r, i) => (
         <div key={r.id} className="cs-row">
-          <input value={r.name} aria-label="Bucket name" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
+          <input value={r.name} aria-label="Bucket name" placeholder="Bucket name" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
           <select value={r.kind} aria-label="Kind" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, kind: e.target.value as "max" | "min" | "target" } : x)))}>
             <option value="max">at most</option><option value="min">at least</option><option value="target">about</option>
           </select>
           <input className="amt" inputMode="decimal" value={r.pct} aria-label="Share in %" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, pct: Number(e.target.value.replace(/[^\d.]/g, "")) || 0 } : x)))} />
           <button className="iconbtn" aria-label={`Remove ${r.name}`} disabled={rows.length < 2} onClick={() => setRows(rows.filter((_, j) => j !== i))}>✕</button>
+          <input className="cs-means" value={r.means ?? ""} maxLength={200} aria-label={`What goes in ${r.name || "this bucket"}`}
+            placeholder="What goes in it, e.g. anything you'd still pay in a tight month"
+            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, means: e.target.value } : x)))} />
         </div>
       ))}
       <div className="bar">

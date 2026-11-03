@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Book, emptyYear } from "./ledger";
 import { starterSettings } from "./example";
-import { allocate, bucketOf, judge, period, RULES, ruleById } from "./allocation";
+import { allocate, askOrder, bucketOf, defineBucket, judge, period, placedByYou, RULES, ruleById } from "./allocation";
 import { healthChecks } from "./health";
 import type { Ledger } from "./types";
 
@@ -80,5 +80,48 @@ describe("allocation rules", () => {
     const check = healthChecks(b).find((c) => c.id === "rule")!;
     expect(check.title).toBe("Matches Your own split");
     expect(check.tone).toBe("good");
+  });
+});
+
+describe("bucket definitions", () => {
+  it("give every bucket of every rule a question and examples", () => {
+    for (const r of RULES) for (const b of r.buckets) {
+      const d = defineBucket(r, b);
+      expect(d.test, `${r.id}/${b.id}`).toMatch(/\?$/);
+      expect(d.inc, `${r.id}/${b.id}`).not.toBe("");
+    }
+  });
+
+  it("send what doesn't belong to the rule's own bucket, never back to itself", () => {
+    const r = rule("30-30-30-10");
+    const house = defineBucket(r, r.buckets.find((b) => b.id === "house")!);
+    expect(house.exc).toContain("Bills (electricity, water, Wi‑Fi, garbage) and household things → Other living costs");
+    expect(house.exc).toContain("Furniture and upgrades you could put off → Wants");
+    const spend = rule("80-20").buckets.find((b) => b.id === "spend")!;
+    expect(defineBucket(rule("80-20"), spend).exc.join()).not.toContain("Everything else");
+    // a sinking fund only has its own home where the rule has a jar for it
+    expect(defineBucket(r, r.buckets.find((b) => b.id === "save")!).exc).toEqual([]);
+    const jars = rule("six-jars");
+    expect(defineBucket(jars, jars.buckets.find((b) => b.role === "save" || b.role === "invest")!).exc[0]).toMatch(/Long-term savings$/);
+  });
+
+  it("ask the narrow questions before the broad ones", () => {
+    expect(askOrder(rule("30-30-30-10")).map((b) => b.id)).toEqual(["save", "house", "living", "fun"]);
+  });
+
+  it("use your own words for a bucket you made", () => {
+    const l = ledger();
+    l.settings.allocation = { rule: "custom", custom: [{ id: "a", name: "Fixed", pct: 60, kind: "max", means: "Bills that arrive whatever I do?" }, { id: "b", name: "Rest", pct: 40, kind: "max", means: "x" }] };
+    const r = ruleById(new Book(l, TODAY), "custom")!;
+    expect(defineBucket(r, r.buckets[0])).toEqual({ test: "Bills that arrive whatever I do?", inc: "", exc: [] });
+  });
+
+  it("tell a category you placed from one guessed by name", () => {
+    const l = ledger(), r = rule("50-30-20");
+    l.settings.allocation = { rule: r.id, maps: { [r.id]: { "c:ess_0": "needs", "g:fam": "wants" } } };
+    const b = new Book(l, TODAY);
+    expect(placedByYou(b, r, "ess_0")).toBe(true);
+    expect(placedByYou(b, r, "fam_1")).toBe(true); // its group was placed
+    expect(placedByYou(b, r, "ess_4")).toBe(false);
   });
 });

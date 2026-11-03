@@ -10,7 +10,11 @@ import type { Totals, YM } from "./types";
 
 export type BucketKind = "max" | "min" | "target";
 export type Role = "save" | "need" | "want" | "give" | "house" | "debt" | "learn" | "invest" | "living" | "reserve";
-export type Bucket = { id: string; name: string; pct: number; kind: BucketKind; role?: Role; hint?: string };
+/** `test` is the question that decides whether something belongs; `inc` is what does and `exc` what doesn't
+ *  (and where that goes instead). Unset, they come from the bucket's role (see ROLE_DEFS); `means` is the
+ *  person's own wording for a bucket they made. */
+export type Bucket = { id: string; name: string; pct: number; kind: BucketKind; role?: Role; hint?: string; test?: string; inc?: string; exc?: string; means?: string };
+export type Definition = { test: string; inc: string; exc: string[] };
 export type Rule = { id: string; name: string; source: string; idea: string; buckets: Bucket[] };
 
 export const RULES: Rule[] = [
@@ -20,7 +24,7 @@ export const RULES: Rule[] = [
     buckets: [
       { id: "needs", name: "Needs", pct: 50, kind: "max", role: "need", hint: "Rent, food, transport, utilities, family you support" },
       { id: "wants", name: "Wants", pct: 30, kind: "max", role: "want", hint: "Eating out, entertainment, travel, gifts" },
-      { id: "save", name: "Savings & debt", pct: 20, kind: "min", role: "save", hint: "Saving, investing, paying down debt" },
+      { id: "save", name: "Savings & debt", pct: 20, kind: "min", role: "save", hint: "Saving, investing, paying down debt", inc: "Savings accounts, money market funds, investments, pension, emergency fund, paying a loan off faster than you must" },
     ],
   },
   {
@@ -29,7 +33,7 @@ export const RULES: Rule[] = [
     buckets: [
       { id: "living", name: "Living", pct: 70, kind: "max", role: "living" },
       { id: "save", name: "Savings", pct: 20, kind: "min", role: "save" },
-      { id: "debt", name: "Debt or giving", pct: 10, kind: "target", role: "give" },
+      { id: "debt", name: "Debt or giving", pct: 10, kind: "target", role: "give", test: "Is it paying off a loan faster than you must, or giving money away?", inc: "Extra loan repayments, family support, tithe, offerings, charity", exc: "A loan's minimum repayment → Living" },
     ],
   },
   {
@@ -37,7 +41,7 @@ export const RULES: Rule[] = [
     idea: "Save 20% the day income arrives; spend the rest without tracking it.",
     buckets: [
       { id: "save", name: "Paid to yourself", pct: 20, kind: "min", role: "save" },
-      { id: "spend", name: "Everything else", pct: 80, kind: "max", role: "living" },
+      { id: "spend", name: "Everything else", pct: 80, kind: "max", role: "living", test: "Is it anything you didn't keep?", inc: "Rent, food, bills, transport, family support, fun: needs and wants alike" },
     ],
   },
   {
@@ -45,7 +49,7 @@ export const RULES: Rule[] = [
     idea: "“A part of all you earn is yours to keep”: never less than a tenth.",
     buckets: [
       { id: "keep", name: "Kept", pct: 10, kind: "min", role: "save" },
-      { id: "spend", name: "Spent", pct: 90, kind: "max", role: "living" },
+      { id: "spend", name: "Spent", pct: 90, kind: "max", role: "living", test: "Is it anything you didn't keep?", inc: "Rent, food, bills, transport, family support, fun: needs and wants alike" },
     ],
   },
   {
@@ -91,6 +95,56 @@ export function ruleById(book: Book, id: string | null | undefined): Rule | null
     return { id: CUSTOM_ID, name: "Your own split", source: "Set by you", idea: buckets.map((b) => `${b.name} ${b.pct}%`).join(", "), buckets: buckets.map((b) => ({ ...b, role: /sav|keep|invest|emerg/i.test(b.name) ? "save" : undefined })) };
   }
   return RULES.find((r) => r.id === id) ?? null;
+}
+
+/** What each kind of bucket holds: a question to ask, what goes in, and what doesn't with the kind of
+ *  bucket it goes to instead (named after the rule's own bucket; left out when the rule has none, or it's this one). */
+export const ROLE_DEFS: Record<Role, { test: string; inc: string; exc?: [string, Role, "only"?][] }> = {
+  save: { test: "Is it money you keep: saved, invested or put away for later?", inc: "Savings accounts, money market funds, investments, pension, emergency fund, life cover that builds value",
+    exc: [["Money put aside for a known bill (a sinking fund)", "reserve", "only"]] },
+  invest: { test: "Is it invested to grow, money you never spend?", inc: "Shares, money market funds, bonds, unit trusts, pension",
+    exc: [["Savings for a planned purchase or a known bill", "reserve"]] },
+  reserve: { test: "Is it put aside for a big purchase, a known bill or an emergency?", inc: "Emergency fund, sinking funds for the car service, insurance, appliances, medical costs" },
+  give: { test: "Is it money you give away?", inc: "Family support, school fees you pay for someone else, tithe, offerings, charity, contributions",
+    exc: [["Gifts for occasions", "want"]] },
+  learn: { test: "Does it grow your own skills or knowledge?", inc: "Courses, books, training, your own school fees",
+    exc: [["Fees you pay for someone else", "give"]] },
+  house: { test: "Is it what you pay for the home itself?", inc: "Rent, mortgage, service charge, house insurance",
+    exc: [["Bills (electricity, water, Wi‑Fi, garbage) and household things", "need"], ["Furniture and upgrades you could put off", "want"]] },
+  need: { test: "Would you still pay it in a tight month, to live and work normally?",
+    inc: "Food, electricity, water, Wi‑Fi, garbage, transport and fuel, medical costs, car insurance and servicing, laundry, family you've committed to support",
+    exc: [["A pricier version of a need (eating out instead of cooking, a premium plan)", "want"]] },
+  want: { test: "Could you drop or put it off for a few months without real harm?", inc: "Entertainment, streaming, eating out, travel, hobbies, the gym, gadgets and equipment, gifts" },
+  living: { test: "Is it spent on day-to-day life, needs and wants alike?", inc: "Rent, food, bills, transport, family support, fun",
+    exc: [["Money kept or invested", "save"]] },
+  debt: { test: "Is it repaying a loan?", inc: "Loan and credit card repayments" },
+};
+
+/** The order to ask a rule's questions in: the first yes decides. Narrow questions come before broad ones. */
+const ASK: Role[] = ["save", "invest", "reserve", "give", "learn", "debt", "house", "need", "want", "living"];
+
+/** A bucket's definition within its rule: its own wording, else its role's, else (a bucket of your own) what you wrote. */
+export function defineBucket(rule: Rule, b: Bucket): Definition {
+  const base = b.role ? ROLE_DEFS[b.role] : null;
+  const exc = b.exc ? [b.exc] : b.means ? [] : (base?.exc ?? []).flatMap(([what, role, only]) => {
+    const to = only ? rule.buckets.find((x) => x.role === role)?.id : bucketFor(rule, role);
+    return to && to !== b.id ? [`${what} → ${rule.buckets.find((x) => x.id === to)!.name}`] : [];
+  });
+  return { test: b.test ?? b.means ?? base?.test ?? `Does it belong in ${b.name}?`, inc: b.inc ?? (b.means ? "" : base?.inc ?? ""), exc };
+}
+
+/** A rule's buckets in the order to ask about them. */
+export function askOrder(rule: Rule): Bucket[] {
+  const at = (b: Bucket) => (b.role ? ASK.indexOf(b.role) : ASK.length);
+  return [...rule.buckets].sort((a, b) => at(a) - at(b));
+}
+
+/** Whether you chose a category's bucket (for it or its group), rather than it being guessed from names. */
+export function placedByYou(book: Book, rule: Rule, cid: string): boolean {
+  const map = book.settings.allocation?.maps?.[rule.id] ?? {};
+  const c = book.cats[cid];
+  const ok = (v?: string) => !!v && rule.buckets.some((b) => b.id === v);
+  return ok(map[`c:${cid}`]) || (!!c && ok(map[`g:${c.group}`]));
 }
 
 const NAME_ROLE: [RegExp, Role][] = [

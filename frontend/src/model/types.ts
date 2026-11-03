@@ -38,7 +38,8 @@ export type Account = { id: string; name: string; debt?: boolean; cats: string[]
 export type AllocationSettings = {
   rule?: string | null;
   maps?: Record<string, Record<string, string>>;
-  custom?: { id: string; name: string; pct: number; kind: "max" | "min" | "target" }[];
+  /** `means` is what belongs in the bucket, in your words */
+  custom?: { id: string; name: string; pct: number; kind: "max" | "min" | "target"; means?: string }[];
   leftover?: boolean;
 };
 

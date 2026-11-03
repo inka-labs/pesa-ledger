@@ -103,6 +103,8 @@ class Bucket(Strict):
     name: Name
     pct: Annotated[float, Field(ge=0, le=100, allow_inf_nan=False)]
     kind: Literal["max", "min", "target"] = "target"
+    # what belongs in it, in the person's words
+    means: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] = ""
 
 
 class Allocation(Strict):

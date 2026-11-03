@@ -10,7 +10,7 @@ import { newId, nextSlot, textSlotTaken } from "../model/csv";
 import { setPlan } from "../model/edit";
 import { money } from "../model/format";
 import { addMonths, EFFECTS, fmtYM, kindsOf, MONTHS, parseYM } from "../model/ledger";
-import { bucketOf, defaultBucket, ruleById } from "../model/allocation";
+import { bucketOf, defaultBucket, defineBucket, placedByYou, ruleById } from "../model/allocation";
 import type { Category, Effect, Group, Ledger } from "../model/types";
 import { ColorPicker } from "../ui/ColorPicker";
 import { AmountInput, Sparkline, TextInput } from "../ui/bits";
@@ -352,10 +352,18 @@ function CategoryPanel({ id, hist, onClose }: { id: string; hist: ReturnType<typ
       {rule && budgeted && (
         <label className="field"><span className="lbl">In {rule.name}</span>
           <select value={chosen} onChange={(e) => change((l) => { const a = (l.settings.allocation ??= {}); const m = ((a.maps ??= {})[rule.id] ??= {}); if (e.target.value) m[`c:${id}`] = e.target.value; else delete m[`c:${id}`]; }, ["settings"])}>
-            <option value="">Automatic ({rule.buckets.find((b) => b.id === (book.settings.allocation?.maps?.[rule.id]?.[`g:${c.group}`] ?? defaultBucket(book, rule, id)))?.name ?? "–"})</option>
+            <option value="">{book.settings.allocation?.maps?.[rule.id]?.[`g:${c.group}`] ? "Same as its group" : "Guess from its name"} ({rule.buckets.find((b) => b.id === (book.settings.allocation?.maps?.[rule.id]?.[`g:${c.group}`] ?? defaultBucket(book, rule, id)))?.name ?? "–"})</option>
             {rule.buckets.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
-          <span className="small muted">Now counted as {rule.buckets.find((b) => b.id === bucketOf(book, rule, id))?.name} on the Allocation page.</span>
+          {(() => {
+            const b = rule.buckets.find((x) => x.id === bucketOf(book, rule, id));
+            const d = b && defineBucket(rule, b);
+            return d && (
+              <span className="small muted">
+                {placedByYou(book, rule, id) ? "In" : "Guessed into"} <b>{b!.name}</b>: {d.test} <button type="button" className="link" onClick={() => go("allocation")}>What each bucket means</button>
+              </span>
+            );
+          })()}
         </label>
       )}
 
