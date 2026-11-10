@@ -225,7 +225,7 @@ export default function App() {
             ))}
           </nav>
           <div className="side-foot">
-            <span className="save" data-s={save.kind}>{saveLabel}</span>
+            <span className="save" data-s={save.kind} role="status">{saveLabel}</span>
             <div className="bar">
               <button className="iconbtn wide" onClick={doUndo} disabled={!canUndo} title={`Undo the last change (${UNDO_KEY})`}><Undo2 size={15} aria-hidden /> Undo</button>
               <button className="iconbtn wide" onClick={cycle} title="Switch between system, light and dark"><ThemeIcon size={15} aria-hidden /> {theme === "system" ? "System" : theme === "light" ? "Light" : "Dark"}</button>
@@ -236,7 +236,7 @@ export default function App() {
       <div className="main">
         <header className="mtop">
           <div className="brand"><h1>{NAME}</h1>{ledger && <span className="mark">{ledger.settings.currency}</span>}</div>
-          {ledger && <span className="save" data-s={save.kind} aria-label={saveLabel} title={saveLabel} />}
+          {ledger && <span className="save" data-s={save.kind} role="status" title={saveLabel}><span className="sr-only">{saveLabel}</span></span>}
           {ledger && <button className="iconbtn" onClick={openSearch} aria-label="Search"><Search size={19} /></button>}
           {ledger && <button className="iconbtn" onClick={doUndo} disabled={!canUndo} aria-label="Undo"><Undo2 size={19} /></button>}
           <button className="iconbtn" onClick={cycle} aria-label={`Theme: ${theme}`}><ThemeIcon size={19} /></button>

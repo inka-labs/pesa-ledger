@@ -95,7 +95,11 @@ export function CategoriesView() {
         <span className="muted">{book.settings.cats.filter((c) => !c.archived).length} categories in {groups.length} groups</span>
         <div className="end">
           <button className="btn ghost" onClick={() => setAll(groups.map((g) => g.id), !groups.every((g) => folded.has(g.id)))}>{groups.every((g) => folded.has(g.id)) ? "Expand all" : "Collapse all"}</button>
-          <a className="btn" href="#new-group"><Plus size={15} aria-hidden /> New group</a>
+          <button className="btn" onClick={() => {
+            // a #new-group link would change the page's address and land on Overview
+            document.getElementById("new-group")?.scrollIntoView({ behavior: "smooth", block: "center" });
+            document.getElementById("new-group-name")?.focus({ preventScroll: true });
+          }}><Plus size={15} aria-hidden /> New group</button>
         </div>
       </div>
       {view.catHint && <div className="notice">These are starter categories. Rename them, remove the ones you don't use and add your own. Then set amounts on the Budget tab.</div>}
@@ -243,7 +247,7 @@ function NewGroup() {
     <form className="cg-card cg-new" id="new-group" onSubmit={add}>
       <h3>New group</h3>
       <div className="add-line">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Business, Children, Loans" aria-label="New group name" />
+        <input id="new-group-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Business, Children, Loans" aria-label="New group name" />
         <select value={kind} onChange={(e) => setKind(e.target.value)} aria-label="New group type">
           {kinds.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
         </select>
@@ -285,9 +289,9 @@ function CategoryPanel({ id, hist, onClose }: { id: string; hist: ReturnType<typ
   };
 
   return (
-    <Sheet title={c.name} onClose={onClose} onSubmit={onClose}
+    <Sheet title={c.name} onClose={onClose} onSubmit={() => undefined /* every field saves as you leave it; Enter in a box mustn't close the panel */}
       footer={<div className="bar">
-        <button className="btn primary">Done</button>
+        <button type="button" className="btn primary" onClick={onClose}>Done</button>
         {book.catHasData(id)
           ? <button type="button" className="btn ghost" onClick={() => edit((l) => { const x = cat(l); if (x.archived) delete x.archived; else x.archived = true; })}>{c.archived ? "Restore" : "Archive"}</button>
           : <button type="button" className="btn ghost danger" onClick={remove}>Remove</button>}

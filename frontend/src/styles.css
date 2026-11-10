@@ -652,3 +652,6 @@ select.ghost-select:hover { border-color: var(--line); }
 .cp-bar i { align-self: end; display: block; border-radius: 3px 3px 1px 1px; min-height: 0; }
 .cp-bar i.none { height: 2px !important; background: var(--line) !important; }
 .cp-bar small { font-size: 10px; color: var(--muted); }
+
+/* read out, not shown */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

@@ -144,6 +144,8 @@ export function SettingsView({ version, onRestored, saveNow, backupNow }: {
   const [backups, setBackups] = useState<Backup[] | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
   const [autostart, setAutostart] = useState(version?.autostart.enabled ?? false);
+  // the version arrives after a page opened straight at #settings has drawn
+  useEffect(() => { if (version) setAutostart(version.autostart.enabled); }, [version]);
   const [stopped, setStopped] = useState(false);
 
   const loadBackups = () => api.backups().then((r) => setBackups(r.backups)).catch(() => setBackups([]));

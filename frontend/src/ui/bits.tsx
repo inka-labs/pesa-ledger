@@ -28,7 +28,8 @@ export function AmountInput(props: {
   }, [value]);
   const commit = () => {
     const r = read(draft);
-    if ("error" in r) { setBad(r.error); return; }
+    // said out loud too: a red border alone is missed on a phone and by a screen reader
+    if ("error" in r) { setBad(r.error); notify(`${label}: ${r.error}`); return; }
     setBad("");
     if (r.converted) {
       const { code, amount, perUnit } = r.converted;
@@ -52,7 +53,7 @@ export function AmountInput(props: {
       onBlur={() => { focused.current = false; commit(); }}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.blur(); // leaving the box saves it (once)
-        if (e.key === "Escape") { setDraft(amountText(value)); setBad(""); }
+        if (e.key === "Escape" && (draft !== amountText(value) || bad)) { e.preventDefault(); setDraft(amountText(value)); setBad(""); }
       }}
     />
   );
