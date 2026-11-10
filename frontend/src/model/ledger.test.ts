@@ -66,9 +66,12 @@ describe("custom group types", () => {
 describe("budgets", () => {
   it("spreads a yearly plan evenly, and a month's own budget overrides its share", () => {
     const b = new Book(ledger(), TODAY);
-    expect(b.planMonthly(2026, 3, "ess_0")).toBe(20_000);
+    expect(b.planMonthly(2026, 3, "sav_1")).toBe(10_000);
     expect(b.planMonthly(2026, 11, "ess_0")).toBe(50_000);
-    expect(b.planYear(2026, "ess_0")).toBe(20_000 * 11 + 50_000);
+    // the other 11 months share the 190,000 left, in whole units, December taking the remainder
+    expect(b.planMonthly(2026, 3, "ess_0")).toBe(17_272);
+    expect(b.planMonthly(2026, 12, "ess_0")).toBe(17_280);
+    expect(b.planYear(2026, "ess_0")).toBe(240_000);
     expect(b.planMonthly(2026, 3, "ess_1")).toBeNull();
   });
 
@@ -79,15 +82,15 @@ describe("budgets", () => {
     expect(b.planRange(2026, 1, 12).income).toBe(0);
   });
 
-  it("expects income at the average of the last three months that had any", () => {
-    // Oct 110k, Sep 100k, then back to Jan 100k
-    expect(new Book(ledger(), TODAY).expectedIncome()).toEqual({ amount: 310_000 / 3, months: 3 });
+  it("expects income at the average of the last three finished months that had any", () => {
+    // October is still under way: Sep 100k, Jan 100k, then back to Jan 2025's 90k
+    expect(new Book(ledger(), TODAY).expectedIncome()).toEqual({ amount: 290_000 / 3, months: 3 });
     expect(new Book({ ...ledger(), years: {} }, TODAY).expectedIncome()).toEqual({ amount: 0, months: 0 });
   });
 
   it("forecasts with actual figures where they exist, budgets and expected income elsewhere", () => {
     const b = new Book(ledger(), TODAY);
-    const expected = 310_000 / 3;
+    const expected = 290_000 / 3;
     expect(b.forecastMonth(2026, 9)).toMatchObject({ src: "actual", spent: 25_000 });
     const nov = b.forecastMonth(2026, 11);
     expect(nov).toMatchObject({ src: "budget", spent: 50_000, saved: 10_000 });
@@ -96,6 +99,18 @@ describe("budgets", () => {
     expect(b.forecastMonth(2027, 1).src).toBe("none");
     // 3 actual months + 9 months at the expected income
     expect(b.forecastYear(2026).income).toBeCloseTo(310_000 + 9 * expected);
+  });
+
+  it("counts this month as what's recorded so far plus the budget still to come", () => {
+    const b = new Book(ledger(), TODAY);
+    // October: rent 21,000 recorded; savings (10,000 a month) not yet
+    expect(b.forecastMonth(2026, 10)).toMatchObject({ src: "actual", income: 110_000, spent: 21_000, saved: 10_000, left: 79_000 });
+    // a month already over keeps only what happened
+    expect(b.forecastMonth(2026, 9).saved).toBe(5_000);
+    // before the salary is in, this month expects the usual income
+    const l = ledger();
+    delete l.years["2026"].actual["10"].inc_0;
+    expect(new Book(l, TODAY).forecastMonth(2026, 10).income).toBeCloseTo(290_000 / 3);
   });
 
   it("looks twelve months ahead, into next year, with a running total", () => {
@@ -184,9 +199,9 @@ describe("one-offs", () => {
 
   it("don't count towards expected income", () => {
     const l = ledger();
-    l.years["2026"].actual["10"].inc_0 = 410_000; // 110,000 + a 300,000 bonus
-    l.years["2026"].oneoff = { "10": { inc_0: { amount: 300_000 } } };
-    expect(new Book(l, TODAY).expectedIncome(1).amount).toBe(110_000);
+    l.years["2026"].actual["09"].inc_0 = 400_000; // 100,000 + a 300,000 bonus
+    l.years["2026"].oneoff = { "09": { inc_0: { amount: 300_000 } } };
+    expect(new Book(l, TODAY).expectedIncome(1).amount).toBe(100_000);
   });
 
   it("go when their figure is cleared", async () => {

@@ -66,6 +66,9 @@ export function payFund(l: Ledger, cid: string, saved: number, paid: number, tod
   const c = l.settings.cats.find((x) => x.id === cid);
   if (!c?.fund) return;
   if (!c.fund.every) { delete c.fund; return; }
-  const due = addMonths(parseYM(c.fund.due), c.fund.every);
+  // the next bill is `every` months after this one; a bill paid late doesn't start the next cycle
+  // already overdue, so step on until the next due month is after this one
+  let due = addMonths(parseYM(c.fund.due), c.fund.every);
+  while (due.y * 12 + due.m <= today.y * 12 + today.m) due = addMonths(due, c.fund.every);
   c.fund = { ...c.fund, start: Math.max(0, saved - paid), from: ymKey(nextYM(today)), due: ymKey(due) };
 }

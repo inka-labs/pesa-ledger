@@ -90,13 +90,17 @@ export function importCSV(text: string, current: Ledger | null): ImportResult {
   };
   const addNote = (y: number, m: number, note: string) => {
     const yd = year(y), k = mk(m);
-    yd.notes[k] = yd.notes[k] ? `${yd.notes[k]}\n${note}` : note;
+    // importing an export back in must not repeat every note: only lines the month doesn't have are added
+    const have = new Set((yd.notes[k] ?? "").split("\n"));
+    const add = note.split("\n").filter((line) => !have.has(line));
+    if (add.length) yd.notes[k] = [yd.notes[k], ...add].filter(Boolean).join("\n");
   };
 
   for (const r of rows.slice(1)) {
     const y = parseInt(r[iy], 10);
     if (!(y > 1900 && y < 3000)) { skipped++; continue; }
-    const ms = String(r[im] ?? "").trim().toLowerCase();
+    // "2026-03" in the month column means March
+    const ms = String(r[im] ?? "").trim().toLowerCase().replace(/^\d{4}-(\d{1,2})$/, "$1");
     const isPlan = /plan|annual|target|budget/.test(ms);
     const m = isPlan ? monthOf(ms.replace(/plan|annual|target|budget/g, "").replace(/[^a-z0-9]/g, "")) : monthOf(ms);
     const catName = String(r[ic] ?? "").trim();
@@ -108,7 +112,10 @@ export function importCSV(text: string, current: Ledger | null): ImportResult {
     if (!isPlan && !m) { skipped++; continue; }
     const amount = parseAmount(r[ia]);
     if (amount == null || Number.isNaN(amount)) { skipped++; continue; }
-    const g = groupNamed(ig >= 0 ? r[ig] : "");
+    // no group given: a category of that name the ledger already has (if there's just one), else Spending
+    const groupName = ig >= 0 ? String(r[ig] ?? "").trim() : "";
+    const known = groupName ? [] : st.cats.filter((x) => x.name.toLowerCase() === catName.toLowerCase());
+    const g = known.length === 1 ? st.groups.find((x) => x.id === known[0].group)! : groupNamed(groupName);
     const effect = kindsOf(st).find((k) => k.id === g.kind)?.effect ?? "out";
     if (isPlan && (effect === "in" || effect === "none")) { incomeBudgets++; continue; } // only savings and spending are budgeted
     let c = st.cats.find((x) => x.group === g.id && x.name.toLowerCase() === catName.toLowerCase());

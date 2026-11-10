@@ -203,10 +203,11 @@ export class Book {
     return isNum(v) ? v : null;
   }
 
-  /** What's likely to come in: the average income of the last `n` months (up to today) that had any.
+  /** What's likely to come in: the average income of the last `n` finished months that had any. This
+   *  month isn't one of them: it's still coming in (a salary not recorded yet would pull it down).
    *  One-off income (a bonus, a sale) is left out: it isn't expected again. */
   expectedIncome(n = 3): { amount: number; months: number } {
-    let p = this.today, sum = 0, found = 0;
+    let p = prevYM(this.today), sum = 0, found = 0;
     for (let i = 0; i < 24 && found < n; i++) {
       const t = this.regular.monthTotals(p.y, p.m);
       if (t.income > 0) { sum += t.income; found++; }
@@ -215,12 +216,24 @@ export class Book {
     return { amount: found ? sum / found : 0, months: found };
   }
 
-  /** A month's budget: its own, else the yearly plan's even share, else the category's repeating amount. */
+  /** A month's budget: its own, else its share of the yearly plan, else the category's repeating amount.
+   *  The months without a budget of their own share what the yearly plan has left after the ones that
+   *  do, in whole units (the last of them takes the remainder), so the year still adds up to the plan. */
   planMonthly(y: number, m: number, cid: string): number | null {
     const o = this.budgetOverride(y, m, cid);
     if (o != null) return o;
     const a = this.planAnnual(y, cid);
-    if (a != null) return a / 12;
+    if (a != null) {
+      let set = 0, free = 0, last = 0;
+      for (let i = 1; i <= 12; i++) {
+        const v = this.budgetOverride(y, i, cid);
+        if (v != null) set += v;
+        else { free++; last = i; }
+      }
+      const rest = Math.max(0, a - set);
+      const share = Math.floor(rest / free);
+      return m === last ? rest - share * (free - 1) : share;
+    }
     const r = this.cats[cid]?.repeat;
     return this.budgeted(cid) && isNum(r) && !this.cats[cid].archived ? r : null;
   }
@@ -256,9 +269,22 @@ export class Book {
     return !!yd && (Object.keys(yd.plan || {}).length > 0 || Object.values(yd.budget || {}).some((r) => Object.keys(r).length > 0));
   }
 
-  /** What happened if the month has figures; otherwise its budget, with income expected at the recent average. */
+  /** What happened if the month has figures; otherwise its budget, with income expected at the recent
+   *  average. This month counts what's recorded so far plus the budget of every category with nothing
+   *  recorded yet, and the expected income until some comes in. */
   forecastMonth(y: number, m: number, expected = this.expectedIncome().amount): Totals & { src: "actual" | "budget" | "none" } {
     const t = this.monthTotals(y, m);
+    if (t.has && y === this.today.y && m === this.today.m) {
+      const r: Totals = { ...t, byGroup: { ...t.byGroup }, byCat: { ...t.byCat } };
+      for (const c of this.settings.cats) {
+        if (this.actual(y, m, c.id) != null) continue;
+        const v = this.planMonthly(y, m, c.id);
+        if (v != null) this.add(r, c.id, v);
+      }
+      if (r.income === 0) r.income = expected;
+      r.left = r.income - r.saved - r.spent;
+      return { ...r, src: "actual" };
+    }
     if (t.has) return { ...t, src: "actual" };
     const p = this.planRange(y, m, m);
     const src = p.has ? "budget" : "none";
@@ -379,7 +405,7 @@ export class Book {
       /** what will be in it beyond the bill: by now if it's already there, else by the due month on budget */
       over: Math.max(0, (status === "ready" ? saved : projected) - f.target),
       short: Math.max(0, f.target - projected),
-      status, progress: Math.min(1, saved / f.target),
+      status, progress: f.target > 0 ? Math.min(1, saved / f.target) : 0,
     };
   }
 

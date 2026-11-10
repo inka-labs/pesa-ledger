@@ -22,8 +22,9 @@ pages): drag to zoom, double-click to reset, click a legend item to hide it, and
 
 **Plan**: what's ahead
 - **Budget:** plan any year month by month. A yearly figure spreads evenly; a single month can be set on its own
-  (school fees in January, insurance in November). It also shows a year-end forecast (actual figures so far plus
-  budget for the rest) and the next 12 months with a running total. Months that would leave you short are flagged.
+  (school fees in January, insurance in November) and the other months share what's left, so the year still adds
+  up to the yearly figure. It also shows a year-end forecast (actual figures so far plus
+  budget for the rest, including whatever this month hasn't recorded yet) and the next 12 months with a running total. Months that would leave you short are flagged.
 - **Goals:** a target and deadline linked to savings or sinking-fund categories. Shows progress, what's needed per
   month, and when you'll get there at your current pace and on your budget.
 

@@ -32,14 +32,16 @@ const median = (xs: number[]) => {
   return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
 };
 
-/** The figures the checks share: the last 12 months (to this one) that have any figures, one-offs left out. */
+/** The figures the checks share: the last 12 months that have any figures, one-offs left out. This month
+ *  counts only once some income is in: before the salary lands, it would read as a month in the red and
+ *  pull the lowest income down. */
 export function healthStats(book: Book) {
   const R = book.regular;
   const window: { ym: YM; t: ReturnType<Book["monthTotals"]> }[] = [];
   for (let i = 11; i >= 0; i--) {
     const ym = addMonths(book.today, -i);
     const t = R.monthTotals(ym.y, ym.m);
-    if (t.has) window.push({ ym, t });
+    if (t.has && (i > 0 || t.income > 0)) window.push({ ym, t });
   }
   const incomes = window.map((w) => w.t.income).filter((v) => v > 0);
   const avgIncome = mean(incomes);
@@ -114,7 +116,7 @@ export function healthChecks(book: Book): Check[] {
     const cover = s.essentials ? ef.amount / s.essentials : 0;
     out.push({
       id: "ef", title: "Emergency fund", value: `${cover.toFixed(1)} months`,
-      tone: cover >= 6 ? "good" : cover >= 3 ? "warn" : "bad",
+      tone: cover >= target ? "good" : cover >= 3 ? "warn" : "bad",
       rule: `At least 6 months of essential costs${target > 6 ? `; ${target} with income that varies as much as yours` : ""}`,
       detail: `${ef.name} holds ${k(ef.amount)}. Essential costs run about ${k(s.essentials)} a month${s.essentialsFromBudget ? " (next month's budget)" : ""}, so 6 months is ${k(6 * s.essentials)}${target > 6 ? ` and ${target} months is ${k(target * s.essentials)}` : ""}.`,
     });

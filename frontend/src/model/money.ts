@@ -1,6 +1,7 @@
 /** Amounts in other currencies: what someone types ("USD 415", "$415", "415 eur") and the live rates
  *  the local server fetches (backend/pesa_ledger/rates.py). */
 
+import { tidyAmount } from "./format";
 import type { OtherCurrency, Settings } from "./types";
 
 export type Rates = {
@@ -23,11 +24,14 @@ export type Read =
 
 /** Read an amount, converting it to `base` when it names another currency. */
 export function readMoney(text: string, base: string, rates: Rates | null): Read {
-  const t = String(text ?? "").replace(/[,\s_]/g, "").replace(/−/g, "-");
-  if (t === "" || t === "-" || t === "–") return { value: null };
-  const m = t.match(/^(US\$|[$€£]|[A-Za-z]{3,4})?(-?\d*\.?\d+)([A-Za-z]{3,4})?$/);
+  const t = tidyAmount(text);
+  if (t == null) return { error: "Commas only separate thousands, like 18,000. For decimals use a point: 1.5." };
+  if (t === "" || t === "-") return { value: null };
+  // "-KES 500" and "KES -500" both mean −500
+  const neg = t.startsWith("-") && /^-(US\$|[$€£]|[A-Za-z]{3,4})/.test(t);
+  const m = (neg ? t.slice(1) : t).match(/^(US\$|[$€£]|[A-Za-z]{3,4})?(-?(?:\d+\.?\d*|\.\d+))([A-Za-z]{3,4})?$/);
   if (!m || (m[1] && m[3])) return { error: "Enter a number, like 18,000 or USD 415." };
-  const amount = Number(m[2]);
+  const amount = (neg ? -1 : 1) * Number(m[2]);
   if (!Number.isFinite(amount)) return { error: "Enter a number, like 18,000 or USD 415." };
   const raw = (m[1] || m[3] || "").toUpperCase();
   const code = SYMBOLS[raw] ?? SYMBOLS[m[1] ?? ""] ?? raw;
