@@ -229,3 +229,14 @@ def test_two_goals_cannot_share_an_id(client, settings):
     two = {**settings, "goals": settings["goals"] * 2}
     r = client.put("/api/settings", json=two)
     assert r.status_code == 400 and "Two goals" in r.json()["detail"]
+
+
+def test_added_expenses_are_kept(client, settings):
+    client.put("/api/settings", json=settings)
+    doc = {**YEAR, "actual": {"01": {"ess_0": 1550}},
+           "entries": {"01": {"ess_0": [{"amount": 1250, "note": "Naivas", "day": 3}, {"amount": 300}]}}}
+    r = client.put("/api/years/2026", json=doc)
+    assert r.status_code == 200
+    got = client.get("/api/ledger").json()["years"]["2026"]["entries"]["01"]["ess_0"]
+    assert got[0] == {"amount": 1250, "note": "Naivas", "day": 3} and got[1]["amount"] == 300
+    assert client.put("/api/years/2026", json={**doc, "entries": {"01": {"ess_0": [{"amount": 1, "day": 40}]}}}).status_code == 400

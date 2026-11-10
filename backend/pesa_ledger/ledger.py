@@ -9,6 +9,7 @@ A year file holds, per month key "01".."12":
     budget[month][category id]  a budget set for that month on its own
     notes[month]                free text
     oneoff[month][category id]  {amount, note}: the part of that figure that won't repeat
+    entries[month][category id] [{amount, note, day}]: expenses added one at a time (part of actual)
     balances[month][account id] what an account held (or owed) at the end of the month
 and plan[category id], a yearly budget spread evenly over the months that have no budget of their own.
 
@@ -181,6 +182,15 @@ class OneOff(Strict):
     note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] = ""
 
 
+class Entry(Strict):
+    """One expense added with "Add expense": it was added to actual[month][category], and is kept so the
+    month can list what made up the total (and take one back out)."""
+    amount: Amount
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] = ""
+    # the day of the month it was added
+    day: Annotated[int, Field(ge=1, le=31)] | None = None
+
+
 class YearDoc(Strict):
     actual: dict[MonthKey, dict[Id, Amount]] = Field(default_factory=dict)
     budget: dict[MonthKey, dict[Id, Amount]] = Field(default_factory=dict)
@@ -189,6 +199,8 @@ class YearDoc(Strict):
     oneoff: dict[MonthKey, dict[Id, OneOff]] = Field(default_factory=dict)
     # account id -> its balance at the end of the month
     balances: dict[MonthKey, dict[Id, Amount]] = Field(default_factory=dict)
+    # month key -> category id -> the expenses added one at a time (their sum is part of actual)
+    entries: dict[MonthKey, dict[Id, Annotated[list[Entry], Field(max_length=500)]]] = Field(default_factory=dict)
 
 
 class LedgerError(ValueError):

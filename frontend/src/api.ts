@@ -55,7 +55,7 @@ export function normalise(stored: Stored): Ledger | null {
   if (!stored.settings) return null;
   const years: Ledger["years"] = {};
   for (const [y, d] of Object.entries(stored.years))
-    years[y] = { actual: d.actual ?? {}, budget: d.budget ?? {}, plan: d.plan ?? {}, notes: d.notes ?? {}, oneoff: d.oneoff ?? {}, balances: d.balances ?? {} };
+    years[y] = { actual: d.actual ?? {}, budget: d.budget ?? {}, plan: d.plan ?? {}, notes: d.notes ?? {}, oneoff: d.oneoff ?? {}, balances: d.balances ?? {}, entries: d.entries ?? {} };
   const st = stored.settings;
   // a ledger from before several currencies keeps its one second currency as the first of the list
   const alts = st.alts?.length ? st.alts : st.alt?.code ? [st.alt] : [];

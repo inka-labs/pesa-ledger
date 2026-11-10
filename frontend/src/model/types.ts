@@ -102,7 +102,11 @@ export type YearDoc = {
   oneoff?: Record<string, Record<string, OneOff>>;
   /** month key -> account id -> its balance at the end of the month */
   balances?: MonthMap;
+  /** month key -> category id -> expenses added one at a time with "Add expense" (already part of actual) */
+  entries?: Record<string, Record<string, Entry[]>>;
 };
+
+export type Entry = { amount: number; note?: string; day?: number };
 
 /** Part of an actual figure, not added to it. Comparisons and forecasts can leave it out. */
 export type OneOff = { amount: number; note?: string };

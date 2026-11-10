@@ -4,31 +4,31 @@ A private household ledger that runs on your own computer. Budget the months ahe
 out, and compare month on month and year on year. It's built the same way as Ecoscope Studio and Docling Studio:
 a small local server and a web page, with your figures kept in a folder in your home directory.
 
-The app has three sections:
+Three pages cover the everyday, and everything else is one click away:
 
-**Track**: what happened
-- **Overview:** where the app opens. This month in four numbers, and a *Needs attention* list with a button to fix
-  each item: categories over budget, months ahead with no budget or heading short, goals falling behind. Also the
-  last six months at a glance, your goals, and a getting-started checklist until the basics are set up.
-- **Month:** each category's budget and actual side by side, with what's left or overspent, the change from last
-  month and from the same month last year. Copy last month's amounts or fill from the budget in one click.
-- **Year:** where each month's money went (with budget ticks and one-offs hatched), where the year's income went as
-  shares, and a full month-by-month table against budget. Click a month in the chart to open it.
-- **Compare:** any two years over the same months, by total, group or single category, month by month or as a running
-  total, with the gap each month and the categories that changed most.
+- **Home:** where the app opens. What's left to spend this month in one figure, what came in, was saved and is
+  left over, a short to-do list (repeating amounts not recorded, categories over budget, next month's budget,
+  goals and funds behind), and where the money went by group.
+- **Spending:** the month, one row per category: what's been spent with one bar against its budget, and the
+  figure. **Add expense** (the sidebar, the + on each row, or the round + on a phone) adds an amount to a
+  category's total and keeps a list of what was added, so any of it can be taken back out. You can also type a
+  month's total straight in. The … menu copies last month's amounts or fills empty rows from the budget.
+- **Budget:** one month at a time, one amount per category. An amount is the usual one for every month unless
+  you tick **Only <month>** (school fees in January, insurance in November), and changing either never moves
+  the other months. A month with nothing budgeted offers last month's. **Whole year** shows the 12-month grid, a
+  yearly figure to spread evenly, and the next 12 months' forecast.
+- **More:** Year, Compare, Health, Net worth, Goals, Sinking funds and Allocation, each with what it's for:
+  - **Year:** where each month's money went (with budget ticks and one-offs hatched), where the year's income
+    went as shares, and a full month-by-month table against budget.
+  - **Compare:** any two years over the same months, by total, group or single category, month by month or as
+    a running total, with the gap each month and the categories that changed most.
+  - **Goals:** a target and deadline linked to savings or sinking-fund categories, with progress and what's
+    needed per month.
 
 The Year and Compare charts are [Plotly](https://plotly.com/javascript/) (the bar-and-line build, loaded only on those
 pages): drag to zoom, double-click to reset, click a legend item to hide it, and the camera icon saves a PNG.
 
-**Plan**: what's ahead
-- **Budget:** plan any year month by month. A yearly figure spreads evenly; a single month can be set on its own
-  (school fees in January, insurance in November) and the other months share what's left, so the year still adds
-  up to the yearly figure. It also shows a year-end forecast (actual figures so far plus
-  budget for the rest, including whatever this month hasn't recorded yet) and the next 12 months with a running total. Months that would leave you short are flagged.
-- **Goals:** a target and deadline linked to savings or sinking-fund categories. Shows progress, what's needed per
-  month, and when you'll get there at your current pace and on your budget.
-
-**Settings**: how the ledger is set up
+**Settings** (bottom of the sidebar): how the ledger is set up
 - **General:** a second currency at the live exchange rate (or one you set), CSV import and export, backups and
   restore, and start at login.
 - **Categories:** your own group types, groups and categories. Every group has a type, and each type says how its
@@ -48,22 +48,22 @@ the forecast expects income at your recent average (the last three months with i
 
 ### Repeating amounts, sinking funds, net worth and health
 
-- **Repeating amounts** (Categories, "Every month"): rent, salary, subscriptions. The Month page lists the ones not
+- **Repeating amounts** (Categories, "Every month"): rent, salary, subscriptions. The Spending page lists the ones not
   recorded yet, one click each, and a repeating amount is the budget when no other budget is set.
-- **Sinking funds** (Plan): a category becomes a pot for a bill you know is coming, with a target, a due month and how
+- **Sinking funds** (More): a category becomes a pot for a bill you know is coming, with a target, a due month and how
   often it repeats. Each fund says whether it's on pace, short, or holding more than the bill needs; "Bill paid" starts
   the next cycle and carries over what's left.
-- **Net worth** (Track): accounts you own and owe, with a balance recorded at the end of each month (it carries
+- **Net worth** (More): accounts you own and owe, with a balance recorded at the end of each month (it carries
   forward until the next). Link an account to the categories you pay into it and the app splits its change into what
   you put in and what it earned, like MMF interest.
-- **Health** (Track): the last 12 months against common rules of thumb (savings ≥ 20% of income, rent ≤ 30%, an
+- **Health** (More): the last 12 months against common rules of thumb (savings ≥ 20% of income, rent ≤ 30%, an
   emergency fund of 6+ months of essential costs, essentials well within a weak month, spending growing no faster than
   income, no months in the red, sinking funds on pace), one-offs left out. Choose the emergency fund, the essential
   groups and the rent category at the bottom of the page.
 
 ### Allocation
 
-Plan → Allocation measures how income divides up against the long-standing rules: 50/30/20 (Elizabeth Warren),
+More → Allocation measures how income divides up against the long-standing rules: 50/30/20 (Elizabeth Warren),
 70/20/10, pay yourself first (80/20), the Babylon tenth (George Clason), 10/10/80, six jars (T. Harv Eker), 30/30/30/10,
 or your own split. Pick one, then see actual and budget against it for this month, next month, this year or the last
 12 months, with each bucket on target, over or short. Groups and categories fall into buckets automatically (saved →
@@ -73,10 +73,10 @@ check.
 
 ### One-offs
 
-A car, a deposit, a renovation, a bonus: money that won't repeat. On the Month page, point at a category and click
+A car, a deposit, a renovation, a bonus: money that won't repeat. On the Spending page, point at a category and click
 **One-off?** to say how much of that month's figure won't repeat (all of it, or part) and what it was. It stays in
-the month's totals; the Year and Compare pages get a **Leave out one-offs** switch to compare usual months, the
-Overview marks months that had one (`1×`), and one-off income never counts towards the forecast's expected income.
+the month's totals; the Year and Compare pages get a **Leave out one-offs** switch to compare usual months,
+and one-off income never counts towards the forecast's expected income.
 
 ### Getting around
 
@@ -85,7 +85,7 @@ Overview marks months that had one (`1×`), and one-off income never counts towa
 - **Undo:** ⌘Z (Ctrl Z) outside a text box, the Undo button in the header, or the Undo link in the message after
   anything is deleted. The last 50 changes can be undone.
 - **Months:** click the month's name to pick any month (months with figures are marked), or use ← and →.
-- **Groups:** click a group's name on the Month page to fold it away; it stays folded next time.
+- **Groups:** click a group's name on the Spending page to fold it away; it stays folded next time.
 
 ### Other currencies
 
@@ -155,6 +155,6 @@ backend/pesa_ledger/
 frontend/src/
   model/        types, the arithmetic (ledger.ts), CSV, example data: pure and unit-tested
   store.ts      the ledger in memory; changes show at once and save in the background
-  views/        Month, Budget, Year, Compare, Goals, Categories, Settings
+  views/        Home (OverviewView), Spending (MonthView), Budget, More and the pages under it, Settings
   ui/           amount inputs, tiles, charts
 ```

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SEARCH_KEY, UNDO_KEY } from "./ui/keys";
 import { api, type Version } from "./api";
 import { NAME } from "./brand";
-import { AppContext, SECTIONS, TABS, type Ctx, type Tab, type View } from "./context";
-import { Ellipsis, Info, Monitor, Moon, Search, Sun, Undo2, X } from "lucide-react";
+import { AppContext, SECTIONS, TABS, sectionOf, type Ctx, type Tab, type View } from "./context";
+import { ChevronLeft, Info, Monitor, Moon, Plus, Search, Settings as SettingsIcon, Sun, Undo2, X } from "lucide-react";
+import { AddExpense } from "./ui/AddExpense";
+import { MoreView } from "./views/MoreView";
 import { TAB_ICON } from "./ui/icons";
 import { applyPalette } from "./model/theme";
 import { AppearanceView } from "./views/AppearanceView";
@@ -73,13 +75,12 @@ export default function App() {
   const [tab, setTab] = useState<Tab>(tabFromHash);
   const today = thisMonth();
   const [view, setViewState] = useState<View>({
-    y: today.y, m: today.m, yearView: today.y, cmpA: today.y, cmpB: today.y - 1, cmpMetric: "spent", cmpSame: true, planYear: today.y, catHint: false,
+    y: today.y, m: today.m, yearView: today.y, cmpA: today.y, cmpB: today.y - 1, cmpMetric: "spent", cmpSame: true, planYear: today.y, planMonth: today.m, catHint: false,
     regular: (() => { try { return localStorage.getItem(REGULAR_KEY) === "1"; } catch { return false; } })(),
   });
   const [version, setVersion] = useState<Version | null>(null);
   const { theme, setTheme, cycle } = useTheme();
   // the last tab used in each section, so switching sections returns to it
-  const [more, setMore] = useState(false);
   const [exampleHidden, setExampleHidden] = useState(() => { try { return sessionStorage.getItem(EXAMPLE_KEY) === "1"; } catch { return false; } });
   const hideExample = () => { setExampleHidden(true); try { sessionStorage.setItem(EXAMPLE_KEY, "1"); } catch { /* private window */ } };
   // the palette recolours groups, charts and (for Matplotlib palettes) the accent
@@ -93,7 +94,7 @@ export default function App() {
   useEffect(() => {
     if (payday == null) return;
     const now = currentMonth(payday ? { paycycle: { payday } } : null);
-    setViewState((v) => ({ ...v, y: now.y, m: now.m, yearView: now.y, cmpA: now.y, cmpB: now.y - 1, planYear: now.y }));
+    setViewState((v) => ({ ...v, y: now.y, m: now.m, yearView: now.y, cmpA: now.y, cmpB: now.y - 1, planYear: now.y, planMonth: now.m }));
   }, [payday]);
 
   useEffect(() => {
@@ -159,18 +160,21 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [doUndo]);
   const closeSearch = useCallback(() => setSearch(false), []);
+  // "Add expense": undefined is closed; a string (possibly empty) is open, with that category chosen
+  const [adding, setAdding] = useState<string | undefined>(undefined);
+  const addExpense = useCallback((cid?: string | null) => setAdding(cid ?? ""), []);
 
   const ctx: Ctx | null = useMemo(() => {
     if (!ledger) return null;
     return {
       book: new Book(ledger, currentMonth(ledger.settings)), change, replace, view, setView, go, notify, rates, ratesError, theme, setTheme,
-      undo: doUndo, canUndo, openSearch,
+      undo: doUndo, canUndo, openSearch, addExpense,
       refreshRates: () => loadRates(true),
       altRate: altRate(ledger.settings, rates),
       altRates: altRates(ledger.settings, rates),
       read: (text: string) => readMoney(text, ledger.settings.currency, rates),
     };
-  }, [ledger, change, replace, view, setView, go, notify, rates, ratesError, loadRates, theme, setTheme, doUndo, canUndo, openSearch]);
+  }, [ledger, change, replace, view, setView, go, notify, rates, ratesError, loadRates, theme, setTheme, doUndo, canUndo, openSearch, addExpense]);
 
   useEffect(() => {
     document.title = tab === "overview" || !ledger ? NAME : `${TABS.find((t) => t.id === tab)?.label} · ${NAME}`;
@@ -201,8 +205,9 @@ export default function App() {
   const navLink = (t: { id: Tab; label: string }, cls: string) => {
     const Icon = TAB_ICON[t.id];
     return (
-      <a key={t.id} className={cls} href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined}
-        onClick={() => { setMore(false); if (t.id !== "categories" && view.catHint) setView({ catHint: false }); }}>
+      <a key={t.id} className={cls} href={`#${t.id}`}
+        aria-current={tab === t.id || (t.id === "more" && sectionOf(tab).id === "more") || (t.id === "settings" && sectionOf(tab).id === "setup") ? "page" : undefined}
+        onClick={() => { if (t.id !== "categories" && view.catHint) setView({ catHint: false }); }}>
         <Icon size={17} strokeWidth={1.9} aria-hidden /><span>{t.label}</span>
       </a>
     );
@@ -216,15 +221,12 @@ export default function App() {
           <button className="searchbtn" onClick={openSearch} title="Search pages, months, categories and actions">
             <Search size={15} aria-hidden /><span>Search…</span><kbd>{SEARCH_KEY}</kbd>
           </button>
+          <button className="btn primary add-btn" onClick={() => { setView(ctxToday(ledger)); addExpense(); }}><Plus size={16} aria-hidden /> Add expense</button>
           <nav className="side-nav">
-            {SECTIONS.map((s) => (
-              <div key={s.id} className="side-sec">
-                <span className="lbl">{s.label}</span>
-                {s.tabs.map((t) => navLink(t, "side-link"))}
-              </div>
-            ))}
+            <div className="side-sec">{SECTIONS[0].tabs.map((t) => navLink(t, "side-link"))}</div>
           </nav>
           <div className="side-foot">
+            {navLink({ id: "settings", label: "Settings" }, "side-link")}
             <span className="save" data-s={save.kind} role="status">{saveLabel}</span>
             <div className="bar">
               <button className="iconbtn wide" onClick={doUndo} disabled={!canUndo} title={`Undo the last change (${UNDO_KEY})`}><Undo2 size={15} aria-hidden /> Undo</button>
@@ -266,11 +268,13 @@ export default function App() {
         )}
 
       <main className="stack page" key={tab}>
+        {ctx && <SubNav tab={tab} />}
         {!ctx ? (
           <Welcome onStart={(l, then) => { replace(l); setView({ catHint: then === "categories" && l.settings.cats.length > 0 }); go(then); }} />
         ) : (
           <AppContext.Provider value={ctx}>
             {tab === "overview" && <OverviewView />}
+            {tab === "more" && <MoreView />}
             {tab === "month" && <MonthView />}
             {tab === "budget" && <BudgetView />}
             {tab === "year" && <YearView />}
@@ -284,27 +288,17 @@ export default function App() {
             {tab === "settings" && <SettingsView version={version} onRestored={restored} saveNow={saveNow} backupNow={backupNow} />}
             {tab === "appearance" && <AppearanceView />}
             {search && <CommandPalette onClose={closeSearch} actions={actions} />}
+            {adding !== undefined && <AddExpense cid={adding || null} onClose={() => setAdding(undefined)} />}
           </AppContext.Provider>
         )}
       </main>
       </div>
       {ledger && (
         <nav className="bottombar" aria-label="Pages">
-          {(["overview", "month", "health", "budget"] as Tab[]).map((id) => navLink(TABS.find((t) => t.id === id)!, "bb-link"))}
-          <button className={`bb-link${more ? " on" : ""}`} aria-expanded={more} onClick={() => setMore((x) => !x)}><Ellipsis size={17} aria-hidden /><span>More</span></button>
+          {SECTIONS[0].tabs.slice(0, 2).map((t) => navLink(t, "bb-link"))}
+          <button className="bb-add" aria-label="Add expense" onClick={() => { setView(ctxToday(ledger)); addExpense(); }}><Plus size={22} aria-hidden /></button>
+          {SECTIONS[0].tabs.slice(2).map((t) => navLink(t, "bb-link"))}
         </nav>
-      )}
-      {more && ledger && (
-        <div className="sheet-back" onMouseDown={(e) => e.target === e.currentTarget && setMore(false)}>
-          <div className="more-sheet" role="dialog" aria-label="All pages">
-            {SECTIONS.map((s) => (
-              <div key={s.id} className="side-sec">
-                <span className="lbl">{s.label}</span>
-                <div className="more-grid">{s.tabs.map((t) => navLink(t, "more-link"))}</div>
-              </div>
-            ))}
-          </div>
-        </div>
       )}
       <div className="toast-zone" aria-live="polite">
         {toast && (
@@ -316,4 +310,24 @@ export default function App() {
       </div>
     </div>
   );
+}
+
+/** The month "Add expense" opens on from the menu: the current one (or current pay cycle). */
+function ctxToday(ledger: { settings: Parameters<typeof currentMonth>[0] } | null) {
+  return currentMonth(ledger?.settings ?? null);
+}
+
+/** Pages under More and Settings get a way back and their siblings; the three everyday pages need neither. */
+function SubNav({ tab }: { tab: Tab }) {
+  const sec = sectionOf(tab);
+  if (sec.id === "more")
+    return <a className="crumb" href="#more"><ChevronLeft size={15} aria-hidden /> More</a>;
+  if (sec.id === "setup")
+    return (
+      <nav className="subtabs" aria-label="Settings">
+        <SettingsIcon size={15} aria-hidden />
+        {sec.tabs.map((t) => <a key={t.id} href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined}>{t.label}</a>)}
+      </nav>
+    );
+  return null;
 }

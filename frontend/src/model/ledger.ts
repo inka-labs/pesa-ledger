@@ -54,7 +54,7 @@ export const addMonths = ({ y, m }: YM, n: number): YM => { const i = y * 12 + (
 export const monthsFromTo = (a: YM, b: YM) => Math.max(0, (b.y - a.y) * 12 + (b.m - a.m) + 1);
 
 export function emptyYear(): YearDoc {
-  return { actual: {}, budget: {}, plan: {}, notes: {}, oneoff: {}, balances: {} };
+  return { actual: {}, budget: {}, plan: {}, notes: {}, oneoff: {}, balances: {}, entries: {} };
 }
 
 function blank(): Totals {
