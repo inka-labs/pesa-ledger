@@ -16,13 +16,15 @@ Before the first change of each day the whole ledger is copied to backups/auto-<
 day's state can be restored. Backups older than KEEP_AUTO days are pruned.
 """
 
+import functools
 import re
+import threading
 from datetime import date, datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 
-from .core.store import home, read_json, write_json
+from .core.store import DamagedFile, home, read_json, read_json_strict, write_json
 
 KEEP_AUTO = 60
 
@@ -212,16 +214,43 @@ def _check_year(year: int) -> int:
 # Reading ---------------------------------------------------------------------------------------
 
 def load() -> dict:
-    """{"settings": {...} or None (never set up), "years": {"2026": {...}, ...}}"""
-    years = {}
+    """{"settings": {...} or None (never set up), "years": {"2026": {...}, ...}}, plus "problems": [...]
+    when a file couldn't be read. A damaged file is set aside (never overwritten by the next save) and
+    named in "problems", so the page can say so and offer a backup."""
+    years, problems = {}, []
     folder = _years_dir()
     if folder.is_dir():
         for path in sorted(folder.glob("*.json")):
             if re.fullmatch(r"\d{4}", path.stem):
-                body = read_json(path, None)
+                try:
+                    body = read_json_strict(path, None)
+                except DamagedFile as e:
+                    problems.append(str(e))
+                    continue
                 if isinstance(body, dict):
                     years[path.stem] = body
-    return {"settings": read_json(home() / "settings.json", None), "years": years}
+    try:
+        settings = read_json_strict(home() / "settings.json", None)
+    except DamagedFile as e:
+        problems.append(str(e))
+        settings = None
+    out = {"settings": settings, "years": years}
+    if problems:
+        out["problems"] = problems
+    return out
+
+
+# Every change to the files goes through one lock, so two saves (two tabs, or a save during a restore)
+# never interleave. Reentrant: restore takes a snapshot, which also takes it.
+_lock = threading.RLock()
+
+
+def _locked(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with _lock:
+            return fn(*args, **kwargs)
+    return wrapper
 
 
 # Writing ---------------------------------------------------------------------------------------
@@ -236,11 +265,8 @@ def _unique(names: list[str], message: str, fold: bool = True) -> None:
         seen.add(key)
 
 
-def save_settings(payload: dict) -> dict:
-    try:
-        settings = Settings.model_validate(payload)
-    except ValidationError as e:
-        raise LedgerError(_explain(e))
+def _check_settings(settings: "Settings") -> None:
+    """What the field types alone can't say: ids are unique and point at things that exist."""
     kind_ids = {k.id for k in settings.kinds}
     if len(kind_ids) != len(settings.kinds):
         raise LedgerError("Two group types have the same id.")
@@ -262,12 +288,24 @@ def save_settings(payload: dict) -> dict:
     # no two groups share a colour: their own colours differ, and so do the palette places of groups without one
     _unique([g.color.lower() for g in settings.groups if g.color], "Two groups have the colour {}.", fold=False)
     _unique([str(g.slot) for g in settings.groups if not g.color], "Two groups use palette colour {}.", fold=False)
+    if len({g.id for g in settings.goals}) != len(settings.goals):
+        raise LedgerError("Two goals have the same id.")
+
+
+@_locked
+def save_settings(payload: dict) -> dict:
+    try:
+        settings = Settings.model_validate(payload)
+    except ValidationError as e:
+        raise LedgerError(_explain(e))
+    _check_settings(settings)
     data = settings.model_dump(by_alias=True, exclude_none=True)
     daily_backup()
     write_json(home() / "settings.json", data)
     return data
 
 
+@_locked
 def save_year(year: int, payload: dict) -> dict:
     _check_year(year)
     payload = {k: v for k, v in payload.items() if k != "year"}
@@ -281,6 +319,7 @@ def save_year(year: int, payload: dict) -> dict:
     return data
 
 
+@_locked
 def delete_year(year: int) -> None:
     _check_year(year)
     path = _years_dir() / f"{year}.json"
@@ -303,6 +342,7 @@ def _snapshot(name: str) -> str:
     return name
 
 
+@_locked
 def daily_backup() -> str:
     """The ledger as it was before today's first change. Once a day; prunes old ones."""
     name = f"auto-{date.today().isoformat()}.json"
@@ -315,6 +355,7 @@ def daily_backup() -> str:
     return made
 
 
+@_locked
 def backup_now() -> str:
     made = _snapshot(f"manual-{datetime.now().strftime('%Y-%m-%d-%H%M%S')}.json")
     if not made:
@@ -334,6 +375,7 @@ def list_backups() -> list[dict]:
     return out
 
 
+@_locked
 def restore(name: str) -> dict:
     if not re.fullmatch(r"(auto|manual|before-restore)-[0-9-]+\.json", name):
         raise LedgerError("No such backup.")
@@ -345,14 +387,23 @@ def restore(name: str) -> dict:
     years = body.get("years") or {}
     try:
         settings = Settings.model_validate(body["settings"]) if body.get("settings") else None
-        docs = {int(y): YearDoc.model_validate({k: v for k, v in d.items() if k != "year"}) for y, d in years.items()}
+        if settings:
+            _check_settings(settings)
+        docs = {}
+        for y, d in years.items():
+            if not re.fullmatch(r"\d{4}", str(y)):
+                raise LedgerError(f"it holds a year called {y!r}")
+            docs[_check_year(int(y))] = YearDoc.model_validate({k: v for k, v in d.items() if k != "year"})
     except (ValidationError, ValueError, AttributeError) as e:
         raise LedgerError(f"That backup can't be restored: {e}")
     _snapshot(f"before-restore-{datetime.now().strftime('%Y-%m-%d-%H%M%S')}.json")
-    for old in _years_dir().glob("*.json") if _years_dir().is_dir() else []:
-        old.unlink()
+    # write the backup's years first, then remove the ones it doesn't have: a failure part-way leaves
+    # every year readable (and the before-restore snapshot holds the rest)
     for y, doc in docs.items():
         write_json(_years_dir() / f"{y}.json", doc.model_dump())
+    for old in _years_dir().glob("*.json") if _years_dir().is_dir() else []:
+        if re.fullmatch(r"\d{4}", old.stem) and int(old.stem) not in docs:
+            old.unlink()
     if settings:
         write_json(home() / "settings.json", settings.model_dump(by_alias=True, exclude_none=True))
     else:

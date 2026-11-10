@@ -54,11 +54,18 @@ SOURCES = [_open_er_api, _fawaz]
 
 
 def _clean(rates: dict) -> dict[str, float]:
-    return {k: float(v) for k, v in rates.items() if CODE.match(str(k)) and isinstance(v, (int, float)) and v > 0}
+    return {k: float(v) for k, v in rates.items() if CODE.match(str(k)) and isinstance(v, (int, float))
+            and not isinstance(v, bool) and v > 0}
 
 
 def _path(base: str):
     return home() / "rates" / f"{base}.json"
+
+
+# Offline, don't make every page load wait on two timeouts: after a failed fetch, the cached rates
+# are served as old for RETRY_AFTER seconds before the services are tried again (Refresh always tries).
+RETRY_AFTER = 600
+_failed_at: dict[str, float] = {}
 
 
 def get(base: str, refresh: bool = False) -> dict:
@@ -67,9 +74,14 @@ def get(base: str, refresh: bool = False) -> dict:
     if not CODE.match(base):
         raise RatesError("A currency code is three letters, like KES or USD.")
     cached = read_json(_path(base), None)
-    fresh = cached and time.time() - cached.get("fetched_at", 0) < MAX_AGE
-    if fresh and not refresh:
-        return {**cached, "stale": False}
+    if not (isinstance(cached, dict) and isinstance(cached.get("rates"), dict)):
+        cached = None
+    message = "Couldn't reach the exchange-rate services. Check the internet connection."
+    if cached and not refresh:
+        if time.time() - cached.get("fetched_at", 0) < MAX_AGE:
+            return {**cached, "stale": False}
+        if time.time() - _failed_at.get(base, 0) < RETRY_AFTER:
+            return {**cached, "stale": True, "error": message}
     errors = []
     for source in SOURCES:
         try:
@@ -80,10 +92,11 @@ def get(base: str, refresh: bool = False) -> dict:
             rates[base] = 1.0
             data = {**got, "base": base, "rates": rates, "fetched_at": time.time()}
             write_json(_path(base), data)
+            _failed_at.pop(base, None)
             return {**data, "stale": False}
-        except (httpx.HTTPError, RatesError, ValueError, KeyError) as e:
+        except Exception as e:  # any odd answer (a list, HTML, a bad date) falls through to the next source
             errors.append(f"{source.__name__.strip('_')}: {e}")
-    message = "Couldn't reach the exchange-rate services. Check the internet connection."
+    _failed_at[base] = time.time()
     if cached:
         return {**cached, "stale": True, "error": message}
     raise RatesError(f"{message} ({'; '.join(errors)})")

@@ -161,3 +161,71 @@ def test_names_and_colours_are_unique(client, settings):
     dup = {**settings, "cats": settings["cats"] + [{**c0, "id": "dupe"}]}
     assert client.put("/api/settings", json=dup).status_code == 400
     assert client.put("/api/settings", json=settings).status_code == 200
+
+
+# Safety ----------------------------------------------------------------------------------------
+
+def test_an_emptied_token_file_is_never_accepted(ledger_home):
+    from pesa_ledger.app import create_app
+    ledger_home.mkdir(parents=True, exist_ok=True)
+    (ledger_home / "session_token").write_text("")
+    app = create_app()
+    assert len(app.state.token) >= 32
+    assert TestClient(app, base_url=BASE).get("/api/ledger").status_code == 401
+    assert stat.S_IMODE((ledger_home / "session_token").stat().st_mode) == 0o600
+
+
+def test_another_local_port_is_another_site(client):
+    for origin in ("http://127.0.0.1:9999", "http://localhost:8768"):
+        assert client.post("/api/quit", headers={"origin": origin}).status_code == 403
+    assert client.post("/api/quit", headers={"sec-fetch-site": "same-site"}).status_code == 403
+    assert client.post("/api/quit", headers={"origin": BASE}).status_code == 200
+    assert client.post("/api/quit").status_code == 200  # the launcher sends no Origin
+
+
+def test_a_damaged_file_is_set_aside_not_overwritten(client, settings, ledger_home):
+    client.put("/api/settings", json=settings)
+    client.put("/api/years/2026", json=YEAR)
+    (ledger_home / "years" / "2026.json").write_text('{"actual": {"01": ')
+    got = client.get("/api/ledger").json()
+    assert "2026" not in got["years"] and "2026.json" in got["problems"][0]
+    kept = list((ledger_home / "years").glob("2026.json.damaged-*"))
+    assert len(kept) == 1 and kept[0].read_text().startswith('{"actual"')
+    assert "problems" not in client.get("/api/ledger").json()  # said once; the copy stays
+
+
+def test_a_failed_write_leaves_the_old_file_and_no_temp(ledger_home, monkeypatch):
+    import pytest
+    from pesa_ledger.core import store
+    path = ledger_home / "x.json"
+    store.write_json(path, {"a": 1})
+    monkeypatch.setattr(store.os, "fsync", lambda fd: (_ for _ in ()).throw(OSError("disk full")))
+    with pytest.raises(OSError):
+        store.write_json(path, {"a": 2})
+    assert json.loads(path.read_text()) == {"a": 1}
+    assert [p.name for p in ledger_home.iterdir()] == ["x.json"]
+
+
+def test_restore_keeps_years_it_writes_and_drops_the_rest(client, settings, ledger_home):
+    client.put("/api/settings", json=settings)
+    client.put("/api/years/2026", json=YEAR)
+    name = client.post("/api/backups").json()["name"]
+    client.put("/api/years/2027", json=YEAR)
+    got = client.post(f"/api/backups/{name}/restore").json()
+    assert sorted(got["years"]) == ["2026"]
+    assert sorted(p.name for p in (ledger_home / "years").iterdir()) == ["2026.json"]
+
+
+def test_restore_refuses_a_backup_with_broken_references(client, settings, ledger_home):
+    client.put("/api/settings", json=settings)
+    bad = {"taken": "", "settings": {**settings, "cats": [{"id": "x", "name": "X", "group": "nope"}]}, "years": {}}
+    (ledger_home / "backups").mkdir(exist_ok=True)
+    (ledger_home / "backups" / "manual-2026-01-01-000000.json").write_text(json.dumps(bad))
+    r = client.post("/api/backups/manual-2026-01-01-000000.json/restore")
+    assert r.status_code == 400 and "group that doesn't exist" in r.json()["detail"]
+
+
+def test_two_goals_cannot_share_an_id(client, settings):
+    two = {**settings, "goals": settings["goals"] * 2}
+    r = client.put("/api/settings", json=two)
+    assert r.status_code == 400 and "Two goals" in r.json()["detail"]

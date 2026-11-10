@@ -19,6 +19,7 @@ def down(base):
 
 @pytest.fixture
 def sources(monkeypatch):
+    monkeypatch.setattr(rates, "_failed_at", {})
     def use(*fns):
         monkeypatch.setattr(rates, "SOURCES", list(fns))
     return use
@@ -57,6 +58,33 @@ def test_old_cache_is_served_stale_when_offline(sources, client, ledger_home):
     sources(down, down)
     got = client.get("/api/rates?base=KES").json()
     assert got["stale"] is True and "Couldn't reach" in got["error"] and got["rates"]["USD"] == 0.0077
+
+
+def test_offline_waits_before_trying_again(sources, client, ledger_home):
+    import json
+    sources(answer("first"))
+    client.get("/api/rates?base=KES")
+    path = ledger_home / "rates" / "KES.json"
+    body = json.loads(path.read_text())
+    body["fetched_at"] = time.time() - rates.MAX_AGE - 10
+    path.write_text(json.dumps(body))
+    tries = []
+    def counted(base):
+        tries.append(base)
+        raise httpx.ConnectError("offline")
+    sources(counted)
+    for _ in range(3):
+        assert client.get("/api/rates?base=KES").json()["stale"] is True
+    assert len(tries) == 1  # not once per page load
+    client.get("/api/rates?base=KES&refresh=true")
+    assert len(tries) == 2  # Refresh always tries
+
+
+def test_an_odd_answer_falls_through(sources, client):
+    def odd(base):
+        raise AttributeError("'list' object has no attribute 'get'")
+    sources(odd, answer("second"))
+    assert client.get("/api/rates?base=KES").json()["source"] == "second"
 
 
 def test_nothing_cached_and_offline_is_an_error(sources, client):

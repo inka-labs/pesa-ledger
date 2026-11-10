@@ -101,11 +101,12 @@ Everything stays on this computer, in `~/.pesa-ledger` (set `PESA_LEDGER_HOME` t
 
     settings.json          currency, groups, categories, goals
     years/2026.json        a year's actual figures, budgets and notes
-    backups/               the whole ledger, copied before the first change of each day (60 days kept)
+    backups/               the whole ledger, copied before the first change of each day (the last 60 such days kept)
 
 The folder and files are readable only by you. The server listens on 127.0.0.1 only (port 8768, next to Ecoscope
-Studio's 8765 and Docling Studio's 8766). Every request needs a session cookie set from a one-time sign-in link, and
-requests from other websites are refused.
+Studio's 8765 and Docling Studio's 8766). Every request needs a session cookie set from the sign-in link, and
+requests from other websites (including other servers on this computer) are refused. A file that can't be
+read is never overwritten: it's set aside as `<name>.damaged-<time>` and the page says so.
 
 The repository never holds anyone's figures. `*.csv` is git-ignored so exports and imports can't be committed by
 mistake.

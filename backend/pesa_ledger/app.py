@@ -18,10 +18,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 from . import __version__, autostart, brand, ledger, rates
-from .core.store import home
+from .core.store import home, write_text_private
 
 COOKIE = f"{brand.SLUG.replace('-', '_')}_session"
-ALLOWED_HOSTS = {"127.0.0.1", "localhost", "[::1]", "testserver"}
+ALLOWED_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
 UI_DIST = Path(os.environ.get("PESA_LEDGER_UI") or Path(__file__).resolve().parents[2] / "frontend" / "dist")
 
 
@@ -32,14 +32,26 @@ def _hostname(host: str) -> str:
     return host.rsplit(":", 1)[0]
 
 
+def _same_origin(request: Request) -> bool:
+    """A change must come from this page: host *and port* match (another local server on
+    127.0.0.1:9999 is a different site). Requests with no Origin come from the launcher, not a browser,
+    unless the browser says they're cross-site."""
+    origin = request.headers.get("origin")
+    if origin:
+        return origin.split("://", 1)[-1].rstrip("/") == request.headers.get("host", "")
+    return request.headers.get("sec-fetch-site", "same-origin") in ("same-origin", "none")
+
+
 def session_token() -> str:
     """Stable across restarts so an open tab keeps working; rotate by deleting the file."""
     path = home() / "session_token"
-    if path.exists():
-        return path.read_text().strip()
-    token = secrets.token_urlsafe(32)
-    path.write_text(token)
-    os.chmod(path, 0o600)
+    try:
+        token = path.read_text().strip()
+    except FileNotFoundError:
+        token = ""
+    if len(token) < 32:  # missing, emptied or cut short: never accept a guessable token
+        token = secrets.token_urlsafe(32)
+        write_text_private(path, token)
     return token
 
 
@@ -65,10 +77,8 @@ def create_app() -> FastAPI:
         if request.url.path.startswith("/api/"):
             if not hmac.compare_digest(request.cookies.get(COOKIE, ""), token):
                 return JSONResponse({"detail": f"Not signed in. Open {brand.NAME} again (or the sign-in link it printed)."}, status_code=401)
-            origin = request.headers.get("origin")
-            if request.method not in ("GET", "HEAD") and origin:
-                if _hostname(origin.split("://", 1)[-1]) not in ALLOWED_HOSTS:
-                    return JSONResponse({"detail": "Cross-origin request refused."}, status_code=403)
+            if request.method not in ("GET", "HEAD") and not _same_origin(request):
+                return JSONResponse({"detail": "Cross-origin request refused."}, status_code=403)
         response = await call_next(request)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
