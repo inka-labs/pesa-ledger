@@ -6,9 +6,9 @@ a small local server and a web page, with your figures kept in a folder in your 
 
 Three pages cover the everyday, and everything else is one click away:
 
-- **Home:** where the app opens. What's left to spend this month in one figure, what came in, was saved and is
-  left over, a short to-do list (repeating amounts not recorded, categories over budget, next month's budget,
-  goals and funds behind), and where the money went by group.
+- **Home:** where the app opens, laid out as a dashboard. Four cards (left to spend, came in, spent, saved) with
+  the change from last month, a chart of money in, spent and saved over the last 12 months (click a month to open
+  it), a ring of where this month's money went, the latest expenses added, a short to-do list and your goals.
 - **Spending:** the month, one row per category: what's been spent with one bar against its budget, and the
   figure. **Add expense** (the sidebar, the + on each row, or the round + on a phone) adds an amount to a
   category's total and keeps a list of what was added, so any of it can be taken back out. You can also type a

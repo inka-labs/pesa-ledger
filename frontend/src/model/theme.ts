@@ -36,12 +36,13 @@ const PESA_ACCENT = { light: "#1d6b4f", dark: "#4fbf8f" };
 
 /** Neutral page colours each tint starts from, per theme (styles.css holds the untinted Pesa ones). */
 const NEUTRAL = {
-  light: { bg: "#f4f5f4", surface: "#fdfdfd", sunk: "#eaecea", line: "#dde0dd" },
-  dark: { bg: "#0f1211", surface: "#171a19", sunk: "#1f2321", line: "#2c312f" },
+  light: { bg: "#f3f5f4", surface: "#ffffff", sunk: "#eef1ef", line: "#e3e7e4" },
+  dark: { bg: "#0f1211", surface: "#181c1a", sunk: "#202523", line: "#2b302e" },
 };
 /** How much of the accent each one takes: [bg, surface, sunk, line, glow]. */
 const TINT: Record<Exclude<Tint, "off">, Record<"light" | "dark", number[]>> = {
-  soft: { light: [0.07, 0.025, 0.09, 0.12, 0.10], dark: [0.07, 0.045, 0.08, 0.12, 0.10] },
+  // a flat canvas and plain cards (the dashboard look): soft only hints at the accent, with no glow
+  soft: { light: [0.03, 0, 0.05, 0.06, 0], dark: [0.04, 0.02, 0.05, 0.08, 0] },
   rich: { light: [0.14, 0.05, 0.16, 0.2, 0.18], dark: [0.13, 0.08, 0.14, 0.2, 0.17] },
 };
 

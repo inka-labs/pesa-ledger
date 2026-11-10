@@ -219,10 +219,7 @@ export default function App() {
     <div className={`shell${ledger ? "" : " bare"}`}>
       {ledger && (
         <aside className="side" aria-label="Pages">
-          <div className="brand"><h1>{NAME}</h1><span className="mark">{ledger.settings.currency}</span></div>
-          <button className="searchbtn" onClick={openSearch} title="Search pages, months, categories and actions">
-            <Search size={15} aria-hidden /><span>Search…</span><kbd>{SEARCH_KEY}</kbd>
-          </button>
+          <div className="brand"><span className="logo" aria-hidden>P</span><h1>{NAME}</h1></div>
           <button className="btn primary add-btn" onClick={() => { setView(ctxToday(ledger)); addExpense(); }}><Plus size={16} aria-hidden /> Add expense</button>
           <nav className="side-nav">
             <div className="side-sec">
@@ -232,15 +229,23 @@ export default function App() {
           </nav>
           <div className="side-foot">
             {navLink({ id: "settings", label: "Settings" }, "side-link")}
-            <span className="save" data-s={save.kind} role="status">{saveLabel}</span>
-            <div className="bar">
-              <button className="iconbtn wide" onClick={doUndo} disabled={!canUndo} title={`Undo the last change (${UNDO_KEY})`}><Undo2 size={15} aria-hidden /> Undo</button>
-              <button className="iconbtn wide" onClick={cycle} title="Switch between system, light and dark"><ThemeIcon size={15} aria-hidden /> {theme === "system" ? "System" : theme === "light" ? "Light" : "Dark"}</button>
-            </div>
           </div>
         </aside>
       )}
       <div className="main">
+        {ledger && (
+          <header className="topbar">
+            <button className="searchbtn" onClick={openSearch} title="Search pages, months, categories and actions">
+              <Search size={15} aria-hidden /><span>Search pages, months, categories…</span><kbd>{SEARCH_KEY}</kbd>
+            </button>
+            <div className="topbar-end">
+              <span className="save" data-s={save.kind} role="status">{saveLabel}</span>
+              <button className="iconbtn" onClick={doUndo} disabled={!canUndo} title={`Undo the last change (${UNDO_KEY})`} aria-label="Undo"><Undo2 size={17} /></button>
+              <button className="iconbtn" onClick={cycle} title={`Theme: ${theme}. Click to switch`} aria-label={`Theme: ${theme}`}><ThemeIcon size={17} /></button>
+              <span className="mark" title="Main currency">{ledger.settings.currency}</span>
+            </div>
+          </header>
+        )}
         <header className="mtop">
           <div className="brand"><h1>{NAME}</h1>{ledger && <span className="mark">{ledger.settings.currency}</span>}</div>
           {ledger && <span className="save" data-s={save.kind} role="status" title={saveLabel}><span className="sr-only">{saveLabel}</span></span>}

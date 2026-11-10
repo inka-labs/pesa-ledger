@@ -2,16 +2,16 @@
    aligned digits, groups keyed by a colour swatch. Red is kept for what needs action; amber for "watch".
    Series colours (--s1..--s8) follow a colour-blind-checked categorical order; --s0 is income (ink). */
 :root {
-  --bg: #f2f5f1; --surface: #fcfdfb; --sunk: #e8ede7; --ink: #14201a; --ink-2: #4a5850; --muted: #7b8780;
-  --line: #dce3dc; --accent: #1d6b4f; --accent-ink: #ffffff; --accent-soft: #dfeee6;
+  --bg: #f3f5f4; --surface: #ffffff; --sunk: #eef1ef; --ink: #14201a; --ink-2: #4a5850; --muted: #7b8780;
+  --line: #e3e7e4; --accent: #1d6b4f; --accent-ink: #ffffff; --accent-soft: #dfeee6;
   --good: #006300; --bad: #b42d2d; --warn-bg: #fdf3d8; --warn-ink: #6b4a00; --serious: #ec835a; --warn: #c98a00;
-  --shadow: 0 1px 2px rgba(20, 32, 26, .05), 0 4px 14px rgba(20, 32, 26, .04);
+  --shadow: 0 1px 3px rgba(16, 24, 20, .06), 0 1px 2px rgba(16, 24, 20, .03);
   --s0: #14201a; --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
   --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
   --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --cmp-a: var(--s1); --cmp-b: var(--s2);
-  --r: 12px;
+  --r: 14px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
@@ -833,3 +833,40 @@ input.amt.big { font-size: 22px; padding: 10px 12px; }
 .big-ish { font-size: 18px; font-weight: 600; }
 .bname .link { color: var(--muted); text-decoration: none; }
 .bname .link:hover, .bname .link:focus-visible { color: var(--accent); text-decoration: underline; }
+
+/* ---- Dashboard look: a header bar, a plain sidebar, flat cards ---------------------------------- */
+.side { background: var(--surface); backdrop-filter: none; }
+.brand .logo { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-family: var(--f-display); font-weight: 700; font-size: 16px; align-self: center; }
+.brand { align-items: center; }
+.topbar { display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 12; margin: -22px calc(-1 * max(16px, 2.2vw)) 0; padding: 12px max(16px, 2.2vw); background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.topbar .searchbtn { min-width: min(420px, 50vw); background: var(--bg); border-color: transparent; }
+.topbar-end { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.topbar-end .save { margin-right: 6px; }
+.topbar .mark { font-size: 11px; font-weight: 600; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 4px; padding: 0 5px; margin-left: 4px; }
+@media (max-width: 900px) { .topbar { display: none; } }
+.grp-h { top: 61px; }
+@media (max-width: 900px) { .grp-h { top: 57px; } }
+.panel, .grp, .stat, .hero, .alloc, .gcard, .more-card, .kpi { border-color: color-mix(in srgb, var(--line) 80%, transparent); }
+
+/* Home, dashboard style */
+.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .stats.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .stats.four { grid-template-columns: minmax(0, 1fr); } }
+.stat { padding: 18px; gap: 6px; }
+.stat-h { justify-content: space-between; margin-bottom: 4px; }
+.stat-i { width: 40px; height: 40px; border-radius: 50%; }
+.stat.lead .stat-i { background: var(--accent); color: var(--accent-ink); }
+.stat-v .cc { font-size: 12px; color: var(--muted); font-weight: 600; margin-right: 5px; letter-spacing: 0; font-family: var(--f-body); }
+.badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--sunk); color: var(--ink-2); }
+.badge.up { background: color-mix(in srgb, var(--good) 13%, transparent); color: var(--good); }
+.badge.down { background: color-mix(in srgb, var(--bad) 12%, transparent); color: var(--bad); }
+.dash2 { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .dash2 { grid-template-columns: minmax(0, 1fr); } }
+.donut { display: grid; gap: 10px; }
+.donut-key { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.donut-key li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; }
+.donut-key i { width: 10px; height: 10px; border-radius: 3px; }
+table.recent { width: 100%; }
+table.recent td, table.recent th { text-align: left; }
+table.recent td:last-child, table.recent th:last-child { text-align: right; }
+.topbar .searchbtn span { flex: 1; text-align: left; }
