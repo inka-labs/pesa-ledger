@@ -240,3 +240,12 @@ def test_added_expenses_are_kept(client, settings):
     got = client.get("/api/ledger").json()["years"]["2026"]["entries"]["01"]["ess_0"]
     assert got[0] == {"amount": 1250, "note": "Naivas", "day": 3} and got[1]["amount"] == 300
     assert client.put("/api/years/2026", json={**doc, "entries": {"01": {"ess_0": [{"amount": 1, "day": 40}]}}}).status_code == 400
+
+
+def test_goal_items_and_money_added(client, settings):
+    g = {**settings["goals"][0], "items": [{"id": "i1", "name": "Deposit", "amount": 80000, "done": True}],
+         "deposits": [{"ym": "2026-10", "amount": 5000}]}
+    saved = client.put("/api/settings", json={**settings, "goals": [g]}).json()
+    assert saved["goals"][0]["items"][0]["done"] is True and saved["goals"][0]["deposits"][0]["amount"] == 5000
+    bad = {**g, "items": [{"id": "i1", "name": "Deposit", "amount": -1}]}
+    assert client.put("/api/settings", json={**settings, "goals": [bad]}).status_code == 400

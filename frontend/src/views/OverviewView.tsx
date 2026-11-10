@@ -4,10 +4,10 @@
 import { useState, type ReactNode } from "react";
 import { useApp, type Tab, type View } from "../context";
 import { money } from "../model/format";
-import { cycleLabel, fmtYM, MONTHS, MONTHS_LONG, nextYM, parseYM } from "../model/ledger";
+import { cycleLabel, fmtYM, MONTHS, MONTHS_LONG, nextYM, parseYM, prevYM } from "../model/ledger";
 import { setActual } from "../model/edit";
 import { Swatch } from "../ui/bits";
-import { Plus } from "lucide-react";
+import { ArrowDownToLine, PiggyBank, Plus, Wallet } from "lucide-react";
 
 type Item = { key: string; text: ReactNode; action: string; run: () => void };
 
@@ -59,6 +59,11 @@ export function OverviewView() {
   const [all, setAll] = useState(false);
   const shown = all ? items : items.slice(0, 3);
 
+  const prev = prevYM(today);
+  const tp = book.monthTotals(prev.y, prev.m);
+  const expected = book.expectedIncome();
+  const goals = book.settings.goals.map((g) => ({ g, r: book.goal(g) })).filter(({ r }) => !r.reached).slice(0, 3);
+
   const groups = book.settings.groups
     .filter((g) => { const e = book.effectOfGroup(g); return e === "out" || e === "aside"; })
     .map((g) => ({ g, a: t.byGroup[g.id] || 0, b: pl.byGroup[g.id] || 0 }))
@@ -98,10 +103,13 @@ export function OverviewView() {
         </div>
       </section>
 
-      <div className="trio">
-        <div><span className="lbl">Came in</span><span className="num">{money(t.income)}</span></div>
-        <div><span className="lbl">Saved</span><span className="num">{money(t.saved)}</span></div>
-        <div><span className="lbl">Left over</span><span className={`num${t.left < 0 ? " d-bad" : ""}`}>{money(t.left)}</span></div>
+      <div className="stats">
+        <Stat icon={ArrowDownToLine} label="Came in" value={t.income}
+          line={t.income === 0 && expected.months ? `About ${money(expected.amount)} usually comes in` : compare(t.income, tp.has ? tp.income : null, MONTHS[prev.m - 1], true)} />
+        <Stat icon={PiggyBank} label="Saved" value={t.saved} share={pl.saved > 0 ? t.saved / pl.saved : null}
+          line={pl.saved > 0 ? `${money(pl.saved)} planned${t.income > 0 ? ` · ${Math.round((t.saved / t.income) * 100)}% of what came in` : ""}` : t.income > 0 ? `${Math.round((t.saved / t.income) * 100)}% of what came in` : "Nothing planned to save"} />
+        <Stat icon={Wallet} label="Left over" value={t.left} tone={t.left < 0 ? "bad" : undefined}
+          line={t.left < 0 ? "More went out than came in" : compare(t.left, tp.has ? tp.left : null, MONTHS[prev.m - 1], true)} />
       </div>
 
       {shown.length > 0 && (
@@ -136,8 +144,46 @@ export function OverviewView() {
           </ul>
         </div>
       )}
+
+      {goals.length > 0 && (
+        <div className="panel">
+          <div className="panel-h"><h3>Goals</h3><div className="end"><button className="btn ghost" onClick={() => go("goals")}>All goals</button></div></div>
+          <ul className="gbars">
+            {goals.map(({ g, r }) => (
+              <li key={g.id}>
+                <button onClick={() => go("goals")}>
+                  <span className="gname">{g.name}{!r.onTrack && <span className="pill warn">Behind</span>}</span>
+                  <span className="num">{money(r.saved)}<span className="muted"> / {money(g.target)}</span></span>
+                  <div className={`meter thin${r.onTrack ? "" : " over"}`}><i style={{ width: `${r.progress * 100}%` }} /></div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </>
   );
+}
+
+/** One of the small cards under the main figure: an icon, the figure, an optional bar, one line of context. */
+function Stat({ icon: Icon, label, value, line, share, tone }: { icon: typeof Wallet; label: string; value: number; line: ReactNode; share?: number | null; tone?: "bad" }) {
+  return (
+    <div className="stat">
+      <span className="stat-h"><span className="stat-i" aria-hidden><Icon size={15} /></span><span className="lbl">{label}</span></span>
+      <span className={`num stat-v${tone === "bad" ? " d-bad" : ""}`}>{money(value)}</span>
+      {share != null && <div className="meter thin"><i style={{ width: `${Math.min(100, share * 100)}%` }} /></div>}
+      <span className="small muted">{line}</span>
+    </div>
+  );
+}
+
+/** "8% more than Oct", in words, or nothing to say. */
+function compare(cur: number, prev: number | null, label: string, upGood: boolean): ReactNode {
+  if (prev == null || prev === 0) return `Nothing to compare in ${label}`;
+  const p = (cur - prev) / Math.abs(prev);
+  if (Math.abs(p) < 0.005) return `Same as ${label}`;
+  const good = p > 0 === upGood;
+  return <><span className={good ? "d-good" : "d-bad"}>{Math.round(Math.abs(p) * 100)}% {p > 0 ? "more" : "less"}</span> than {label}</>;
 }
 
 function Checklist() {

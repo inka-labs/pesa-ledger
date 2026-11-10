@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "../context";
-import { setActual, setNote, setOneOff } from "../model/edit";
+import { removeEntry, setActual, setNote, setOneOff } from "../model/edit";
 import { amountText, money } from "../model/format";
 import { before, cycleLabel, mk, MONTHS, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
 import type { Category, Group } from "../model/types";
 import { AmountInput, Swatch, TextInput } from "../ui/bits";
-import { Ellipsis, Plus } from "lucide-react";
+import { Ellipsis, Plus, Trash2 } from "lucide-react";
 
 export function MonthView() {
   const { book, change, view, setView, go, addExpense } = useApp();
@@ -60,6 +60,14 @@ export function MonthView() {
     }, [`y:${y}`]);
 
   const sv = book.spendingVsBudget(y, m);
+  // which rows to show: all, the ones over budget, or the ones with nothing recorded yet; and a search
+  const [filter, setFilter] = useState<RowFilter>("all");
+  const [q, setQ] = useState("");
+  const isOver = (c: Category) => { const b = book.planMonthly(y, m, c.id); const a = book.actual(y, m, c.id); return book.effectOf(c.id) === "out" && !!b && a != null && a > b; };
+  const isEmpty = (c: Category) => book.actual(y, m, c.id) == null && !c.archived && book.effectOf(c.id) !== "none";
+  const counts = { over: book.settings.cats.filter(isOver).length, empty: book.settings.cats.filter(isEmpty).length };
+  const show = (c: Category) =>
+    (filter === "all" || (filter === "over" ? isOver(c) : isEmpty(c))) && (!q.trim() || c.name.toLowerCase().includes(q.trim().toLowerCase()));
   const spentBudget = sv.budget;
   const leftToSpend = spentBudget - sv.spent;
 
@@ -95,8 +103,17 @@ export function MonthView() {
       </div>
       {future && <p className="small muted">{MONTHS_LONG[m - 1]} hasn't happened yet. <button className="link" onClick={() => go("budget", { planYear: y, planMonth: m })}>Set its budget</button>.</p>}
       {!future && <Unpaid />}
+      <div className="filters">
+        <div className="seg" role="group" aria-label="Show">
+          {([["all", "All"], ["over", `Over budget${counts.over ? ` (${counts.over})` : ""}`], ["empty", `Not recorded${counts.empty ? ` (${counts.empty})` : ""}`]] as [RowFilter, string][]).map(([id, label]) => (
+            <button key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}</button>
+          ))}
+        </div>
+        <input type="search" className="find" placeholder="Find a category" aria-label="Find a category" value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
       <div className="groups">
-        {[...book.settings.groups].sort((a, b) => order(book.effectOfGroup(a)) - order(book.effectOfGroup(b))).map((g) => <GroupSection key={g.id} g={g} gAct={t.byGroup[g.id] || 0} gPlan={pl.byGroup[g.id] || 0} />)}
+        {[...book.settings.groups].sort((a, b) => order(book.effectOfGroup(a)) - order(book.effectOfGroup(b))).map((g) => <GroupSection key={g.id} g={g} gAct={t.byGroup[g.id] || 0} gPlan={pl.byGroup[g.id] || 0} show={show} />)}
+        {(filter !== "all" || q) && !book.settings.cats.some(show) && <p className="muted">{q ? `No category matches “${q}”.` : filter === "over" ? "Nothing is over budget this month." : "Everything has a figure this month."}</p>}
         {!book.settings.groups.length && <div className="panel">Add groups and categories on the <button className="link" onClick={() => go("categories")}>Categories</button> page to start.</div>}
       </div>
       <details className="panel notes" open={!!book.year(y)?.notes?.[mk(m)]}>
@@ -109,6 +126,8 @@ export function MonthView() {
     </>
   );
 }
+
+type RowFilter = "all" | "over" | "empty";
 
 // spending first (what this page is mostly for), then saving, then money in
 const order = (e: string) => ({ out: 0, aside: 1, in: 2, none: 3 } as Record<string, number>)[e] ?? 0;
@@ -210,13 +229,17 @@ function MonthPicker() {
   );
 }
 
-function GroupSection({ g, gAct, gPlan }: { g: Group; gAct: number; gPlan: number }) {
+function GroupSection({ g, gAct, gPlan, show }: { g: Group; gAct: number; gPlan: number; show: (c: Category) => boolean }) {
   const { book, view } = useApp();
-  const [folded, toggle] = useCollapsed(g.id);
+  const [stored, toggle] = useCollapsed(g.id);
   const { y, m } = view;
-  const cats = book.catsIn(g.id, true).filter((c) => !c.archived || book.actual(y, m, c.id) != null);
+  const all = book.catsIn(g.id, true).filter((c) => !c.archived || book.actual(y, m, c.id) != null);
+  const cats = all.filter(show);
   const effect = book.effectOfGroup(g);
   if (!cats.length) return null;
+  const folded = stored && cats.length === all.length; // a filter or search always shows what it found
+  const r = gPlan > 0 ? gAct / gPlan : 0;
+  const over = effect === "out" && r > 1.0001;
   return (
     <section className="grp">
       <div className="grp-h">
@@ -229,6 +252,9 @@ function GroupSection({ g, gAct, gPlan }: { g: Group; gAct: number; gPlan: numbe
           <span className="num">{money(gAct)}</span>
           {(effect === "out" || effect === "aside") && gPlan > 0 && <span className="muted"> / {money(gPlan)}</span>}
         </span>
+        {(effect === "out" || effect === "aside") && gPlan > 0 && (
+          <div className={`meter thin grp-meter${over ? (r > 1.1 ? " way" : " over") : ""}`}><i style={{ width: `${Math.min(100, r * 100)}%` }} /></div>
+        )}
       </div>
       {!folded && <div>{cats.map((c) => <CategoryRow key={c.id} c={c} g={g} />)}</div>}
     </section>
@@ -301,13 +327,16 @@ function OneOffControl({ c, actual }: { c: Category; actual: number | null }) {
 }
 
 function CategoryRow({ c, g }: { c: Category; g: Group }) {
-  const { book, change, view, addExpense } = useApp();
+  const { book, change, view, addExpense, notify } = useApp();
   const { y, m } = view;
+  const [open, setOpen] = useState(false);
   const a = book.actual(y, m, c.id);
   const budget = book.planMonthly(y, m, c.id);
   const effect = book.effectOfGroup(g);
   const spending = effect === "out";
-  const added = book.year(y)?.entries?.[mk(m)]?.[c.id]?.length ?? 0;
+  const entries = book.year(y)?.entries?.[mk(m)]?.[c.id] ?? [];
+  const p = prevYM({ y, m });
+  const last = book.actual(p.y, p.m, c.id);
 
   // a thin bar under the name, with what's left (or over) beside it; amber for a small overspend, red past 10%
   let status = null, bar = null;
@@ -322,20 +351,40 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
     bar = <div className={`meter thin${over ? (way ? " way" : " over") : ""}`}><i style={{ width: `${Math.min(100, ratio * 100)}%` }} /></div>;
   }
   return (
-    <div className="srow" id={`row-${c.id}`}>
+    <div className={`srow${open ? " open" : ""}`} id={`row-${c.id}`}>
       <div className="name">
-        <span className="nname">{c.name}{c.archived && <small>Archived</small>}</span>
+        <button className="nname-btn" aria-expanded={open} onClick={() => setOpen((x) => !x)} title="Show details">
+          <span className="nname">{c.name}{c.archived && <small>Archived</small>}</span>
+          {c.oneoff && <span className="oneoff-cat">One-off</span>}
+        </button>
         {bar}
         <span className="nstat small">
           {status}
-          {added > 0 && <span className="muted">{status ? " · " : ""}{added} added</span>}
-          {c.oneoff ? <span className="oneoff-cat">One-off</span> : effect !== "none" && <OneOffControl c={c} actual={a} />}
+          {entries.length > 0 && <span className="muted">{status ? " · " : ""}{entries.length} added</span>}
+          {!c.oneoff && effect !== "none" && <OneOffControl c={c} actual={a} />}
         </span>
       </div>
       <button className="iconbtn quick" aria-label={`Add an expense to ${c.name}`} title={`Add to ${c.name}`} onClick={() => addExpense(c.id)}><Plus size={15} aria-hidden /></button>
       <AmountInput id={`actual-${c.id}`} value={a} label={`${c.name} for ${MONTHS[m - 1]}`}
         placeholder={c.repeat ? money(c.repeat) : "0"} title={c.repeat ? `Repeats at ${money(c.repeat)} a month` : "The month's total. Type it, or use + to add one expense at a time"}
         onCommit={(v) => change((l) => void setActual(l, y, m, c.id, v), [`y:${y}`])} />
+      {open && (
+        <div className="sdetail small">
+          <span>{budget ? <>Budget <b className="num">{money(budget)}</b></> : "No budget"} · {MONTHS[p.m - 1]}: <b className="num">{last == null ? "–" : money(last)}</b>{c.repeat ? <> · repeats at <b className="num">{money(c.repeat)}</b></> : null}</span>
+          {entries.length > 0 ? (
+            <ul className="sentries">
+              {entries.map((e, i) => (
+                <li key={i}>
+                  <span>{e.note || "Expense"}{e.day ? <span className="muted"> · {e.day} {MONTHS[m - 1]}</span> : null}</span>
+                  <span className="num">{money(e.amount)}</span>
+                  <button className="iconbtn" aria-label={`Take ${money(e.amount)} out of ${c.name}`}
+                    onClick={() => { change((l) => void removeEntry(l, y, m, c.id, i), [`y:${y}`]); notify(`Took ${money(e.amount)} out of ${c.name}.`, true); }}><Trash2 size={13} aria-hidden /></button>
+                </li>
+              ))}
+            </ul>
+          ) : <span className="muted">Nothing added one at a time. Use + to keep a list of what made up the total.</span>}
+        </div>
+      )}
     </div>
   );
 }

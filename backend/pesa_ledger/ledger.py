@@ -137,6 +137,21 @@ class Health(Strict):
     rent: Id | None = None
 
 
+class GoalItem(Strict):
+    """One thing a goal is for (a deposit, movers, a sofa): the goal's target is what its items add up to."""
+    id: Id
+    name: Name
+    amount: Annotated[float, Field(ge=0, allow_inf_nan=False)]
+    done: bool = False
+
+
+class Deposit(Strict):
+    """Money put towards a goal by hand ("Add money"), not through a linked category."""
+    ym: YearMonth
+    amount: Amount
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] = ""
+
+
 class Goal(Strict):
     id: Id
     name: Name
@@ -145,6 +160,8 @@ class Goal(Strict):
     start: Amount = 0
     from_: YearMonth = Field(alias="from")
     cats: list[Id] = Field(default_factory=list, max_length=500)
+    items: list[GoalItem] = Field(default_factory=list, max_length=100)
+    deposits: list[Deposit] = Field(default_factory=list, max_length=2000)
 
 
 class OtherCurrency(Strict):

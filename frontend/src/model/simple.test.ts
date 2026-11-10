@@ -115,3 +115,16 @@ describe("a one-off category", () => {
     expect(new Book(l, TODAY).expectedIncome(1).amount).toBe(100_000);
   });
 });
+
+describe("goals", () => {
+  it("count money added by hand, as well as linked categories", () => {
+    const l = fresh();
+    l.years["2026"].actual["09"] = { sav_0: 20_000 };
+    l.settings.goals = [{ id: "g", name: "Move", target: 93_500, deadline: "2027-03", start: 0, from: "2026-01", cats: ["sav_0"],
+      deposits: [{ ym: "2026-10", amount: 10_000 }, { ym: "2025-12", amount: 99_999 }] }];
+    const r = new Book(l, TODAY).goal(l.settings.goals[0]);
+    expect(r.saved).toBe(30_000); // the deposit before the goal started doesn't count
+    expect(r.deposited).toBe(10_000);
+    expect(r.average).toBe(15_000); // two months with money in
+  });
+});

@@ -756,3 +756,80 @@ input.amt.big { font-size: 22px; padding: 10px 12px; }
 .field.check { display: flex; gap: 10px; align-items: flex-start; }
 .field.check input { margin-top: 3px; }
 .field.check > span { display: grid; gap: 2px; }
+
+/* More, as a dropdown in the sidebar and a menu on phones */
+.side-more > button.side-link { width: 100%; border: 0; background: none; font: inherit; font-size: 13.5px; cursor: pointer; text-align: left; }
+.side-more > button.side-link > span { flex: 1; }
+.side-chev { transition: transform .15s ease; }
+.side-chev.open { transform: rotate(180deg); }
+.side-sub { display: grid; gap: 1px; margin: 2px 0 4px 18px; padding-left: 8px; border-left: 1px solid var(--line); }
+.side-link.sub { padding: 5px 10px; font-size: 13px; }
+.more-sheet { gap: 2px; max-height: 80vh; overflow: auto; }
+.more-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 10px; border-radius: 10px; text-decoration: none; color: var(--ink); }
+.more-row svg { color: var(--accent); flex: none; margin-top: 2px; }
+.more-row > span { display: grid; gap: 1px; }
+.more-row[aria-current="page"] { background: var(--accent-soft); }
+
+/* Home: the small cards under the main figure */
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 700px) { .stats { grid-template-columns: minmax(0, 1fr); } }
+.stat { display: grid; gap: 6px; align-content: start; padding: 14px 16px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.stat-h { display: flex; align-items: center; gap: 8px; }
+.stat-i { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
+.stat-v { font-family: var(--f-display); font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+.pill { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; margin-left: 8px; white-space: nowrap; }
+.pill.ok { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
+.pill.warn { background: var(--warn-bg); color: var(--warn-ink); }
+
+/* Spending: filters, group bars, a row's details */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filters .find { margin-left: auto; min-width: 200px; }
+@media (max-width: 600px) { .filters .find { margin-left: 0; width: 100%; } }
+.grp-meter { flex-basis: 100%; }
+.nname-btn { display: flex; align-items: center; gap: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; width: max-content; max-width: 100%; }
+.nname-btn:hover .nname { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.sdetail { grid-column: 1 / -1; display: grid; gap: 6px; padding: 8px 10px; border-radius: 8px; background: var(--sunk); }
+.sentries { list-style: none; margin: 0; padding: 0; display: grid; }
+.sentries li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 3px 0; }
+
+/* Budget: where the month's income goes */
+.alloc { display: grid; gap: 10px; padding: 18px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.alloc-h { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+.alloc-h > span { display: grid; gap: 1px; }
+.alloc-h .num.big { font-family: var(--f-display); font-size: 26px; font-weight: 700; }
+.alloc-left { text-align: right; }
+.alloc-left.neg .num { color: var(--bad); }
+.alloc-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--sunk); gap: 2px; }
+.alloc-bar i { display: block; height: 100%; }
+.a-spend { background: var(--accent); }
+.a-save { background: var(--s1); }
+.a-free { background: repeating-linear-gradient(45deg, var(--line) 0 4px, transparent 4px 8px); }
+.alloc-key { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--ink-2); }
+.alloc-key i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+.bname { display: grid; gap: 2px; min-width: 0; }
+.bname .link { font-size: inherit; }
+
+/* Goals */
+.gcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+.gcard { display: grid; gap: 10px; padding: 18px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.gcard header { display: flex; align-items: center; gap: 4px; }
+.gcard header h3 { font-size: 16px; min-width: 0; overflow-wrap: anywhere; }
+.gcard header .iconbtn { margin-left: auto; }
+.gfig { display: flex; align-items: baseline; gap: 8px; }
+.gfig .num.big { font-family: var(--f-display); font-size: 26px; font-weight: 700; }
+.gpct { margin-left: auto; font-weight: 600; color: var(--ink-2); }
+.gcard .meter { height: 8px; border-radius: 4px; }
+.gitems { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.gitems li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; padding: 3px 0; }
+.gitems li.done > span:not(.num) { color: var(--muted); text-decoration: line-through; }
+.gtick { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--line); background: var(--surface); display: grid; place-items: center; padding: 0; cursor: pointer; color: var(--accent-ink); }
+.gtick[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
+.gadd { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.gadd input { flex: 1; min-width: 120px; }
+.gdl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; padding-top: 8px; border-top: 1px solid var(--line); }
+.gdl dt { color: var(--muted); }
+.gdl dd { margin: 0; }
+.item-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px auto; gap: 6px; align-items: center; }
+.big-ish { font-size: 18px; font-weight: 600; }
+.bname .link { color: var(--muted); text-decoration: none; }
+.bname .link:hover, .bname .link:focus-visible { color: var(--accent); text-decoration: underline; }

@@ -3,7 +3,7 @@ import { useApp } from "../context";
 import { setBudget, setMonthOnly, setPlan, setUsualBudget, yearOf } from "../model/edit";
 import { money } from "../model/format";
 import { fmtYM, isNum, mk, MONTHS, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
-import type { Category } from "../model/types";
+import type { Category, Group } from "../model/types";
 import { AmountInput, Swatch, YearSelect } from "../ui/bits";
 
 const MODE_KEY = "pesa-ledger.budget-mode";
@@ -44,6 +44,7 @@ export function BudgetView() {
   const unassigned = income - pl.spent - pl.saved;
   const prev = prevYM({ y, m });
   const prevPlan = book.planRange(prev.y, prev.m, prev.m);
+  const prevSpent = book.monthTotals(prev.y, prev.m);
   const groups = book.outGroups().filter((g) => book.catsIn(g.id).length);
   const copyPrev = () =>
     change((l) => {
@@ -57,20 +58,35 @@ export function BudgetView() {
   return (
     <>
       {head}
-      <div className="sumline">
-        <div><span className="lbl">To spend</span><span className="num big">{money(pl.spent)}</span></div>
-        <div><span className="lbl">To save</span><span className="num big">{money(pl.saved)}</span></div>
-        <div>
-          <span className="lbl">{t.income > 0 ? "Came in" : "Expected in"}</span><span className="num">{money(income)}</span>
-          {t.income === 0 && expected.months > 0 && <span className="muted small">your recent average</span>}
+      <section className="alloc">
+        <div className="alloc-h">
+          <span><span className="lbl">{t.income > 0 ? "Came in" : "Expected in"}</span>
+            <span className="num big">{money(income)}</span>
+            {t.income === 0 && <span className="muted small">{expected.months ? "your recent average" : "record some income to see this"}</span>}</span>
+          {income > 0 && (
+            <span className={`alloc-left${unassigned < 0 ? " neg" : ""}`}>
+              <span className="lbl">{unassigned >= 0 ? "Not budgeted yet" : "Budgeted beyond income"}</span>
+              <span className="num big">{money(Math.abs(unassigned))}</span>
+            </span>
+          )}
         </div>
-        {income > 0 && (
-          <div>
-            <span className="lbl">{unassigned >= 0 ? "Not budgeted" : "Budgeted beyond income"}</span>
-            <span className={`num${unassigned < 0 ? " d-bad" : ""}`}>{money(Math.abs(unassigned))}</span>
-          </div>
-        )}
-      </div>
+        {(() => {
+          const whole = Math.max(income, pl.spent + pl.saved, 1);
+          const w = (v: number) => `${(Math.max(0, v) / whole) * 100}%`;
+          return (
+            <div className="alloc-bar" role="img" aria-label={`To spend ${money(pl.spent)}, to save ${money(pl.saved)}, not budgeted ${money(Math.max(0, unassigned))}`}>
+              <i className="a-spend" style={{ width: w(pl.spent) }} />
+              <i className="a-save" style={{ width: w(pl.saved) }} />
+              {unassigned > 0 && <i className="a-free" style={{ width: w(unassigned) }} />}
+            </div>
+          );
+        })()}
+        <div className="alloc-key small">
+          <span><i className="a-spend" /> To spend <b className="num">{money(pl.spent)}</b></span>
+          <span><i className="a-save" /> To save <b className="num">{money(pl.saved)}</b></span>
+          {unassigned > 0 && <span><i className="a-free" /> Not budgeted <b className="num">{money(unassigned)}</b></span>}
+        </div>
+      </section>
 
       {!pl.has && (
         <div className="notice">
@@ -82,20 +98,28 @@ export function BudgetView() {
       <div className="groups">
         {groups.map((g) => {
           const cats = book.catsIn(g.id);
-          return (
-            <section className="grp" key={g.id}>
-              <div className="grp-h">
-                <span className="fold static"><Swatch g={g} /><h3>{g.name}</h3></span>
-                <span className="tot num">{money(pl.byGroup[g.id] || 0)}</span>
-              </div>
-              <div>{cats.map((c) => <BudgetRow key={c.id} c={c} y={y} m={m} />)}</div>
-            </section>
-          );
+          return <BudgetGroup key={g.id} g={g} cats={cats} y={y} m={m} total={pl.byGroup[g.id] || 0} lastSpent={prevSpent.byGroup[g.id] || 0} lastLabel={MONTHS[prev.m - 1]} />;
         })}
         {!groups.length && <div className="panel">Add spending or saving categories on the <a href="#categories">Categories</a> page first.</div>}
       </div>
       <p className="small muted">An amount is the usual one for every month unless you tick <b>Only {MONTHS[m - 1]}</b>: school fees in January, insurance in November.</p>
     </>
+  );
+}
+
+/** A group of the budget: folds away, and says what the group cost last month beside its budget. */
+function BudgetGroup({ g, cats, y, m, total, lastSpent, lastLabel }: { g: Group; cats: Category[]; y: number; m: number; total: number; lastSpent: number; lastLabel: string }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <section className="grp">
+      <div className="grp-h">
+        <button className="fold" aria-expanded={open} onClick={() => setOpen((x) => !x)}>
+          <span className={`chev${open ? " open" : ""}`} aria-hidden>▸</span><Swatch g={g} /><h3>{g.name}</h3>
+        </button>
+        <span className="tot"><span className="num">{money(total)}</span>{lastSpent > 0 && <span className="muted small"> · {lastLabel} cost {money(lastSpent)}</span>}</span>
+      </div>
+      {open && <div>{cats.map((c) => <BudgetRow key={c.id} c={c} y={y} m={m} />)}</div>}
+    </section>
   );
 }
 
@@ -109,17 +133,28 @@ function BudgetRow({ c, y, m }: { c: Category; y: number; m: number }) {
     return null;
   })();
   const spent = book.actual(y, m, c.id);
+  const p = prevYM({ y, m });
+  const last = book.actual(p.y, p.m, c.id);
+  const set = (v: number | null) => change((l) => void (only ? setMonthOnly(l, y, m, c.id, v) : setUsualBudget(l, y, c.id, v)), [`y:${y}`]);
   return (
     <div className="brow">
-      <span className="nname">{c.name}{spent != null && <span className="muted small"> · {money(spent)} so far</span>}</span>
+      <span className="bname">
+        <span className="nname">{c.name}</span>
+        <span className="muted small">
+          {spent != null ? <>{money(spent)} {book.effectOf(c.id) === "aside" ? "saved" : "spent"} so far</> : null}
+          {spent != null && last != null ? " · " : null}
+          {last != null && (value == null || Math.round(last) !== Math.round(value))
+            ? <button className="link" title={`Use ${money(last)} as the budget`} onClick={() => set(Math.round(last))}>{MONTHS[p.m - 1]}: {money(last)}</button>
+            : last != null ? <>{MONTHS[p.m - 1]}: {money(last)}</> : null}
+        </span>
+      </span>
       <label className={`only small${only ? " on" : ""}`} title={`Use this amount for ${MONTHS_LONG[m - 1]} only; the other months keep theirs`}>
         <input type="checkbox" checked={only} aria-label={`${c.name}: ${MONTHS_LONG[m - 1]} only`}
           onChange={(e) => change((l) => void setMonthOnly(l, y, m, c.id, e.target.checked ? (value ?? 0) : null), [`y:${y}`])} />
         Only {MONTHS[m - 1]}
         {only && usual != null && <span className="muted"> (usually {money(usual)})</span>}
       </label>
-      <AmountInput value={value} label={`${c.name} budget for ${MONTHS_LONG[m - 1]}`} placeholder="–"
-        onCommit={(v) => change((l) => void (only ? setMonthOnly(l, y, m, c.id, v) : setUsualBudget(l, y, c.id, v)), [`y:${y}`])} />
+      <AmountInput value={value} label={`${c.name} budget for ${MONTHS_LONG[m - 1]}`} placeholder="–" onCommit={set} />
     </div>
   );
 }

@@ -475,19 +475,27 @@ export class Book {
   goal(g: Goal) {
     const from = parseYM(g.from || `${this.today.y}-01`);
     const deadline = parseYM(g.deadline || `${this.today.y}-12`);
-    let contributed = 0, monthsWith = 0;
+    let contributed = 0;
+    const months = new Set<string>();
     for (const y of Object.keys(this.ledger.years).map(Number).sort()) {
       if (y < from.y) continue;
       for (let m = 1; m <= 12; m++) {
         if (y === from.y && m < from.m) continue;
-        let any = false;
         for (const cid of g.cats) {
           const v = this.actual(y, m, cid);
-          if (v != null) { contributed += v; any = true; }
+          if (v != null) { contributed += v; months.add(ymKey({ y, m })); }
         }
-        if (any) monthsWith++;
       }
     }
+    // money added by hand counts too, in the month it was added
+    let deposited = 0;
+    for (const d of g.deposits ?? []) {
+      if (before(parseYM(d.ym), from)) continue;
+      deposited += d.amount;
+      months.add(d.ym);
+    }
+    contributed += deposited;
+    const monthsWith = months.size;
     const saved = (g.start || 0) + contributed;
     const remaining = Math.max(0, g.target - saved);
     const monthsLeft = Math.max(0, (deadline.y - this.today.y) * 12 + (deadline.m - this.today.m) + 1);
@@ -520,7 +528,7 @@ export class Book {
     const reached = remaining === 0;
     const onTrack = reached || (budgeted ? byDeadline >= g.target : average >= neededPerMonth);
     return {
-      saved, remaining, average, neededPerMonth, monthsLeft, atPace, onBudget, byDeadline, budgeted, reached, onTrack,
+      saved, deposited, remaining, average, neededPerMonth, monthsLeft, atPace, onBudget, byDeadline, budgeted, reached, onTrack,
       progress: g.target ? Math.min(1, saved / g.target) : 0,
     };
   }

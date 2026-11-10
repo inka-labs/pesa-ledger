@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SEARCH_KEY, UNDO_KEY } from "./ui/keys";
 import { api, type Version } from "./api";
 import { NAME } from "./brand";
-import { AppContext, SECTIONS, TABS, sectionOf, type Ctx, type Tab, type View } from "./context";
-import { ChevronLeft, Info, Monitor, Moon, Plus, Search, Settings as SettingsIcon, Sun, Undo2, X } from "lucide-react";
+import { ABOUT, AppContext, SECTIONS, TABS, sectionOf, type Ctx, type Tab, type View } from "./context";
+import { ChevronDown, ChevronLeft, Ellipsis, Info, Monitor, Moon, Plus, Search, Settings as SettingsIcon, Sun, Undo2, X } from "lucide-react";
 import { AddExpense } from "./ui/AddExpense";
 import { MoreView } from "./views/MoreView";
 import { TAB_ICON } from "./ui/icons";
@@ -163,6 +163,8 @@ export default function App() {
   // "Add expense": undefined is closed; a string (possibly empty) is open, with that category chosen
   const [adding, setAdding] = useState<string | undefined>(undefined);
   const addExpense = useCallback((cid?: string | null) => setAdding(cid ?? ""), []);
+  const [phoneMore, setPhoneMore] = useState(false);
+  useEffect(() => setPhoneMore(false), [tab]);
 
   const ctx: Ctx | null = useMemo(() => {
     if (!ledger) return null;
@@ -223,7 +225,10 @@ export default function App() {
           </button>
           <button className="btn primary add-btn" onClick={() => { setView(ctxToday(ledger)); addExpense(); }}><Plus size={16} aria-hidden /> Add expense</button>
           <nav className="side-nav">
-            <div className="side-sec">{SECTIONS[0].tabs.map((t) => navLink(t, "side-link"))}</div>
+            <div className="side-sec">
+              {SECTIONS[0].tabs.filter((t) => t.id !== "more").map((t) => navLink(t, "side-link"))}
+              <MoreMenu tab={tab} />
+            </div>
           </nav>
           <div className="side-foot">
             {navLink({ id: "settings", label: "Settings" }, "side-link")}
@@ -297,8 +302,25 @@ export default function App() {
         <nav className="bottombar" aria-label="Pages">
           {SECTIONS[0].tabs.slice(0, 2).map((t) => navLink(t, "bb-link"))}
           <button className="bb-add" aria-label="Add expense" onClick={() => { setView(ctxToday(ledger)); addExpense(); }}><Plus size={22} aria-hidden /></button>
-          {SECTIONS[0].tabs.slice(2).map((t) => navLink(t, "bb-link"))}
+          {navLink(SECTIONS[0].tabs[2], "bb-link")}
+          <button className={`bb-link${phoneMore || sectionOf(tab).id === "more" ? " on" : ""}`} aria-expanded={phoneMore} aria-haspopup="menu" onClick={() => setPhoneMore((x) => !x)}>
+            <Ellipsis size={17} aria-hidden /><span>More</span>
+          </button>
         </nav>
+      )}
+      {phoneMore && ledger && (
+        <div className="sheet-back" onMouseDown={(e) => e.target === e.currentTarget && setPhoneMore(false)}>
+          <nav className="more-sheet" aria-label="More pages" onClick={() => setPhoneMore(false)}>
+            {SECTIONS[1].tabs.map((t) => {
+              const Icon = TAB_ICON[t.id];
+              return (
+                <a key={t.id} className="more-row" href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined}>
+                  <Icon size={18} aria-hidden /><span><b>{t.label}</b><span className="muted small">{ABOUT[t.id]}</span></span>
+                </a>
+              );
+            })}
+          </nav>
+        </div>
       )}
       <div className="toast-zone" aria-live="polite">
         {toast && (
@@ -330,4 +352,32 @@ function SubNav({ tab }: { tab: Tab }) {
       </nav>
     );
   return null;
+}
+
+/** "More" in the sidebar: a dropdown of the pages under it, open while you're on one of them. */
+function MoreMenu({ tab }: { tab: Tab }) {
+  const inside = sectionOf(tab).id === "more";
+  const [open, setOpen] = useState(inside);
+  useEffect(() => { if (inside) setOpen(true); }, [inside]);
+  const Icon = TAB_ICON.more;
+  return (
+    <div className="side-more">
+      <button className="side-link" aria-expanded={open} aria-controls="side-more-list" onClick={() => setOpen((x) => !x)}>
+        <Icon size={17} strokeWidth={1.9} aria-hidden /><span>More</span>
+        <ChevronDown size={15} aria-hidden className={`side-chev${open ? " open" : ""}`} />
+      </button>
+      {open && (
+        <div id="side-more-list" className="side-sub">
+          {SECTIONS[1].tabs.map((t) => {
+            const I = TAB_ICON[t.id];
+            return (
+              <a key={t.id} className="side-link sub" href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined} title={ABOUT[t.id]}>
+                <I size={15} strokeWidth={1.9} aria-hidden /><span>{t.label}</span>
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }

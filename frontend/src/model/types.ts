@@ -57,6 +57,10 @@ export type Goal = {
   /** "YYYY-MM": contributions count from this month */
   from: string;
   cats: string[];
+  /** what the goal is for, one by one (a deposit, movers, a sofa): the target is their total */
+  items?: GoalItem[];
+  /** money put towards it by hand, not through a linked category */
+  deposits?: Deposit[];
 };
 
 export type Tint = "off" | "soft" | "rich";
@@ -107,6 +111,9 @@ export type YearDoc = {
   /** month key -> category id -> expenses added one at a time with "Add expense" (already part of actual) */
   entries?: Record<string, Record<string, Entry[]>>;
 };
+
+export type GoalItem = { id: string; name: string; amount: number; done?: boolean };
+export type Deposit = { ym: string; amount: number; note?: string };
 
 export type Entry = { amount: number; note?: string; day?: number };
 
