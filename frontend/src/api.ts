@@ -32,7 +32,8 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
 export type Version = { version: string; name: string; platform: string; home: string; autostart: { supported: boolean; enabled: boolean } };
-export type Stored = { settings: Settings | null; years: Record<string, Partial<YearDoc>> };
+/** `problems`: files the server couldn't read and set aside (it never overwrites them). */
+export type Stored = { settings: Settings | null; years: Record<string, Partial<YearDoc>>; problems?: string[] };
 export type Backup = { name: string; kind: string; taken: string; years: string[]; size: number };
 
 export const api = {

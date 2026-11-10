@@ -135,7 +135,9 @@ function PayPanel() {
 
 const ordinal = (d: number) => d + (d % 10 === 1 && d !== 11 ? "st" : d % 10 === 2 && d !== 12 ? "nd" : d % 10 === 3 && d !== 13 ? "rd" : "th");
 
-export function SettingsView({ version, onRestored }: { version: Version | null; onRestored: (s: Stored) => void }) {
+export function SettingsView({ version, onRestored, saveNow, backupNow }: {
+  version: Version | null; onRestored: (s: Stored) => void; saveNow: () => Promise<boolean>; backupNow: () => Promise<{ name: string }>;
+}) {
   const { book, change, replace, notify } = useApp();
   const st = book.settings;
   const [msg, setMsg] = useState<{ text: string; err?: boolean } | null>(null);
@@ -195,7 +197,7 @@ export function SettingsView({ version, onRestored }: { version: Version | null;
         <div className="stack">
           <div className="panel">
             <div className="panel-h"><h3>Backups</h3>
-              <div className="end"><button className="btn" onClick={() => api.backupNow().then(() => { setMsg({ text: "Backup saved." }); loadBackups(); }).catch(fail)}>Back up now</button></div></div>
+              <div className="end"><button className="btn" onClick={() => backupNow().then(() => { setMsg({ text: "Backup saved." }); loadBackups(); }).catch(fail)}>Back up now</button></div></div>
             <p className="small muted">Before the first change each day, the whole ledger is copied to a backup. The last 60 days are kept.</p>
             <div className="blist">
               {backups === null ? <span className="muted small">Loading…</span>
@@ -205,7 +207,7 @@ export function SettingsView({ version, onRestored }: { version: Version | null;
                     <span className="when">{when(b)}<br /><span className="muted small">{b.years.length ? b.years.join(", ") : "No figures"}</span></span>
                     {confirm === b.name ? (
                       <>
-                        <button className="btn danger" onClick={() => api.restore(b.name).then((s) => { onRestored(s); setConfirm(null); setMsg({ text: "Restored. What it replaced was backed up first." }); loadBackups(); }).catch(fail)}>Restore this</button>
+                        <button className="btn danger" onClick={() => saveNow().then(() => api.restore(b.name)).then((s) => { onRestored(s); setConfirm(null); setMsg({ text: "Restored. What it replaced was backed up first." }); loadBackups(); }).catch(fail)}>Restore this</button>
                         <button className="btn ghost" onClick={() => setConfirm(null)}>Cancel</button>
                       </>
                     ) : <button className="btn ghost" onClick={() => setConfirm(b.name)}>Restore…</button>}

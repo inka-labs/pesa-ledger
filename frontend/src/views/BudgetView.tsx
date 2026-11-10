@@ -5,7 +5,7 @@ import { fmtYM, isNum, mk, MONTHS } from "../model/ledger";
 import { Alt, AmountInput, Delta, Kpi, Swatch, YearSelect } from "../ui/bits";
 
 export function BudgetView() {
-  const { book, change, view, setView, go } = useApp();
+  const { book, change, view, setView, go, notify } = useApp();
   const y = view.planYear;
   const fc = book.forecastYear(y);
   const expected = book.expectedIncome();
@@ -15,14 +15,19 @@ export function BudgetView() {
   const totals = MONTHS.map((_, i) => book.planRange(y, i + 1, i + 1));
   const prevActual = book.rangeTotals(y - 1, 1, 12).has;
 
-  const copyPrev = () =>
+  // both replace the whole year's budget, so say so with an Undo when there was one to replace
+  const replaced = (what: string) => notify(book.hasAnyBudget(y) ? `${y} budget replaced with ${what}.` : `${y} budget set from ${what}.`, book.hasAnyBudget(y));
+  const copyPrev = () => {
+    replaced(`the ${y - 1} budget`);
     change((l) => {
       const src = l.years[String(y - 1)];
       const yd = yearOf(l, y);
       yd.plan = structuredClone(src?.plan ?? {});
       yd.budget = structuredClone(src?.budget ?? {});
     }, [`y:${y}`]);
-  const fromActuals = () =>
+  };
+  const fromActuals = () => {
+    replaced(`${y - 1} actuals`);
     change((l) => {
       const yd = yearOf(l, y);
       yd.plan = {};
@@ -31,6 +36,7 @@ export function BudgetView() {
         for (const [cid, v] of Object.entries(l.years[String(y - 1)]?.actual?.[mk(m)] ?? {}))
           if (book.budgeted(cid) && !book.cats[cid].archived && isNum(v)) (yd.budget[mk(m)] ??= {})[cid] = Math.round(v / 100) * 100;
     }, [`y:${y}`]);
+  };
 
   return (
     <>

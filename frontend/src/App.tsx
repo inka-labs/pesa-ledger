@@ -64,7 +64,12 @@ function useTheme() {
 }
 
 export default function App() {
-  const { load, ledger, save, change, replace, restored, undo, canUndo, retry } = useLedger();
+  const { load, ledger, save, change, replace, restored, undo, canUndo, retry, saveNow, problems } = useLedger();
+  /** A backup reads the files on disk, so anything still waiting to be saved goes first. */
+  const backupNow = useCallback(async () => {
+    if (!(await saveNow())) throw new Error("Your latest changes aren't saved yet, so a backup now would miss them. Try again once they're saved.");
+    return api.backupNow();
+  }, [saveNow]);
   const [tab, setTab] = useState<Tab>(tabFromHash);
   const today = thisMonth();
   const [view, setViewState] = useState<View>({
@@ -187,7 +192,7 @@ export default function App() {
     { id: "a:theme", label: "Switch theme", hint: `Now: ${theme}`, kind: "Action", run: cycle },
     { id: "a:export", label: "Export CSV", hint: "Save every figure as a spreadsheet", kind: "Action", run: () => ledger && downloadCSV(buildCSV(ledger)) },
     { id: "a:backup", label: "Back up now", hint: "A copy of the whole ledger", kind: "Action",
-      run: () => api.backupNow().then(() => notify("Backup saved.")).catch((e) => notify((e as Error).message)) },
+      run: () => backupNow().then(() => notify("Backup saved.")).catch((e) => notify((e as Error).message)) },
     { id: "a:rates", label: "Check exchange rates", hint: "Fetch today's rates", kind: "Action", run: () => loadRates(true).then(() => notify("Exchange rates checked.")) },
   ];
 
@@ -238,7 +243,18 @@ export default function App() {
         </header>
 
         {save.kind === "error" && (
-          <div className="banner" role="alert"><span><b>Your last change wasn't saved.</b> {save.message}</span><button className="btn" onClick={retry}>Try again</button></div>
+          <div className="banner" role="alert">
+            <span><b>{save.signedOut ? "Signed out: your changes aren't saved yet." : "Your last change wasn't saved."}</b> {save.message}</span>
+            <span className="bar">
+              {ledger && <button className="btn ghost" onClick={() => downloadCSV(buildCSV(ledger))}>Export CSV</button>}
+              <button className="btn" onClick={() => void retry()}>Try again</button>
+            </span>
+          </div>
+        )}
+        {problems.length > 0 && (
+          <div className="banner" role="alert">
+            <span><b>Part of your ledger couldn't be read.</b> {problems.join(" ")} Nothing was overwritten; restore a backup from Settings → General, or put the file back from the data folder.</span>
+          </div>
         )}
         {ledger?.settings.example && tab !== "settings" && !exampleHidden && (
           <div className="strip-note">
@@ -265,7 +281,7 @@ export default function App() {
             {tab === "health" && <HealthView />}
             {tab === "networth" && <NetWorthView />}
             {tab === "categories" && <CategoriesView />}
-            {tab === "settings" && <SettingsView version={version} onRestored={restored} />}
+            {tab === "settings" && <SettingsView version={version} onRestored={restored} saveNow={saveNow} backupNow={backupNow} />}
             {tab === "appearance" && <AppearanceView />}
             {search && <CommandPalette onClose={closeSearch} actions={actions} />}
           </AppContext.Provider>

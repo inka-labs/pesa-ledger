@@ -7,11 +7,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, normalise, type Stored } from "./api";
 import type { Ledger } from "./model/types";
+import { Saver, type SaveState } from "./saver";
+
+export type { SaveState };
 
 export type LoadState = { kind: "loading" } | { kind: "signedout"; message: string } | { kind: "failed"; message: string } | { kind: "ready" };
-export type SaveState = { kind: "idle" | "saving" | "saved" } | { kind: "error"; message: string };
-
-const DELAY = 500;
+/** `signedOut`: the browser lost its sign-in while saving. The ledger stays on screen with the changes in it;
+ *  signing in again in another tab and pressing Try again saves them. */
 const HISTORY = 50;
 
 export function useLedger() {
@@ -19,9 +21,19 @@ export function useLedger() {
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
   const latest = useRef<Ledger | null>(null);
-  const dirty = useRef(new Set<string>());
-  const timer = useRef<number | undefined>(undefined);
-  const flushing = useRef(false);
+  const saver = useRef<Saver | null>(null);
+  saver.current ??= new Saver(async (key) => {
+    const l = latest.current;
+    if (!l) return;
+    if (key === "settings") await api.putSettings(l.settings);
+    else {
+      const y = key.slice(2);
+      if (l.years[y]) await api.putYear(y, l.years[y]);
+      else await api.deleteYear(y);
+    }
+  }, setSave);
+  const saves = saver.current;
+  const [problems, setProblems] = useState<string[]>([]);
   // earlier versions of the ledger, newest last, for Undo
   const history = useRef<Ledger[]>([]);
   const [canUndo, setCanUndo] = useState(false);
@@ -33,6 +45,7 @@ export function useLedger() {
   };
 
   const accept = useCallback((stored: Stored) => {
+    setProblems(stored.problems ?? []);
     const l = normalise(stored);
     latest.current = l;
     setLedger(l);
@@ -52,46 +65,7 @@ export function useLedger() {
     reload();
   }, [reload]);
 
-  const flush = useCallback(async () => {
-    if (flushing.current) {
-      window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(flush, DELAY);
-      return;
-    }
-    flushing.current = true;
-    setSave({ kind: "saving" });
-    try {
-      while (dirty.current.size) {
-        const key = dirty.current.values().next().value as string;
-        dirty.current.delete(key);
-        const l = latest.current;
-        if (!l) continue;
-        try {
-          if (key === "settings") await api.putSettings(l.settings);
-          else {
-            const y = key.slice(2);
-            if (l.years[y]) await api.putYear(y, l.years[y]);
-            else await api.deleteYear(y);
-          }
-        } catch (e) {
-          dirty.current.add(key); // keep it, so the next change retries it
-          const err = e as ApiError;
-          if (err.status === 401) setLoad({ kind: "signedout", message: err.message });
-          setSave({ kind: "error", message: err.message || "The last change wasn't saved." });
-          return;
-        }
-      }
-      setSave({ kind: "saved" });
-    } finally {
-      flushing.current = false;
-    }
-  }, []);
-
-  const schedule = useCallback(() => {
-    setSave({ kind: "saving" });
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(flush, DELAY);
-  }, [flush]);
+  const flush = useCallback(() => saves.flush(), [saves]);
 
   /** Change the ledger in place on a copy; `touches` names what to save ("settings", "y:2026"). */
   const change = useCallback(
@@ -104,10 +78,9 @@ export function useLedger() {
       remember(latest.current);
       latest.current = next;
       setLedger(next);
-      touches.forEach((k) => dirty.current.add(k));
-      schedule();
+      saves.touch(...touches);
     },
-    [schedule],
+    [saves],
   );
 
   /** Swap the whole ledger (start, import, example): saves settings and every year, deleting years it no longer has. */
@@ -117,11 +90,9 @@ export function useLedger() {
       remember(latest.current);
       latest.current = next;
       setLedger(next);
-      dirty.current.add("settings");
-      [...before, ...Object.keys(next.years)].forEach((y) => dirty.current.add(`y:${y}`));
-      schedule();
+      saves.touch("settings", ...[...before, ...Object.keys(next.years)].map((y) => `y:${y}`));
     },
-    [schedule],
+    [saves],
   );
 
   /** Put back the ledger as it was before the last change, and save whatever that touches. */
@@ -132,17 +103,18 @@ export function useLedger() {
     const now = latest.current;
     latest.current = prev;
     setLedger(prev);
-    if (JSON.stringify(prev.settings) !== JSON.stringify(now.settings)) dirty.current.add("settings");
+    const touched: string[] = [];
+    if (JSON.stringify(prev.settings) !== JSON.stringify(now.settings)) touched.push("settings");
     for (const y of new Set([...Object.keys(prev.years), ...Object.keys(now.years)]))
-      if (JSON.stringify(prev.years[y]) !== JSON.stringify(now.years[y])) dirty.current.add(`y:${y}`);
-    schedule();
+      if (JSON.stringify(prev.years[y]) !== JSON.stringify(now.years[y])) touched.push(`y:${y}`);
+    saves.touch(...touched);
     return true;
-  }, [schedule]);
+  }, [saves]);
 
   /** Restoring a backup: the server already wrote it, so just show it. */
   const restored = useCallback(
     (stored: Stored) => {
-      dirty.current.clear();
+      saves.clear();
       history.current = [];
       setCanUndo(false);
       accept(stored);
@@ -153,11 +125,11 @@ export function useLedger() {
 
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
-      if (dirty.current.size || flushing.current) e.preventDefault();
+      if (saves.pending) e.preventDefault();
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, []);
+  }, [saves]);
 
-  return { load, ledger, save, change, replace, restored, undo, canUndo, retry: flush, reload };
+  return { load, ledger, save, change, replace, restored, undo, canUndo, retry: flush, saveNow: flush, reload, problems };
 }
