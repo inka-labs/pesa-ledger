@@ -93,8 +93,8 @@ describe("net worth", () => {
 describe("health", () => {
   it("measures the last 12 months, leaving one-offs out", () => {
     const l = ledger();
-    l.years["2026"].actual["09"].ess_4 = 520_000;
-    l.years["2026"].oneoff = { "09": { ess_4: { amount: 500_000 } } };
+    l.settings.cats.push({ id: "car", name: "Car", group: "ess", oneoff: true });
+    l.years["2026"].actual["09"].car = 500_000;
     const s = healthStats(new Book(l, TODAY));
     expect(s.months).toBe(10); // Nov 2025 – Oct 2026, and 2025 has no Nov or Dec
     expect(s.negative).toEqual([]);

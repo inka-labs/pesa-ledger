@@ -164,14 +164,12 @@ export class Book {
     return o && isNum(o.amount) ? o : null;
   }
 
-  /** How much of a month's figure is one-off: all of it in a one-off category, else the part marked as
-   *  one-off that month (never more than the figure itself). */
+  /** How much of a month's figure is one-off: all of it in a one-off category, nothing elsewhere. (Older
+   *  versions could mark part of any figure; those marks stay in the file but no longer count.) */
   oneOffPart(y: number, m: number, cid: string): number {
+    if (!this.cats[cid]?.oneoff) return 0;
     const v = this.year(y)?.actual?.[mk(m)]?.[cid];
-    if (this.cats[cid]?.oneoff) return isNum(v) ? v : 0;
-    const o = this.oneOff(y, m, cid);
-    if (!o || !isNum(v)) return 0;
-    return v >= 0 ? Math.min(Math.max(o.amount, 0), v) : Math.max(Math.min(o.amount, 0), v);
+    return isNum(v) ? v : 0;
   }
 
   /** Everyday spending against its budget for a month, one-offs left out of both (a car bought from a
@@ -185,8 +183,7 @@ export class Book {
   }
 
   hasOneOffs(): boolean {
-    if (this.settings.cats.some((c) => c.oneoff)) return true;
-    return Object.values(this.ledger.years).some((yd) => Object.values(yd.oneoff ?? {}).some((r) => Object.keys(r).length > 0));
+    return this.settings.cats.some((c) => c.oneoff);
   }
 
   lastDataMonth(y: number): number {

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "../context";
-import { removeEntry, setActual, setNote, setOneOff } from "../model/edit";
-import { amountText, money } from "../model/format";
+import { removeEntry, setActual, setNote } from "../model/edit";
+import { money } from "../model/format";
 import { before, cycleLabel, mk, MONTHS, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
 import type { Category, Group } from "../model/types";
-import { AmountInput, Swatch, TextInput } from "../ui/bits";
-import { Ellipsis, Plus, Trash2 } from "lucide-react";
+import { AmountInput, changeBadge, recent, StatCard, Swatch, TextInput } from "../ui/bits";
+import { ArrowDownToLine, Ellipsis, Gauge, PiggyBank, Plus, ShoppingBag, Trash2, Wallet } from "lucide-react";
 
 export function MonthView() {
   const { book, change, view, setView, go, addExpense } = useApp();
@@ -13,6 +13,7 @@ export function MonthView() {
   const t = book.monthTotals(y, m);
   const p = prevYM({ y, m });
   const pl = book.planRange(y, m, m);
+  const tp = book.monthTotals(p.y, p.m);
   const pLabel = MONTHS[p.m - 1] + (p.y !== y ? ` ${p.y}` : "");
   const future = before(book.today, { y, m });
   const cycle = cycleLabel(book.settings, { y, m });
@@ -81,6 +82,7 @@ export function MonthView() {
         </div>
         <div className="end">
           {(y !== book.today.y || m !== book.today.m) && <button className="btn ghost" onClick={() => setView(book.today)}>{book.settings.paycycle ? "Current pay" : "This month"}</button>}
+          <button className="btn" onClick={() => go("budget", { planYear: y, planMonth: m })} title={`${MONTHS_LONG[m - 1]}'s budget`}><Wallet size={15} aria-hidden /> Budget</button>
           <button className="btn primary wide-only" onClick={() => addExpense()}><Plus size={16} aria-hidden /> Add expense</button>
           <details className="menu">
             <summary className="btn ghost" aria-label="More ways to fill in the month" title="Fill in the month"><Ellipsis size={16} aria-hidden /></summary>
@@ -94,12 +96,22 @@ export function MonthView() {
       </div>
       {cycle && <p className="cycle-note"><b>{cycle}</b>: the pay that landed in {MONTHS_LONG[m - 1]} and what it paid for.</p>}
 
-      <div className="sumline">
-        <div><span className="lbl">Spent</span><span className="num big">{money(sv.spent)}</span>{(spentBudget > 0 || sv.oneOff !== 0) && <span className="muted small">{spentBudget > 0 ? `of ${money(spentBudget)}` : ""}{sv.oneOff ? `${spentBudget > 0 ? " · " : ""}plus ${money(sv.oneOff)} one-off` : ""}</span>}</div>
-        {spentBudget > 0 && <div><span className="lbl">{leftToSpend >= 0 ? "Left to spend" : "Over budget"}</span><span className={`num big${sv.spent > spentBudget * 1.1 ? " d-bad" : leftToSpend < 0 ? " warn-ink" : ""}`}>{money(Math.abs(leftToSpend))}</span></div>}
-        <div><span className="lbl">Came in</span><span className="num">{money(t.income)}</span></div>
-        <div><span className="lbl">Saved</span><span className="num">{money(t.saved)}</span></div>
-        <div><span className="lbl">Left over</span><span className={`num${t.left < 0 ? " d-bad" : ""}`}>{money(t.left)}</span></div>
+      <div className="stats">
+        <StatCard icon={Gauge} lead tone={leftToSpend < 0 && spentBudget > 0 ? "amber" : "green"}
+          label={spentBudget > 0 ? (leftToSpend >= 0 ? "Left to spend" : "Over budget") : "No budget yet"}
+          value={spentBudget > 0 ? Math.abs(leftToSpend) : "–"} plain={spentBudget <= 0}
+          valueTone={sv.spent > spentBudget * 1.1 && spentBudget > 0 ? "bad" : leftToSpend < 0 && spentBudget > 0 ? "warn" : undefined}
+          share={spentBudget > 0 ? sv.spent / spentBudget : null}
+          line={spentBudget > 0 ? `Budget ${money(spentBudget)}` : <button className="link" onClick={() => go("budget", { planYear: y, planMonth: m })}>Set a budget</button>} />
+        <StatCard icon={ShoppingBag} tone="orange" label="Spent" value={sv.spent}
+          badge={changeBadge(t.spent, tp.has ? tp.spent : null, false)} badgeLabel={`vs ${pLabel}`}
+          spark={recent(book, { y, m }, (x) => x.spent)} line={sv.oneOff ? `plus ${money(sv.oneOff)} one-off` : undefined} />
+        <StatCard icon={ArrowDownToLine} tone="blue" label="Came in" value={t.income}
+          badge={changeBadge(t.income, tp.has ? tp.income : null, true)} badgeLabel={`vs ${pLabel}`}
+          spark={recent(book, { y, m }, (x) => x.income)} />
+        <StatCard icon={PiggyBank} tone="violet" label="Saved" value={t.saved}
+          badge={changeBadge(t.saved, tp.has ? tp.saved : null, true)} badgeLabel={`vs ${pLabel}`}
+          spark={recent(book, { y, m }, (x) => x.saved)} line={`Left over ${money(t.left)}`} />
       </div>
       {future && <p className="small muted">{MONTHS_LONG[m - 1]} hasn't happened yet. <button className="link" onClick={() => go("budget", { planYear: y, planMonth: m })}>Set its budget</button>.</p>}
       {!future && <Unpaid />}
@@ -261,71 +273,6 @@ function GroupSection({ g, gAct, gPlan, show }: { g: Group; gAct: number; gPlan:
   );
 }
 
-/** Mark how much of this month's figure won't repeat (the car, a renovation, a bonus). It stays in the
- *  month's totals; Year and Compare can leave it out, and forecasts never count on it again. */
-function OneOffControl({ c, actual }: { c: Category; actual: number | null }) {
-  const { book, change, view, read, notify } = useApp();
-  const { y, m } = view;
-  const o = book.oneOff(y, m, c.id);
-  const [open, setOpen] = useState(false);
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [bad, setBad] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    setAmount(amountText(o?.amount ?? actual)); setNote(o?.note ?? ""); setBad("");
-    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", esc); };
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-  // one-offs are a category of their own now; a part marked on an ordinary category before still shows
-  if (!o) return null;
-  const save = (e: React.FormEvent) => {
-    e.preventDefault();
-    const r = read(amount);
-    if ("error" in r) { setBad(r.error); return; }
-    if (r.value == null || r.value === 0) { setBad("Enter the one-off part of the figure."); return; }
-    if (actual != null && Math.abs(r.value) > Math.abs(actual)) { setBad(`It's part of the figure, so at most ${money(actual)}.`); return; }
-    change((l) => void setOneOff(l, y, m, c.id, { amount: r.value!, note }), [`y:${y}`]);
-    setOpen(false);
-  };
-  const clear = () => {
-    change((l) => void setOneOff(l, y, m, c.id, null), [`y:${y}`]);
-    notify(`${c.name} in ${MONTHS[m - 1]} counts as regular again.`, true);
-    setOpen(false);
-  };
-  return (
-    <div className="oneoff" ref={ref}>
-      {o ? (
-        <button className="oneoff-tag" onClick={() => setOpen((x) => !x)} title="Part of this figure won't repeat. Click to change.">
-          One-off {money(o.amount)}{o.note ? ` · ${o.note}` : ""}
-        </button>
-      ) : (
-        <button className="oneoff-add" onClick={() => setOpen((x) => !x)} title="Mark all or part of this figure as a one-off">One-off?</button>
-      )}
-      {open && (
-        <form className="oneoff-pop" role="dialog" aria-label={`One-off in ${c.name}`} onSubmit={save}>
-          <p className="small muted">How much of {MONTHS_LONG[m - 1]}'s {money(actual ?? 0)} won't repeat? It stays in this month's totals, and Year and Compare can leave it out.</p>
-          <label className="lbl" htmlFor={`oo-a-${c.id}`}>One-off amount</label>
-          <input id={`oo-a-${c.id}`} className={`amt${bad ? " invalid" : ""}`} inputMode="decimal" value={amount} autoFocus
-            onFocus={(e) => e.currentTarget.select()} onChange={(e) => { setAmount(e.target.value); setBad(""); }} />
-          {bad && <span className="small d-bad">{bad}</span>}
-          <label className="lbl" htmlFor={`oo-n-${c.id}`}>What was it?</label>
-          <input id={`oo-n-${c.id}`} value={note} maxLength={200} placeholder="e.g. Car purchase, house renovation" onChange={(e) => setNote(e.target.value)} />
-          <div className="bar">
-            <button className="btn primary">Save</button>
-            {o && <button type="button" className="btn ghost danger" onClick={clear}>Not a one-off</button>}
-            <button type="button" className="btn ghost" onClick={() => setOpen(false)}>Cancel</button>
-          </div>
-        </form>
-      )}
-    </div>
-  );
-}
-
 function CategoryRow({ c, g }: { c: Category; g: Group }) {
   const { book, change, view, addExpense, notify } = useApp();
   const { y, m } = view;
@@ -361,7 +308,6 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
         <span className="nstat small">
           {status}
           {entries.length > 0 && <span className="muted">{status ? " · " : ""}{entries.length} added</span>}
-          {!c.oneoff && effect !== "none" && <OneOffControl c={c} actual={a} />}
         </span>
       </div>
       <button className="iconbtn quick" aria-label={`Add an expense to ${c.name}`} title={`Add to ${c.name}`} onClick={() => addExpense(c.id)}><Plus size={15} aria-hidden /></button>

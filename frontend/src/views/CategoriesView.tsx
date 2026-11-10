@@ -4,7 +4,7 @@
  *  search and filter; fold groups. Group types live folded away at the bottom: they're set once. */
 
 import { useCallback, useMemo, useState } from "react";
-import { GripVertical, Pencil, Plus, Search, X } from "lucide-react";
+import { GripVertical, Pencil, PiggyBank, Plus, Repeat, Search, Sparkles, Tags, X } from "lucide-react";
 import { useApp } from "../context";
 import { newId, nextSlot, textSlotTaken } from "../model/csv";
 import { setPlan } from "../model/edit";
@@ -13,18 +13,20 @@ import { addMonths, EFFECTS, fmtYM, kindsOf, MONTHS, parseYM } from "../model/le
 import { bucketOf, defaultBucket, defineBucket, placedByYou, ruleById } from "../model/allocation";
 import type { Category, Effect, Group, Ledger } from "../model/types";
 import { ColorPicker } from "../ui/ColorPicker";
-import { AmountInput, Sparkline, TextInput } from "../ui/bits";
+import { AmountInput, Sparkline, StatCard, TextInput } from "../ui/bits";
 import { colorOf } from "../model/theme";
 import { useFolded } from "../ui/fold";
 import { Sheet } from "../ui/Sheet";
+
+const SECTION_NAME: Record<Effect, string> = { in: "Money in", aside: "Saving & investing", out: "Spending", none: "Tracked only" };
 
 const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 /** Whether a name is already taken in a list (ignoring capitals and spaces), other than by `except`. */
 const taken = (list: { id: string; name: string }[], name: string, except?: string) => list.some((x) => x.id !== except && norm(x.name) === norm(name));
 
-type Filter = "all" | "repeating" | "funds" | "unused" | "archived";
+type Filter = "all" | "repeating" | "funds" | "oneoff" | "unused" | "archived";
 const FILTERS: { id: Filter; label: string }[] = [
-  { id: "all", label: "All" }, { id: "repeating", label: "Repeating" }, { id: "funds", label: "Sinking funds" },
+  { id: "all", label: "All" }, { id: "repeating", label: "Repeating" }, { id: "funds", label: "Sinking funds" }, { id: "oneoff", label: "One-offs" },
   { id: "unused", label: "Unused 6 months" }, { id: "archived", label: "Archived" },
 ];
 
@@ -59,6 +61,7 @@ export function CategoriesView() {
     else if (c.archived) return false;
     if (filter === "repeating" && !c.repeat) return false;
     if (filter === "funds" && !c.fund) return false;
+    if (filter === "oneoff" && !c.oneoff) return false;
     if (filter === "unused" && h?.recent) return false;
     if (q.trim()) {
       const g = book.groups[c.group];
@@ -70,6 +73,10 @@ export function CategoriesView() {
   const shown = groups.map((g) => ({ g, cats: book.catsIn(g.id, true).filter(matches) })).filter((x) => !narrowing || x.cats.length);
   const count = shown.reduce((s, x) => s + x.cats.length, 0);
   const archivedCount = book.settings.cats.filter((c) => c.archived).length;
+  const active = book.settings.cats.filter((c) => !c.archived);
+  const repeating = active.filter((c) => !!c.repeat);
+  const funds = active.filter((c) => !!c.fund);
+  const oneoffs = active.filter((c) => !!c.oneoff);
 
   /** Put `id` before `beforeId` (or at the end of `gid`), moving it to that group if need be. */
   const place = (id: string, gid: string, beforeId: string | null) => {
@@ -91,8 +98,7 @@ export function CategoriesView() {
   return (
     <>
       <div className="panel-h">
-        <h2>Categories</h2>
-        <span className="muted">{book.settings.cats.filter((c) => !c.archived).length} categories in {groups.length} groups</span>
+        <div><h2>Categories</h2><span className="muted small">Groups arranged by what they're for. Click a category for everything about it; drag to reorder.</span></div>
         <div className="end">
           <button className="btn ghost" onClick={() => setAll(groups.map((g) => g.id), !groups.every((g) => folded.has(g.id)))}>{groups.every((g) => folded.has(g.id)) ? "Expand all" : "Collapse all"}</button>
           <button className="btn" onClick={() => {
@@ -101,6 +107,12 @@ export function CategoriesView() {
             document.getElementById("new-group-name")?.focus({ preventScroll: true });
           }}><Plus size={15} aria-hidden /> New group</button>
         </div>
+      </div>
+      <div className="stats">
+        <StatCard icon={Tags} lead tone="green" label="Categories" plain value={String(active.length)} line={`in ${groups.length} groups${archivedCount ? ` · ${archivedCount} archived` : ""}`} />
+        <StatCard icon={Repeat} tone="blue" label="Repeat every month" plain value={String(repeating.length)} line={repeating.length ? `${money(repeating.reduce((s, c) => s + Math.abs(c.repeat ?? 0), 0))} a month` : "Rent, salary, subscriptions"} />
+        <StatCard icon={PiggyBank} tone="violet" label="Sinking funds" plain value={String(funds.length)} line={funds.length ? `${funds.filter((c) => ["short", "overdue"].includes(book.fund(c.id)?.status ?? "")).length} short of their bill` : "Pots for bills you know are coming"} />
+        <StatCard icon={Sparkles} tone="orange" label="One-off categories" plain value={String(oneoffs.length)} line={oneoffs.length ? oneoffs.map((c) => c.name).slice(0, 3).join(", ") : "A car, a renovation, a bonus"} />
       </div>
       {view.catHint && <div className="notice">These are starter categories. Rename them, remove the ones you don't use and add your own. Then set amounts on the Budget tab.</div>}
 
@@ -120,14 +132,28 @@ export function CategoriesView() {
       </div>
       {narrowing && <p className="small muted">{count ? `${count} ${count === 1 ? "category" : "categories"} shown.` : "Nothing matches."} {narrowing && <button className="link" onClick={() => { setQ(""); setFilter("all"); }}>Show all</button>}</p>}
 
-      <div className="cg-grid">
-        {shown.map(({ g, cats }, i) => (
-          <GroupCard key={g.id} g={g} cats={cats} hist={hist.by} first={i === 0} last={i === shown.length - 1} narrowing={narrowing}
-            folded={!narrowing && folded.has(g.id)} onFold={() => toggle(g.id)} onOpen={setOpen}
-            drag={drag} setDrag={setDrag} place={place} />
-        ))}
-        <NewGroup />
-      </div>
+      {EFFECTS.map((e) => {
+        const here = shown.filter(({ g }) => book.effectOfGroup(g) === e.id);
+        if (!here.length) return null;
+        const sum = here.reduce((s, { g }) => s + book.catsIn(g.id, true).reduce((t, c) => t + (hist.by[c.id]?.total ?? 0), 0), 0);
+        return (
+          <section key={e.id} className="cg-sec" aria-labelledby={`sec-${e.id}`}>
+            <div className="cg-sec-h">
+              <h3 id={`sec-${e.id}`}>{SECTION_NAME[e.id]}</h3>
+              <span className="muted small">{e.help}</span>
+              <span className="end small muted">{here.length} {here.length === 1 ? "group" : "groups"} · <b className="num">{money(sum)}</b> in the last 12 months</span>
+            </div>
+            <div className="cg-grid">
+              {here.map(({ g, cats }, i) => (
+                <GroupCard key={g.id} g={g} cats={cats} hist={hist.by} first={i === 0} last={i === here.length - 1} narrowing={narrowing}
+                  folded={!narrowing && folded.has(g.id)} onFold={() => toggle(g.id)} onOpen={setOpen}
+                  drag={drag} setDrag={setDrag} place={place} />
+              ))}
+            </div>
+          </section>
+        );
+      })}
+      <NewGroup />
 
       <details className="panel hsetup">
         <summary><h3>Group types</h3><span className="muted small">How each group's figures count: money in, set aside, money out, or tracked only. Usually set once.</span></summary>
@@ -150,8 +176,12 @@ function GroupCard({ g, cats, hist, first, last, narrowing, folded, onFold, onOp
   const group = (l: Ledger) => l.settings.groups.find((x) => x.id === g.id)!;
   const all = book.catsIn(g.id, true);
   const total = all.reduce((s, c) => s + (hist[c.id]?.total ?? 0), 0);
+  // up and down move a group among the groups of its own kind (the page shows them together)
   const moveGroup = (dir: -1 | 1) => edit((l) => {
-    const gs = l.settings.groups, i = gs.findIndex((x) => x.id === g.id), j = i + dir;
+    const gs = l.settings.groups, i = gs.findIndex((x) => x.id === g.id);
+    const effect = book.effectOfGroup(g);
+    let j = i + dir;
+    while (j >= 0 && j < gs.length && book.effectOfGroup(gs[j]) !== effect) j += dir;
     if (j >= 0 && j < gs.length) [gs[i], gs[j]] = [gs[j], gs[i]];
   });
   const add = (e: React.FormEvent) => {
@@ -181,7 +211,7 @@ function GroupCard({ g, cats, hist, first, last, narrowing, folded, onFold, onOp
           {book.kindList().map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
           {!book.kinds[g.kind] && <option value={g.kind}>Removed type</option>}
         </select>
-        <span className="cg-total num" title="Last 12 months">{money(total)}</span>
+        <span className="cg-total num" title="All its categories, last 12 months">{money(total)}</span>
         <span className="moves">
           <button className="iconbtn" aria-label={`Move ${g.name} up`} disabled={first || narrowing} onClick={() => moveGroup(-1)}>↑</button>
           <button className="iconbtn" aria-label={`Move ${g.name} down`} disabled={last || narrowing} onClick={() => moveGroup(1)}>↓</button>
@@ -191,6 +221,7 @@ function GroupCard({ g, cats, hist, first, last, narrowing, folded, onFold, onOp
         <button className="cg-folded small muted" onClick={onFold}>{all.filter((c) => !c.archived).length} categories</button>
       ) : (
         <>
+          {cats.length > 0 && <div className="cg-cols small muted" aria-hidden><span>Category</span><span>12 months</span><span>Total</span></div>}
           <ul className="cg-list" onDragOver={dragOver("end")} onDrop={drop(null)}>
             {cats.map((c) => {
               const h = hist[c.id];
@@ -204,6 +235,7 @@ function GroupCard({ g, cats, hist, first, last, narrowing, folded, onFold, onOp
                     <span className="nm">{c.name}</span>
                     <span className="chips">
                       {!!c.repeat && <span className="chip">Repeats {money(c.repeat)}</span>}
+                      {c.oneoff && <span className="chip">One-off</span>}
                       {f && <span className={`chip${f.status === "short" || f.status === "overdue" ? " warn" : ""}`}>Fund · due {fmtYM(parseYM(c.fund!.due))}</span>}
                       {c.archived && <span className="chip">Archived</span>}
                       {h && !h.recent && !c.archived && book.catHasData(c.id) && <span className="chip muted-chip">Quiet 6 months</span>}
@@ -245,7 +277,7 @@ function NewGroup() {
   };
   return (
     <form className="cg-card cg-new" id="new-group" onSubmit={add}>
-      <h3>New group</h3>
+      <div><h3>New group</h3><span className="small muted">Its type decides which section it's in and how its figures count.</span></div>
       <div className="add-line">
         <input id="new-group-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Business, Children, Loans" aria-label="New group name" />
         <select value={kind} onChange={(e) => setKind(e.target.value)} aria-label="New group type">

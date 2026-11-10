@@ -36,7 +36,8 @@ pages): drag to zoom, double-click to reset, click a legend item to hide it, and
   transfers between your own accounts). Add as many types as you like (Business, Investments, Debt repayment...).
   Rename, reorder and recolour groups, move categories between them, or archive ones you've stopped using without
   changing past months.
-- **Appearance:** light, dark or match the computer, and the palette: the built-in one (chosen so neighbouring
+- **Appearance:** the navigation (a sidebar, full or icons only, or a bar across the top; also the Collapse button
+  at the bottom of the sidebar), light, dark or match the computer, and the palette: the built-in one (chosen so neighbouring
   groups stay distinguishable with colour blindness) or any of 37
   [Matplotlib colormaps](https://matplotlib.org/stable/users/explain/colors/colormaps.html) (tab10, Set2, viridis,
   plasma, coolwarm, twilight, turbo...). A palette colours the groups, the charts and the app's accent; colours that
@@ -77,8 +78,8 @@ A car, a deposit, a renovation, a bonus: money that won't repeat. Give it a cate
 **One-off** in the category's panel (Settings → Categories, click the category): everything recorded there counts
 as one-off. It stays in the month's totals, but "left to spend" measures everyday spending on its own (with
 "plus 150,000 one-off" beside it), the Year and Compare pages get a **Leave out one-offs** switch to compare usual
-months, and one-off income never counts towards the forecast's expected income. Parts of ordinary categories
-marked as one-off in earlier versions still count, and show as a tag on that month's row.
+months, and one-off income never counts towards the forecast's expected income. (Earlier versions could mark part
+of any category's figure as one-off; those marks are kept in the files but no longer count.)
 
 ### Getting around
 

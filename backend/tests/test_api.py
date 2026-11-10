@@ -249,3 +249,9 @@ def test_goal_items_and_money_added(client, settings):
     assert saved["goals"][0]["items"][0]["done"] is True and saved["goals"][0]["deposits"][0]["amount"] == 5000
     bad = {**g, "items": [{"id": "i1", "name": "Deposit", "amount": -1}]}
     assert client.put("/api/settings", json={**settings, "goals": [bad]}).status_code == 400
+
+
+def test_navigation_setting(client, settings):
+    saved = client.put("/api/settings", json={**settings, "nav": "top", "navCompact": True}).json()
+    assert saved["nav"] == "top" and saved["navCompact"] is True
+    assert client.put("/api/settings", json={**settings, "nav": "bottom"}).status_code == 400

@@ -167,10 +167,11 @@ describe("goals", () => {
 });
 
 describe("one-offs", () => {
+  // a one-off is a category of its own: everything recorded in it won't repeat
   const withCar = () => {
     const l = ledger();
-    l.years["2026"].actual["09"].ess_0 = 1_025_000; // 25,000 usual + a 1,000,000 car
-    l.years["2026"].oneoff = { "09": { ess_0: { amount: 1_000_000, note: "Car" } } };
+    l.settings.cats.push({ id: "car", name: "Car", group: "ess", oneoff: true });
+    l.years["2026"].actual["09"].car = 1_000_000;
     return l;
   };
 
@@ -184,30 +185,24 @@ describe("one-offs", () => {
     const b = new Book(withCar(), TODAY);
     const t = b.regular.monthTotals(2026, 9);
     expect(t.spent).toBe(25_000);
-    expect(t.byCat.ess_0).toBe(25_000);
+    expect(t.byCat.car ?? 0).toBe(0);
     expect(t.oneOff.spent).toBe(1_000_000);
     expect(b.regular.rangeTotals(2026, 1, 10).spent).toBe(66_000);
     expect(b.hasOneOffs()).toBe(true);
     expect(new Book(ledger(), TODAY).hasOneOffs()).toBe(false);
   });
 
-  it("are never more than the figure they're part of", () => {
-    const l = withCar();
-    l.years["2026"].oneoff!["09"].ess_0.amount = 5_000_000;
-    expect(new Book(l, TODAY).regular.monthTotals(2026, 9).spent).toBe(0);
+  it("marks of part of an ordinary figure (an older version's) no longer count", () => {
+    const l = ledger();
+    l.years["2026"].oneoff = { "09": { ess_0: { amount: 20_000, note: "Car" } } };
+    expect(new Book(l, TODAY).regular.monthTotals(2026, 9).spent).toBe(25_000);
+    expect(new Book(l, TODAY).hasOneOffs()).toBe(false);
   });
 
   it("don't count towards expected income", () => {
     const l = ledger();
-    l.years["2026"].actual["09"].inc_0 = 400_000; // 100,000 + a 300,000 bonus
-    l.years["2026"].oneoff = { "09": { inc_0: { amount: 300_000 } } };
+    l.settings.cats.push({ id: "bonus", name: "Bonus", group: "inc", oneoff: true });
+    l.years["2026"].actual["09"].bonus = 300_000;
     expect(new Book(l, TODAY).expectedIncome(1).amount).toBe(100_000);
-  });
-
-  it("go when their figure is cleared", async () => {
-    const { setActual } = await import("./edit");
-    const l = withCar();
-    setActual(l, 2026, 9, "ess_0", null);
-    expect(l.years["2026"].oneoff).toEqual({});
   });
 });

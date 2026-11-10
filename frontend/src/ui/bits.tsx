@@ -110,7 +110,7 @@ export function Kpi({ label, value, lead, children, spark }: { label: string; va
 }
 
 /** A small trend line: the shape of the last months, the latest marked. Gaps (no figures) break the line. */
-export function Sparkline({ values, label }: { values: (number | null)[]; label: string }) {
+export function Sparkline({ values, label, color = "var(--accent)" }: { values: (number | null)[]; label: string; color?: string }) {
   const nums = values.filter((v): v is number => v != null);
   if (nums.length < 2) return null;
   const W = 120, H = 30, lo = Math.min(0, ...nums), hi = Math.max(...nums, lo + 1);
@@ -121,8 +121,8 @@ export function Sparkline({ values, label }: { values: (number | null)[]; label:
   return (
     <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label}>
       {lo < 0 && <line x1={0} x2={W} y1={y(0)} y2={y(0)} stroke="var(--line)" strokeWidth={1} vectorEffect="non-scaling-stroke" />}
-      <path d={d} fill="none" stroke="var(--accent)" strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      <circle cx={x(last)} cy={y(values[last]!)} r={2.6} fill="var(--accent)" vectorEffect="non-scaling-stroke" />
+      <path d={d} fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <circle cx={x(last)} cy={y(values[last]!)} r={2.6} fill={color} vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -217,4 +217,64 @@ export function YearSelect({ value, onChange, id, label }: { value: number; onCh
       {book.knownYears().map((y) => <option key={y} value={y}>{y}</option>)}
     </select>
   );
+}
+
+// Stat cards -----------------------------------------------------------------------------------
+
+export type StatTone = "green" | "orange" | "blue" | "violet" | "amber" | "slate";
+const TONE_VAR: Record<StatTone, string> = { green: "var(--accent)", orange: "var(--s2)", blue: "var(--s1)", violet: "var(--s7)", amber: "var(--s4)", slate: "var(--ink-2)" };
+
+/** A change as a badge: "▲ 12%" in green when that's good, red when it isn't (null: nothing to compare). */
+export function changeBadge(cur: number, prev: number | null | undefined, upGood: boolean): { text: string; good: boolean | null } | null {
+  if (prev == null || prev === 0 || !Number.isFinite(cur)) return null;
+  const p = (cur - prev) / Math.abs(prev);
+  if (Math.abs(p) < 0.005) return { text: "0%", good: null };
+  const n = Math.abs(p) * 100;
+  return { text: `${p > 0 ? "▲" : "▼"} ${n >= 100 ? Math.round(n).toLocaleString("en-US") : n >= 10 ? Math.round(n) : n.toFixed(1).replace(/\.0$/, "")}%`, good: (p > 0) === upGood };
+}
+
+/** The card the dashboard-style pages share: a coloured round icon, the label, the figure (with the
+ *  currency small beside it), a change badge, an optional progress bar or trend line, one line under it. */
+export function StatCard({ icon: Icon, label, value, tone = "green", badge, badgeLabel, line, share, spark, valueTone, plain, lead }: {
+  icon: React.ComponentType<{ size?: number }>; label: string; value: number | string; tone?: StatTone;
+  badge?: { text: string; good: boolean | null } | null; badgeLabel?: string; line?: ReactNode;
+  share?: number | null; spark?: (number | null)[]; valueTone?: "bad" | "warn"; plain?: boolean; lead?: boolean;
+}) {
+  const { book } = useApp();
+  const c = TONE_VAR[tone];
+  return (
+    <div className={`stat${lead ? " lead" : ""}`} style={{ ["--tone" as string]: c }}>
+      <div className="stat-top">
+        <span className="stat-i" aria-hidden><Icon size={18} /></span>
+        <span className="stat-lv">
+          <span className="stat-l">{label}</span>
+          <span className={`num stat-v${valueTone === "bad" ? " d-bad" : valueTone === "warn" ? " warn-ink" : ""}`}>
+            {!plain && typeof value === "number" && <span className="cc">{book.settings.currency}</span>}
+            {typeof value === "number" ? money(value) : value}
+          </span>
+        </span>
+      </div>
+      {share != null && <div className={`meter thin${share > 1.0001 ? (share > 1.1 ? " way" : " over") : ""}`}><i style={{ width: `${Math.min(100, Math.max(0, share) * 100)}%` }} /></div>}
+      {(badge || line || spark) && (
+        <div className="stat-foot small">
+          <span className="stat-foot-l">
+            {badge && <span className="stat-chg"><span className={`badge ${badge.good == null ? "" : badge.good ? "up" : "down"}`}>{badge.text}</span>{badgeLabel && <span className="muted">{badgeLabel}</span>}</span>}
+            {line && <span className="muted">{line}</span>}
+          </span>
+          {spark && <span className="stat-spark"><Sparkline values={spark} label={`${label}, recent months`} color={c} /></span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The last `n` months of one figure (to the month given), for a stat card's trend line. */
+export function recent(book: { monthTotals: (y: number, m: number) => Totals }, to: { y: number; m: number }, pick: (t: Totals) => number, n = 6): (number | null)[] {
+  const out: (number | null)[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(to.y, to.m - 1 - i, 1);
+    const t = book.monthTotals(d.getFullYear(), d.getMonth() + 1);
+    out.push(t.has ? pick(t) : null);
+  }
+  return out;
 }

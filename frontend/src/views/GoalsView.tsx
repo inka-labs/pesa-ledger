@@ -8,9 +8,9 @@ import { newId } from "../model/csv";
 import { amountText, money } from "../model/format";
 import { fmtYM, MONTHS, parseYM, ymKey } from "../model/ledger";
 import type { Goal, GoalItem } from "../model/types";
-import { EmptyState, Swatch } from "../ui/bits";
+import { EmptyState, StatCard, Swatch } from "../ui/bits";
 import { Sheet } from "../ui/Sheet";
-import { Check, Ellipsis, Plus, Target, Trash2 } from "lucide-react";
+import { CalendarClock, Check, Ellipsis, PiggyBank, Plus, Target, Trash2, TriangleAlert } from "lucide-react";
 
 type Filter = "active" | "reached" | "all";
 const TEMPLATES: { name: string; months: number; target?: number; items?: string[] }[] = [
@@ -53,10 +53,12 @@ export function GoalsView() {
       </div>
       {goals.length ? (
         <>
-          <div className="sumline">
-            <div><span className="lbl">Saved so far</span><span className="num big">{money(saved)}</span><span className="muted small">of {money(target)} across {active.length} {active.length === 1 ? "goal" : "goals"}</span></div>
-            <div><span className="lbl">Needed a month</span><span className="num">{money(perMonth)}</span><span className="muted small">to make every deadline</span></div>
-            <div><span className="lbl">Behind pace</span><span className={`num${behind ? " warn-ink" : ""}`}>{behind}</span></div>
+          <div className="stats three">
+            <StatCard icon={PiggyBank} lead tone="green" label="Saved towards goals" value={saved} share={target ? saved / target : null}
+              line={`of ${money(target)} across ${active.length} ${active.length === 1 ? "goal" : "goals"}`} />
+            <StatCard icon={CalendarClock} tone="blue" label="Needed a month" value={perMonth} line="to make every deadline" />
+            <StatCard icon={TriangleAlert} tone={behind ? "amber" : "green"} label="Behind pace" value={`${behind} of ${active.length}`} plain
+              line={behind ? "Add money or move a deadline" : "Everything is on track"} />
           </div>
           <div className="seg" role="group" aria-label="Show">
             {(["active", "reached", "all"] as Filter[]).map((f) => (

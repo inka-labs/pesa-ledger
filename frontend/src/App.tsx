@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SEARCH_KEY, UNDO_KEY } from "./ui/keys";
 import { api, type Version } from "./api";
 import { NAME } from "./brand";
 import { ABOUT, AppContext, SECTIONS, TABS, sectionOf, type Ctx, type Tab, type View } from "./context";
-import { ChevronDown, ChevronLeft, Ellipsis, Info, Monitor, Moon, Plus, Search, Settings as SettingsIcon, Sun, Undo2, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, Ellipsis, Info, PanelLeftClose, PanelLeftOpen, Monitor, Moon, Plus, Search, Settings as SettingsIcon, Sun, Undo2, X } from "lucide-react";
 import { AddExpense } from "./ui/AddExpense";
 import { MoreView } from "./views/MoreView";
 import { TAB_ICON } from "./ui/icons";
@@ -164,6 +164,8 @@ export default function App() {
   const [adding, setAdding] = useState<string | undefined>(undefined);
   const addExpense = useCallback((cid?: string | null) => setAdding(cid ?? ""), []);
   const [phoneMore, setPhoneMore] = useState(false);
+  const navTop = ledger?.settings.nav === "top";
+  const compact = !navTop && !!ledger?.settings.navCompact;
   useEffect(() => setPhoneMore(false), [tab]);
 
   const ctx: Ctx | null = useMemo(() => {
@@ -207,7 +209,7 @@ export default function App() {
   const navLink = (t: { id: Tab; label: string }, cls: string) => {
     const Icon = TAB_ICON[t.id];
     return (
-      <a key={t.id} className={cls} href={`#${t.id}`}
+      <a key={t.id} className={cls} href={`#${t.id}`} title={compact ? t.label : undefined}
         aria-current={tab === t.id || (t.id === "more" && sectionOf(tab).id === "more") || (t.id === "settings" && sectionOf(tab).id === "setup") ? "page" : undefined}
         onClick={() => { if (t.id !== "categories" && view.catHint) setView({ catHint: false }); }}>
         <Icon size={17} strokeWidth={1.9} aria-hidden /><span>{t.label}</span>
@@ -215,12 +217,15 @@ export default function App() {
     );
   };
 
+  const toggleCompact = () => change((l) => { if (l.settings.navCompact) delete l.settings.navCompact; else l.settings.navCompact = true; }, ["settings"]);
+  const quickAdd = () => { setView(ctxToday(ledger)); addExpense(); };
+
   return (
-    <div className={`shell${ledger ? "" : " bare"}`}>
-      {ledger && (
+    <div className={`shell${ledger ? "" : " bare"}${navTop ? " navtop" : ""}${compact ? " compact" : ""}`}>
+      {ledger && !navTop && (
         <aside className="side" aria-label="Pages">
           <div className="brand"><span className="logo" aria-hidden>P</span><h1>{NAME}</h1></div>
-          <button className="btn primary add-btn" onClick={() => { setView(ctxToday(ledger)); addExpense(); }}><Plus size={16} aria-hidden /> Add expense</button>
+          <button className="btn primary add-btn" onClick={quickAdd} title={compact ? "Add expense" : undefined}><Plus size={16} aria-hidden /><span>Add expense</span></button>
           <nav className="side-nav">
             <div className="side-sec">
               {SECTIONS[0].tabs.filter((t) => t.id !== "more").map((t) => navLink(t, "side-link"))}
@@ -229,20 +234,36 @@ export default function App() {
           </nav>
           <div className="side-foot">
             {navLink({ id: "settings", label: "Settings" }, "side-link")}
+            <button className="side-link side-toggle" onClick={toggleCompact} title={compact ? "Show the full sidebar" : "Show icons only"} aria-label={compact ? "Show the full sidebar" : "Show icons only"}>
+              {compact ? <PanelLeftOpen size={17} aria-hidden /> : <PanelLeftClose size={17} aria-hidden />}<span>{compact ? "Expand" : "Collapse"}</span>
+            </button>
           </div>
         </aside>
       )}
       <div className="main">
         {ledger && (
-          <header className="topbar">
-            <button className="searchbtn" onClick={openSearch} title="Search pages, months, categories and actions">
-              <Search size={15} aria-hidden /><span>Search pages, months, categories…</span><kbd>{SEARCH_KEY}</kbd>
-            </button>
+          <header className={`topbar${navTop ? " topnav" : ""}`}>
+            {navTop ? (
+              <>
+                <div className="brand"><span className="logo" aria-hidden>P</span><h1>{NAME}</h1></div>
+                <nav className="topnav-links" aria-label="Pages">
+                  {SECTIONS[0].tabs.filter((t) => t.id !== "more").map((t) => navLink(t, "top-link"))}
+                  <TopMore tab={tab} />
+                  {navLink({ id: "settings", label: "Settings" }, "top-link")}
+                </nav>
+                <button className="iconbtn" onClick={openSearch} title={`Search (${SEARCH_KEY})`} aria-label="Search"><Search size={17} /></button>
+              </>
+            ) : (
+              <button className="searchbtn" onClick={openSearch} title="Search pages, months, categories and actions">
+                <Search size={15} aria-hidden /><span>Search pages, months, categories…</span><kbd>{SEARCH_KEY}</kbd>
+              </button>
+            )}
             <div className="topbar-end">
               <span className="save" data-s={save.kind} role="status">{saveLabel}</span>
               <button className="iconbtn" onClick={doUndo} disabled={!canUndo} title={`Undo the last change (${UNDO_KEY})`} aria-label="Undo"><Undo2 size={17} /></button>
               <button className="iconbtn" onClick={cycle} title={`Theme: ${theme}. Click to switch`} aria-label={`Theme: ${theme}`}><ThemeIcon size={17} /></button>
               <span className="mark" title="Main currency">{ledger.settings.currency}</span>
+              {navTop && <button className="btn primary" onClick={quickAdd}><Plus size={15} aria-hidden /> Add expense</button>}
             </div>
           </header>
         )}
@@ -378,6 +399,41 @@ function MoreMenu({ tab }: { tab: Tab }) {
             return (
               <a key={t.id} className="side-link sub" href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined} title={ABOUT[t.id]}>
                 <I size={15} strokeWidth={1.9} aria-hidden /><span>{t.label}</span>
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** "More" in the top bar: a menu of the pages under it. */
+function TopMore({ tab }: { tab: Tab }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => setOpen(false), [tab]);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  const Icon = TAB_ICON.more;
+  return (
+    <div className="topmore" ref={ref}>
+      <button className="top-link" aria-expanded={open} aria-haspopup="menu" aria-current={sectionOf(tab).id === "more" ? "page" : undefined} onClick={() => setOpen((x) => !x)}>
+        <Icon size={17} strokeWidth={1.9} aria-hidden /><span>More</span><ChevronDown size={14} aria-hidden className={`side-chev${open ? " open" : ""}`} />
+      </button>
+      {open && (
+        <div className="topmore-pop" role="menu">
+          {SECTIONS[1].tabs.map((t) => {
+            const I = TAB_ICON[t.id];
+            return (
+              <a key={t.id} role="menuitem" className="more-row" href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined}>
+                <I size={17} aria-hidden /><span><b>{t.label}</b><span className="muted small">{ABOUT[t.id]}</span></span>
               </a>
             );
           })}

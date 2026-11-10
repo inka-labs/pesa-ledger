@@ -23,7 +23,26 @@ export function AppearanceView() {
 
   return (
     <>
-      <div className="panel-h"><h2>Appearance</h2><span className="muted">Colours and theme</span></div>
+      <div className="panel-h"><h2>Appearance</h2><span className="muted">Layout, colours and theme</span></div>
+      <div className="panel">
+        <h3>Navigation</h3>
+        <p className="small muted">Where the pages are listed on a computer. Phones always use the bar at the bottom.</p>
+        <div className="navpick" role="radiogroup" aria-label="Navigation position">
+          {([["side", "Sidebar", "Pages down the left"], ["top", "Top bar", "Pages across the top, more room for figures"]] as const).map(([id, label, hint]) => (
+            <label key={id} className={`navopt${(book.settings.nav ?? "side") === id ? " on" : ""}`}>
+              <input type="radio" name="nav" checked={(book.settings.nav ?? "side") === id} onChange={() => edit((l) => void (l.settings.nav = id))} />
+              <span className={`navthumb ${id}`} aria-hidden><i /><b /></span>
+              <span><b>{label}</b><span className="small muted">{hint}</span></span>
+            </label>
+          ))}
+        </div>
+        {(book.settings.nav ?? "side") === "side" && (
+          <div className="seg" role="group" aria-label="Sidebar size">
+            <button aria-pressed={!book.settings.navCompact} onClick={() => edit((l) => void delete l.settings.navCompact)}>Full sidebar</button>
+            <button aria-pressed={!!book.settings.navCompact} onClick={() => edit((l) => void (l.settings.navCompact = true))}>Icons only</button>
+          </div>
+        )}
+      </div>
       <div className="cols">
         <div className="panel">
           <h3>Theme</h3>

@@ -4,7 +4,8 @@ import { setBudget, setMonthOnly, setPlan, setUsualBudget, yearOf } from "../mod
 import { money } from "../model/format";
 import { fmtYM, isNum, mk, MONTHS, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
 import type { Category, Group } from "../model/types";
-import { AmountInput, Swatch, YearSelect } from "../ui/bits";
+import { AmountInput, changeBadge, StatCard, Swatch, YearSelect } from "../ui/bits";
+import { ArrowDownToLine, Gauge, PiggyBank, Receipt, ShoppingBag } from "lucide-react";
 
 const MODE_KEY = "pesa-ledger.budget-mode";
 
@@ -28,6 +29,7 @@ export function BudgetView() {
         </div>
       )}
       <div className="end">
+        {mode === "month" && <a className="btn" href="#month" onClick={() => setView({ y, m })}><Receipt size={15} aria-hidden /> Spending</a>}
         <div className="seg" role="group" aria-label="Show">
           <button aria-pressed={mode === "month"} onClick={() => setMode("month")}>Month</button>
           <button aria-pressed={mode === "year"} onClick={() => setMode("year")}>Whole year</button>
@@ -58,18 +60,22 @@ export function BudgetView() {
   return (
     <>
       {head}
+      <div className="stats">
+        <StatCard icon={ShoppingBag} tone="orange" label="To spend" value={pl.spent}
+          badge={changeBadge(pl.spent, prevPlan.has ? prevPlan.spent : null, false)} badgeLabel={`vs ${MONTHS[prev.m - 1]}'s budget`}
+          line={prevSpent.has ? `${MONTHS[prev.m - 1]} spent ${money(prevSpent.spent)}` : undefined} />
+        <StatCard icon={PiggyBank} tone="violet" label="To save" value={pl.saved}
+          badge={changeBadge(pl.saved, prevPlan.has ? prevPlan.saved : null, true)} badgeLabel={`vs ${MONTHS[prev.m - 1]}'s budget`}
+          line={income > 0 ? `${Math.round((pl.saved / income) * 100)}% of income` : undefined} />
+        <StatCard icon={ArrowDownToLine} tone="blue" label={t.income > 0 ? "Came in" : "Expected in"} value={income}
+          line={t.income > 0 ? "Recorded this month" : expected.months ? "Your recent average" : "Record some income to see this"} />
+        <StatCard icon={Gauge} lead tone={unassigned < 0 ? "amber" : "green"} label={unassigned >= 0 ? "Not budgeted yet" : "Beyond income"}
+          value={Math.abs(unassigned)} valueTone={unassigned < 0 ? "bad" : undefined}
+          share={income > 0 ? (pl.spent + pl.saved) / income : null}
+          line={income > 0 ? `${Math.round(((pl.spent + pl.saved) / income) * 100)}% of income has a job` : undefined} />
+      </div>
+
       <section className="alloc">
-        <div className="alloc-h">
-          <span><span className="lbl">{t.income > 0 ? "Came in" : "Expected in"}</span>
-            <span className="num big">{money(income)}</span>
-            {t.income === 0 && <span className="muted small">{expected.months ? "your recent average" : "record some income to see this"}</span>}</span>
-          {income > 0 && (
-            <span className={`alloc-left${unassigned < 0 ? " neg" : ""}`}>
-              <span className="lbl">{unassigned >= 0 ? "Not budgeted yet" : "Budgeted beyond income"}</span>
-              <span className="num big">{money(Math.abs(unassigned))}</span>
-            </span>
-          )}
-        </div>
         {(() => {
           const whole = Math.max(income, pl.spent + pl.saved, 1);
           const w = (v: number) => `${(Math.max(0, v) / whole) * 100}%`;

@@ -184,6 +184,9 @@ class Settings(Strict):
     palette: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,30}$")] = "pesa"
     # how much the palette colours the page behind the figures
     tint: Literal["off", "soft", "rich"] = "soft"
+    # where the pages are listed (a sidebar, or a bar across the top) and whether the sidebar shows icons only
+    nav: Literal["side", "top"] = "side"
+    nav_compact: bool = Field(default=False, alias="navCompact")
     groups: list[Group] = Field(max_length=40)
     cats: list[Category] = Field(max_length=1000)
     goals: list[Goal] = Field(default_factory=list, max_length=200)

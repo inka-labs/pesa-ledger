@@ -80,6 +80,10 @@ export type Settings = {
   palette?: string;
   /** how much the palette colours the page background: none, a little (default), or more */
   tint?: Tint;
+  /** where the pages are listed: a sidebar (the default) or a bar across the top */
+  nav?: "side" | "top";
+  /** the sidebar shows icons only */
+  navCompact?: boolean;
   groups: Group[];
   cats: Category[];
   goals: Goal[];

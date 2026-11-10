@@ -6,7 +6,7 @@ import { useApp, type Tab, type View } from "../context";
 import { money } from "../model/format";
 import { cycleLabel, fmtYM, mk, MONTHS, MONTHS_LONG, nextYM, parseYM, prevYM } from "../model/ledger";
 import { setActual } from "../model/edit";
-import { Swatch } from "../ui/bits";
+import { changeBadge, recent, StatCard, Swatch } from "../ui/bits";
 import { ArrowDownToLine, Gauge, PiggyBank, Plus, ShoppingBag, Wallet } from "lucide-react";
 import { GroupDonut, InOutChart } from "../ui/homeCharts";
 
@@ -18,7 +18,6 @@ export function OverviewView() {
   const { book, go, setView, addExpense, change, notify } = useApp();
   const today = book.today;
   const t = book.monthTotals(today.y, today.m);
-  const pl = book.planRange(today.y, today.m, today.m);
   const next = nextYM(today);
   const cur = book.settings.currency;
 
@@ -66,16 +65,10 @@ export function OverviewView() {
   const goals = book.settings.goals.map((g) => ({ g, r: book.goal(g) })).filter(({ r }) => !r.reached).slice(0, 3);
 
   // the expenses added one at a time this month and last, newest first
-  const recent = [today, prev].flatMap((p) =>
+  const latest = [today, prev].flatMap((p) =>
     Object.entries(book.year(p.y)?.entries?.[mk(p.m)] ?? {}).flatMap(([cid, es]) => es.map((e, i) => ({ p, cid, e, i }))))
     .sort((x, y) => (y.p.y * 12 + y.p.m) - (x.p.y * 12 + x.p.m) || (y.e.day ?? 0) - (x.e.day ?? 0) || y.i - x.i)
     .slice(0, 8);
-  const changeOf = (cur: number, was: number | null, upGood: boolean) => {
-    if (was == null || was === 0) return null;
-    const p = (cur - was) / Math.abs(was);
-    if (Math.abs(p) < 0.005) return { text: "0%", good: null };
-    return { text: `${p > 0 ? "▲" : "▼"} ${Math.round(Math.abs(p) * 100)}%`, good: (p > 0) === upGood };
-  };
   const vsLast = `vs ${MONTHS[prev.m - 1]}`;
 
   return (
@@ -91,19 +84,26 @@ export function OverviewView() {
 
       <Checklist />
 
-      <div className="stats four">
-        <Stat icon={Gauge} label={budget > 0 ? (left >= 0 ? "Left to spend" : "Over budget") : "Spent"} value={budget > 0 ? Math.abs(left) : sv.spent} lead
-          tone={budget > 0 && ratio > 1.1 ? "bad" : budget > 0 && left < 0 ? "warn" : undefined}
+      <div className="stats">
+        <StatCard icon={Gauge} lead tone={budget > 0 && left < 0 ? "amber" : "green"}
+          label={budget > 0 ? (left >= 0 ? "Left to spend" : "Over budget") : "Spent so far"} value={budget > 0 ? Math.abs(left) : sv.spent}
+          valueTone={budget > 0 && ratio > 1.1 ? "bad" : budget > 0 && left < 0 ? "warn" : undefined}
           share={budget > 0 ? ratio : null}
           line={budget > 0
             ? <>Spent {money(sv.spent)} of {money(budget)}{daysLeft != null && daysLeft > 0 && left > 0 ? ` · ${money(left / daysLeft)} a day` : ""}</>
             : <button className="link" onClick={() => go("budget", { planYear: today.y, planMonth: today.m })}>Set a budget</button>} />
-        <Stat icon={ArrowDownToLine} label="Came in" value={t.income} badge={changeOf(t.income, tp.has ? tp.income : null, true)} badgeLabel={vsLast}
-          line={t.income === 0 && expected.months ? `About ${money(expected.amount)} usually` : `${MONTHS[prev.m - 1]}: ${tp.has ? money(tp.income) : "–"}`} />
-        <Stat icon={ShoppingBag} label="Spent" value={t.spent} badge={changeOf(t.spent, tp.has ? tp.spent : null, false)} badgeLabel={vsLast}
-          line={sv.oneOff ? `incl. ${money(sv.oneOff)} one-off` : `${MONTHS[prev.m - 1]}: ${tp.has ? money(tp.spent) : "–"}`} />
-        <Stat icon={PiggyBank} label="Saved" value={t.saved} badge={changeOf(t.saved, tp.has ? tp.saved : null, true)} badgeLabel={vsLast}
-          line={t.income > 0 ? `${Math.round((t.saved / t.income) * 100)}% of what came in` : pl.saved > 0 ? `${money(pl.saved)} planned` : "Nothing saved yet"} />
+        <StatCard icon={ArrowDownToLine} tone="blue" label="Came in" value={t.income}
+          badge={changeBadge(t.income, tp.has ? tp.income : null, true)} badgeLabel={vsLast}
+          spark={recent(book, today, (x) => x.income)}
+          line={t.income === 0 && expected.months ? `About ${money(expected.amount)} usually comes in` : undefined} />
+        <StatCard icon={ShoppingBag} tone="orange" label="Spent" value={t.spent}
+          badge={changeBadge(t.spent, tp.has ? tp.spent : null, false)} badgeLabel={vsLast}
+          spark={recent(book, today, (x) => x.spent)}
+          line={sv.oneOff ? `incl. ${money(sv.oneOff)} one-off` : undefined} />
+        <StatCard icon={PiggyBank} tone="violet" label="Saved" value={t.saved}
+          badge={changeBadge(t.saved, tp.has ? tp.saved : null, true)} badgeLabel={vsLast}
+          spark={recent(book, today, (x) => x.saved)}
+          line={t.income > 0 ? `${Math.round((t.saved / t.income) * 100)}% of what came in` : undefined} />
       </div>
 
       <div className="dash2">
@@ -120,11 +120,11 @@ export function OverviewView() {
       <div className="dash2">
         <div className="panel">
           <div className="panel-h"><h3>Recent expenses</h3><div className="end"><button className="btn ghost" onClick={() => go("month", { ...today })}>See all</button></div></div>
-          {recent.length ? (
+          {latest.length ? (
             <table className="t recent">
               <thead><tr><th>Category</th><th>Note</th><th>Date</th><th>Amount</th></tr></thead>
               <tbody>
-                {recent.map(({ p, cid, e, i }) => {
+                {latest.map(({ p, cid, e, i }) => {
                   const c = book.cats[cid], g = c && book.groups[c.group];
                   return (
                     <tr key={`${p.y}-${p.m}-${cid}-${i}`}>
@@ -172,26 +172,6 @@ export function OverviewView() {
         </div>
       </div>
     </>
-  );
-}
-
-/** A stat card: an icon, the figure, a change badge, an optional bar, one line of context. */
-function Stat({ icon: Icon, label, value, line, share, tone, badge, badgeLabel, lead }: {
-  icon: typeof Wallet; label: string; value: number; line: ReactNode; share?: number | null; tone?: "bad" | "warn";
-  badge?: { text: string; good: boolean | null } | null; badgeLabel?: string; lead?: boolean;
-}) {
-  const { book } = useApp();
-  return (
-    <div className={`stat${lead ? " lead" : ""}`}>
-      <span className="stat-h">
-        <span className="stat-i" aria-hidden><Icon size={17} /></span>
-        {badge && <span className={`badge ${badge.good == null ? "" : badge.good ? "up" : "down"}`} title={badgeLabel}>{badge.text}<span className="sr-only"> {badgeLabel}</span></span>}
-      </span>
-      <span className="lbl">{label}</span>
-      <span className={`num stat-v${tone === "bad" ? " d-bad" : tone === "warn" ? " warn-ink" : ""}`}><span className="cc">{book.settings.currency}</span>{money(value)}</span>
-      {share != null && <div className={`meter thin${share > 1.0001 ? (share > 1.1 ? " way" : " over") : ""}`}><i style={{ width: `${Math.min(100, share * 100)}%` }} /></div>}
-      <span className="small muted">{line}</span>
-    </div>
   );
 }
 
