@@ -59,8 +59,9 @@ export function MonthView() {
       }
     }, [`y:${y}`]);
 
-  const spentBudget = pl.spent;
-  const leftToSpend = spentBudget - t.spent;
+  const sv = book.spendingVsBudget(y, m);
+  const spentBudget = sv.budget;
+  const leftToSpend = spentBudget - sv.spent;
 
   return (
     <>
@@ -86,8 +87,8 @@ export function MonthView() {
       {cycle && <p className="cycle-note"><b>{cycle}</b>: the pay that landed in {MONTHS_LONG[m - 1]} and what it paid for.</p>}
 
       <div className="sumline">
-        <div><span className="lbl">Spent</span><span className="num big">{money(t.spent)}</span>{spentBudget > 0 && <span className="muted small">of {money(spentBudget)}</span>}</div>
-        {spentBudget > 0 && <div><span className="lbl">{leftToSpend >= 0 ? "Left to spend" : "Over budget"}</span><span className={`num big${t.spent > spentBudget * 1.1 ? " d-bad" : leftToSpend < 0 ? " warn-ink" : ""}`}>{money(Math.abs(leftToSpend))}</span></div>}
+        <div><span className="lbl">Spent</span><span className="num big">{money(sv.spent)}</span>{(spentBudget > 0 || sv.oneOff !== 0) && <span className="muted small">{spentBudget > 0 ? `of ${money(spentBudget)}` : ""}{sv.oneOff ? `${spentBudget > 0 ? " · " : ""}plus ${money(sv.oneOff)} one-off` : ""}</span>}</div>
+        {spentBudget > 0 && <div><span className="lbl">{leftToSpend >= 0 ? "Left to spend" : "Over budget"}</span><span className={`num big${sv.spent > spentBudget * 1.1 ? " d-bad" : leftToSpend < 0 ? " warn-ink" : ""}`}>{money(Math.abs(leftToSpend))}</span></div>}
         <div><span className="lbl">Came in</span><span className="num">{money(t.income)}</span></div>
         <div><span className="lbl">Saved</span><span className="num">{money(t.saved)}</span></div>
         <div><span className="lbl">Left over</span><span className={`num${t.left < 0 ? " d-bad" : ""}`}>{money(t.left)}</span></div>
@@ -142,7 +143,7 @@ function Unpaid() {
   );
 }
 
-/** Groups folded away on the Month page, remembered in this browser. */
+/** Groups folded away on the Spending page, remembered in this browser. */
 const COLLAPSE_KEY = "pesa-ledger.collapsed";
 function collapsedGroups(): Set<string> {
   try { return new Set(JSON.parse(localStorage.getItem(COLLAPSE_KEY) || "[]")); } catch { return new Set(); }
@@ -254,7 +255,8 @@ function OneOffControl({ c, actual }: { c: Category; actual: number | null }) {
     document.addEventListener("keydown", esc);
     return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", esc); };
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (actual == null && !o) return null;
+  // one-offs are a category of their own now; a part marked on an ordinary category before still shows
+  if (!o) return null;
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     const r = read(amount);
@@ -326,8 +328,8 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
         {bar}
         <span className="nstat small">
           {status}
-          {added > 0 && <span className="muted"> · {added} added</span>}
-          {effect !== "none" && <OneOffControl c={c} actual={a} />}
+          {added > 0 && <span className="muted">{status ? " · " : ""}{added} added</span>}
+          {c.oneoff ? <span className="oneoff-cat">One-off</span> : effect !== "none" && <OneOffControl c={c} actual={a} />}
         </span>
       </div>
       <button className="iconbtn quick" aria-label={`Add an expense to ${c.name}`} title={`Add to ${c.name}`} onClick={() => addExpense(c.id)}><Plus size={15} aria-hidden /></button>

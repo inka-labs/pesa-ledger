@@ -88,6 +88,8 @@ class Category(Strict):
     # budget when none is set
     repeat: Amount | None = None
     fund: Fund | None = None
+    # everything recorded here won't repeat (a car, a renovation, a bonus): a one-off category
+    oneoff: bool = False
 
 
 class Account(Strict):

@@ -164,15 +164,28 @@ export class Book {
     return o && isNum(o.amount) ? o : null;
   }
 
-  /** How much of a month's figure is one-off: never more than the figure itself. */
+  /** How much of a month's figure is one-off: all of it in a one-off category, else the part marked as
+   *  one-off that month (never more than the figure itself). */
   oneOffPart(y: number, m: number, cid: string): number {
-    const o = this.oneOff(y, m, cid);
     const v = this.year(y)?.actual?.[mk(m)]?.[cid];
+    if (this.cats[cid]?.oneoff) return isNum(v) ? v : 0;
+    const o = this.oneOff(y, m, cid);
     if (!o || !isNum(v)) return 0;
     return v >= 0 ? Math.min(Math.max(o.amount, 0), v) : Math.max(Math.min(o.amount, 0), v);
   }
 
+  /** Everyday spending against its budget for a month, one-offs left out of both (a car bought from a
+   *  one-off category isn't "over budget"); `oneOff` is what was spent on one-offs beside it. */
+  spendingVsBudget(y: number, m: number): { spent: number; budget: number; oneOff: number } {
+    const t = this.monthTotals(y, m);
+    let budget = 0;
+    for (const c of this.settings.cats)
+      if (!c.oneoff && this.effectOf(c.id) === "out") budget += this.planMonthly(y, m, c.id) ?? 0;
+    return { spent: t.spent - t.oneOff.spent, budget, oneOff: t.oneOff.spent };
+  }
+
   hasOneOffs(): boolean {
+    if (this.settings.cats.some((c) => c.oneoff)) return true;
     return Object.values(this.ledger.years).some((yd) => Object.values(yd.oneoff ?? {}).some((r) => Object.keys(r).length > 0));
   }
 

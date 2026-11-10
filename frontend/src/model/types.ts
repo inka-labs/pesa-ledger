@@ -19,10 +19,12 @@ export type Category = {
   name: string;
   group: string;
   archived?: boolean;
-  /** the amount that comes in or goes out every month: offered on the Month page, and the budget when none is set */
+  /** the amount that comes in or goes out every month: offered on the Spending page, and the budget when none is set */
   repeat?: number | null;
   /** a sinking fund kept in this category */
   fund?: Fund | null;
+  /** everything recorded here won't repeat (a car, a renovation, a bonus): all of it counts as one-off */
+  oneoff?: boolean;
 };
 
 /** Money set aside in a category (from `from`, plus `start` already there) towards a bill of `target` due by

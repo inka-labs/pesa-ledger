@@ -752,3 +752,7 @@ input.amt.big { font-size: 22px; padding: 10px 12px; }
 .brow:hover .only, .brow .only:focus-within { opacity: 1; }
 @media (hover: none) { .brow .only:not(.on) { opacity: .7; } }
 @media (max-width: 900px) { .wide-only { display: none; } }
+.oneoff-cat { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 8px; }
+.field.check { display: flex; gap: 10px; align-items: flex-start; }
+.field.check input { margin-top: 3px; }
+.field.check > span { display: grid; gap: 2px; }

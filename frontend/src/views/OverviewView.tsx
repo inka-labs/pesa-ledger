@@ -21,10 +21,11 @@ export function OverviewView() {
   const next = nextYM(today);
   const cur = book.settings.currency;
 
-  // what's left to spend: this month's spending budget minus what's been spent
-  const budget = pl.spent;
-  const left = budget - t.spent;
-  const ratio = budget > 0 ? t.spent / budget : 0;
+  // what's left to spend: this month's everyday budget minus everyday spending (one-offs beside it)
+  const sv = book.spendingVsBudget(today.y, today.m);
+  const budget = sv.budget;
+  const left = budget - sv.spent;
+  const ratio = budget > 0 ? sv.spent / budget : 0;
   const now = new Date();
   const daysLeft = book.settings.paycycle ? null : new Date(today.y, today.m, 0).getDate() - now.getDate();
 
@@ -79,7 +80,8 @@ export function OverviewView() {
             <span className={`hero-v num${ratio > 1.1 ? " d-bad" : left < 0 ? " warn-ink" : ""}`}><span className="cc">{cur}</span>{money(Math.abs(left))}</span>
             <div className={`meter${ratio > 1.0001 ? (ratio > 1.1 ? " way" : " over") : ""}`}><i style={{ width: `${Math.min(100, ratio * 100)}%` }} /></div>
             <span className="muted">
-              Spent {money(t.spent)} of {money(budget)}
+              Spent {money(sv.spent)} of {money(budget)}
+              {sv.oneOff ? `, plus ${money(sv.oneOff)} on one-offs` : ""}
               {daysLeft != null && daysLeft > 0 && left > 0 ? ` · about ${money(left / daysLeft)} a day for the ${daysLeft} days left` : ""}
             </span>
           </>

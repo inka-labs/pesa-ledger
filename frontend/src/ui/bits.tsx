@@ -173,7 +173,7 @@ export function OneOffToggle() {
   );
 }
 
-/** What a one-off-free page left out, so the totals never silently disagree with the Month page. */
+/** What a one-off-free page left out, so the totals never silently disagree with the Spending page. */
 export function OneOffNote({ t, what }: { t: Totals; what: string }) {
   const { book, view } = useApp();
   if (!view.regular || !t.oneOff.any) return null;

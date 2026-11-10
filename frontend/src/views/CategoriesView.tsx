@@ -341,7 +341,7 @@ function CategoryPanel({ id, hist, onClose }: { id: string; hist: ReturnType<typ
           <label className="field"><span className="lbl">Every month</span>
             <AmountInput value={c.repeat ?? null} placeholder="–" label={`${c.name}: amount every month`}
               onCommit={(v) => edit((l) => { const x = cat(l); if (v == null) delete x.repeat; else x.repeat = v; })} />
-            <span className="small muted">Rent, salary, a subscription: offered on the Month page{budgeted ? ", and the budget when none is set" : ""}.</span>
+            <span className="small muted">Rent, salary, a subscription: offered on the Spending page{budgeted ? ", and the budget when none is set" : ""}.</span>
           </label>
         )}
         {budgeted && (
@@ -368,6 +368,13 @@ function CategoryPanel({ id, hist, onClose }: { id: string; hist: ReturnType<typ
               </span>
             );
           })()}
+        </label>
+      )}
+
+      {effect !== "none" && (
+        <label className="field check">
+          <input type="checkbox" checked={!!c.oneoff} onChange={(e) => edit((l) => { const x = cat(l); if (e.target.checked) x.oneoff = true; else delete x.oneoff; })} />
+          <span><b>One-off</b> <span className="small muted">What's recorded here won't repeat: a car, a renovation, a bonus. Year and Compare can leave it out, and forecasts never count on it.</span></span>
         </label>
       )}
 

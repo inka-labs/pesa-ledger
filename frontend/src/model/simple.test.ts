@@ -86,3 +86,32 @@ describe("budgets a month at a time", () => {
     expect(b(l, 1)).toBe(37_833);
   });
 });
+
+describe("a one-off category", () => {
+  function withCar(): Ledger {
+    const l = fresh();
+    l.settings.cats.push({ id: "car", name: "Car purchase", group: "ess", oneoff: true });
+    l.years["2026"].actual["09"] = { inc_0: 100_000, ess_0: 20_000, car: 800_000 };
+    l.years["2026"].plan.ess_0 = 240_000;
+    return l;
+  }
+
+  it("counts all of its figure as one-off", () => {
+    const b = new Book(withCar(), TODAY);
+    expect(b.oneOffPart(2026, 9, "car")).toBe(800_000);
+    expect(b.regular.monthTotals(2026, 9).spent).toBe(20_000);
+    expect(b.monthTotals(2026, 9).spent).toBe(820_000); // still in the month's totals
+    expect(b.hasOneOffs()).toBe(true);
+  });
+
+  it("isn't 'over budget': everyday spending is measured on its own", () => {
+    expect(new Book(withCar(), TODAY).spendingVsBudget(2026, 9)).toEqual({ spent: 20_000, budget: 20_000, oneOff: 800_000 });
+  });
+
+  it("a one-off income category never counts towards expected income", () => {
+    const l = fresh();
+    l.settings.cats.push({ id: "bonus", name: "Bonus", group: "inc", oneoff: true });
+    l.years["2026"].actual["09"] = { inc_0: 100_000, bonus: 300_000 };
+    expect(new Book(l, TODAY).expectedIncome(1).amount).toBe(100_000);
+  });
+});

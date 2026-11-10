@@ -73,10 +73,12 @@ check.
 
 ### One-offs
 
-A car, a deposit, a renovation, a bonus: money that won't repeat. On the Spending page, point at a category and click
-**One-off?** to say how much of that month's figure won't repeat (all of it, or part) and what it was. It stays in
-the month's totals; the Year and Compare pages get a **Leave out one-offs** switch to compare usual months,
-and one-off income never counts towards the forecast's expected income.
+A car, a deposit, a renovation, a bonus: money that won't repeat. Give it a category of its own and tick
+**One-off** in the category's panel (Settings → Categories, click the category): everything recorded there counts
+as one-off. It stays in the month's totals, but "left to spend" measures everyday spending on its own (with
+"plus 150,000 one-off" beside it), the Year and Compare pages get a **Leave out one-offs** switch to compare usual
+months, and one-off income never counts towards the forecast's expected income. Parts of ordinary categories
+marked as one-off in earlier versions still count, and show as a tag on that month's row.
 
 ### Getting around
 
