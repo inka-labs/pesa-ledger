@@ -9,6 +9,8 @@ import { setActual } from "../model/edit";
 import { changeBadge, recent, StatCard, Swatch } from "../ui/bits";
 import { ArrowDownToLine, Gauge, PiggyBank, Plus, ShoppingBag, Wallet } from "lucide-react";
 import { GroupDonut, InOutChart } from "../ui/homeCharts";
+import { PaceCard, StoryCard } from "../ui/Insights";
+import { flags } from "../model/insights";
 
 type Item = { key: string; text: ReactNode; action: string; run: () => void };
 
@@ -56,6 +58,15 @@ export function OverviewView() {
     items.push({ key: "goals", text: behind.length === 1 ? <><b>{behind[0].name}</b> is behind pace.</> : <>{behind.length} goals are behind pace.</>, action: "See goals", run: () => go("goals") });
   if (short.length)
     items.push({ key: "funds", text: short.length === 1 ? <><b>{short[0].name}</b> won't have enough by {fmtYM(parseYM(short[0].fund!.due))}.</> : <>{short.length} sinking funds won't have enough for their bills.</>, action: "See funds", run: () => go("funds") });
+  // what the figures say: probably missing, well above usual, rising, and a quiet spell
+  for (const f of flags(book)) {
+    const cid = f.cid;
+    items.push({
+      key: `${f.kind}-${cid ?? ""}`, text: <>{f.text}</>,
+      action: f.kind === "missed" || f.kind === "quiet" ? "Add" : "See it",
+      run: f.kind === "missed" || f.kind === "quiet" ? () => { setView({ ...today }); addExpense(cid); } : () => go("month", { ...today, focusCat: cid }),
+    });
+  }
   const [all, setAll] = useState(false);
   const shown = all ? items : items.slice(0, 3);
 
@@ -107,6 +118,11 @@ export function OverviewView() {
       </div>
 
       <div className="dash2">
+        <PaceCard />
+        <StoryCard ym={prev} />
+      </div>
+
+      <div className="dash2">
         <div className="panel">
           <div className="panel-h"><h3>Money in and out</h3><span className="muted small">last 12 months · click a month to open it</span></div>
           <InOutChart book={book} onMonth={(ym) => go("month", { ...ym })} />
@@ -144,7 +160,7 @@ export function OverviewView() {
         <div className="stack">
           {shown.length > 0 && (
             <div className="panel">
-              <div className="panel-h"><h3>To do</h3>{items.length > 0 && <span className="chip">{items.length}</span>}</div>
+              <div className="panel-h"><h3>Worth a look</h3>{items.length > 0 && <span className="chip">{items.length}</span>}</div>
               <ul className="todo">
                 {shown.map((it) => (
                   <li key={it.key}><span>{it.text}</span><button className="btn" onClick={it.run}>{it.action}</button></li>

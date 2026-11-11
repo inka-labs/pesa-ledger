@@ -964,3 +964,18 @@ table.recent td:last-child, table.recent th:last-child { text-align: right; }
 @media (min-width: 701px) {
   .cg-row, .cg-cols { grid-template-columns: 18px minmax(0, 1fr) 200px 110px; }
 }
+
+/* Insights */
+.ins-i { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); }
+.pace-say { margin: 0; font-size: 15px; line-height: 1.5; }
+.pace-bar { position: relative; height: 14px; border-radius: 7px; background: var(--sunk); overflow: visible; }
+.pace-bar i { position: absolute; top: 0; bottom: 0; }
+.pb-spent { left: 0; background: var(--accent); border-radius: 7px 0 0 7px; }
+.pb-rest { background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--accent) 45%, transparent) 0 5px, color-mix(in srgb, var(--accent) 18%, transparent) 5px 10px); }
+.pb-rest.over { background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--bad) 50%, transparent) 0 5px, color-mix(in srgb, var(--bad) 18%, transparent) 5px 10px); }
+.pb-mark { position: absolute; top: -5px; bottom: -5px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--ink); }
+.pace-key { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--ink-2); }
+.pace-key i { display: inline-block; position: static; width: 12px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+.pb-mark-key { display: inline-block; width: 3px; height: 12px; border-radius: 2px; background: var(--ink); vertical-align: -2px; margin-right: 6px; }
+.story-lines { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; line-height: 1.5; }
+.story-lines li::marker { color: var(--accent); }

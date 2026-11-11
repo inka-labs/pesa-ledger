@@ -5,6 +5,8 @@ import { money } from "../model/format";
 import { before, cycleLabel, mk, MONTHS, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
 import type { Category, Group } from "../model/types";
 import { AmountInput, changeBadge, recent, StatCard, Swatch, TextInput } from "../ui/bits";
+import { PaceCard } from "../ui/Insights";
+import { usual } from "../model/insights";
 import { ArrowDownToLine, Ellipsis, Gauge, PiggyBank, Plus, ShoppingBag, Trash2, Wallet } from "lucide-react";
 
 export function MonthView() {
@@ -113,6 +115,7 @@ export function MonthView() {
           badge={changeBadge(t.saved, tp.has ? tp.saved : null, true)} badgeLabel={`vs ${pLabel}`}
           spark={recent(book, { y, m }, (x) => x.saved)} line={`Left over ${money(t.left)}`} />
       </div>
+      {y === book.today.y && m === book.today.m && <PaceCard />}
       {future && <p className="small muted">{MONTHS_LONG[m - 1]} hasn't happened yet. <button className="link" onClick={() => go("budget", { planYear: y, planMonth: m })}>Set its budget</button>.</p>}
       {!future && <Unpaid />}
       <div className="filters">
@@ -284,14 +287,18 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
   const entries = book.year(y)?.entries?.[mk(m)]?.[c.id] ?? [];
   const p = prevYM({ y, m });
   const last = book.actual(p.y, p.m, c.id);
+  // what it usually comes to, said beside a category with nothing yet this month
+  const u = a == null && !c.oneoff ? usual(book, { y, m }, c.id) : null;
+  const typical = u && u.times >= 2 && u.amount > 0 ? u.amount : 0;
 
   // a thin bar under the name, with what's left (or over) beside it; amber for a small overspend, red past 10%
   let status = null, bar = null;
+  if (!budget && typical) status = <span className="muted">usually about {money(typical)}</span>;
   if (budget) {
     const ratio = (a || 0) / budget;
     const over = spending && ratio > 1.0001;
     const way = over && ratio > 1.1;
-    status = a == null ? <span className="muted">{money(budget)} budgeted</span>
+    status = a == null ? <span className="muted">{money(budget)} budgeted{typical ? ` · usually about ${money(typical)}` : ""}</span>
       : over ? <span className={way ? "d-bad" : "warn-ink"}>{money(a - budget)} over</span>
       : !spending ? <span className="muted">of {money(budget)}</span>
       : <span className="muted">{money(budget - a)} left</span>;

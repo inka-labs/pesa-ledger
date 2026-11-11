@@ -7,8 +7,17 @@ a small local server and a web page, with your figures kept in a folder in your 
 Three pages cover the everyday, and everything else is one click away:
 
 - **Home:** where the app opens, laid out as a dashboard. Four cards (left to spend, came in, spent, saved) with
-  the change from last month, a chart of money in, spent and saved over the last 12 months (click a month to open
-  it), a ring of where this month's money went, the latest expenses added, a short to-do list and your goals.
+  the change from last month; **where the month is heading** (at this pace, what you'll have spent by month end
+  against the budget, and which categories are pushing it over); **last month in words** (what came in and went
+  out against a usual month, what rose and fell most, how much was saved); a 12-month chart of money in, spent and
+  saved; a ring of where the month went; the latest expenses added; and **Worth a look**: what's over budget,
+  goals and funds behind, categories you record every month that are still empty, spending well above its usual
+  level or rising three months running, and "nothing added for N days" if you add expenses as they happen.
+
+  "Usual" is the middle of a category's last three months with figures, so one big bill doesn't move it. The
+  pace counts what you add one at a time as continuing at its daily rate, a total you typed in as done, and
+  anything not recorded yet as reaching its budget (or its usual amount). With a pay cycle there's no pace, as
+  the month doesn't follow the calendar.
 - **Budget:** one month at a time, one amount per category. An amount is the usual one for every month unless
   you tick **Only <month>** (school fees in January, insurance in November), and changing either never moves
   the other months. A month with nothing budgeted offers last month's. **Whole year** shows the 12-month grid, a
