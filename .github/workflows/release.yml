@@ -1,0 +1,40 @@
+# Push a tag like v0.2.0 and this builds the Mac and Windows zips and publishes them as a GitHub release,
+# with a .sha256 beside each. The tag must match the version in backend/pyproject.toml.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # to create the release
+
+jobs:
+  release:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: v0.84.1
+          cache: true
+          locked: true
+      - name: The tag matches the app's version
+        run: |
+          version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' backend/pyproject.toml)
+          init=$(sed -n 's/^__version__ *= *"\(.*\)"/\1/p' backend/pesa_ledger/__init__.py)
+          echo "tag ${GITHUB_REF_NAME}, pyproject ${version}, __init__ ${init}"
+          test "${GITHUB_REF_NAME}" = "v${version}" && test "${version}" = "${init}"
+      - name: Tests
+        run: pixi run test
+      - name: Build the zips
+        run: pixi run release
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="docs/releases/${GITHUB_REF_NAME}.md"
+          if [ -f "$notes" ]; then set -- --notes-file "$notes"; else set -- --generate-notes; fi
+          gh release create "${GITHUB_REF_NAME}" packaging/dist/*.zip packaging/dist/*.sha256 \
+            --title "Pesa Ledger ${GITHUB_REF_NAME#v}" "$@"

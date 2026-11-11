@@ -19,9 +19,17 @@ Applications or the Start menu. They don't need pixi, git, Node or a build step.
    - a `.sha256` file beside each.
 
    It also refreshes `THIRD_PARTY_NOTICES.md`. Commit that if it changed.
-4. Tag it: `git tag v<version> && git push origin v<version>`.
-5. Share the zips. The repository is private, so attach them to a GitHub release for people with access, or send
-   them directly (email, a shared drive). Send the `.sha256` files too, so people can check what they got.
+4. Optionally, write the release notes in `docs/releases/v<version>.md`. Without them, GitHub writes notes from
+   the commits.
+5. Tag it and push the tag:
+
+       git tag v<version> && git push origin v<version>
+
+   The **Release** workflow (`.github/workflows/release.yml`) checks the tag matches the version, runs the tests,
+   builds the zips and publishes them as a GitHub release, with the `.sha256` files beside them. Steps 2–3 are
+   then only for checking locally.
+6. The repository is private, so only people with access can see the release. Send the zips (and `.sha256` files)
+   to anyone else directly.
 
 Each zip contains:
 
