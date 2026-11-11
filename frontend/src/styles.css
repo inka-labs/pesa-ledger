@@ -1031,3 +1031,7 @@ table.recent td:last-child, table.recent th:last-child { text-align: right; }
 .bvs-key .k-in { background: var(--accent); }
 .bvs-key .k-over { background: var(--warn); }
 .bvs-key .k-way { background: var(--bad); }
+/* a row of two with one card missing: the other takes the row */
+.dash2 > :only-child { grid-column: 1 / -1; }
+.allow { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); color: var(--ink-2); line-height: 1.5; }
+.dbar.plain { background: var(--sunk); }

@@ -10,7 +10,7 @@ import { usual } from "../model/insights";
 import { ArrowDownToLine, Ellipsis, Gauge, PiggyBank, Plus, ShoppingBag, Trash2, Wallet } from "lucide-react";
 
 export function MonthView() {
-  const { book, change, view, setView, go, addExpense } = useApp();
+  const { book, change, view, setView, go } = useApp();
   const { y, m } = view;
   const t = book.monthTotals(y, m);
   const p = prevYM({ y, m });
@@ -85,7 +85,6 @@ export function MonthView() {
         <div className="end">
           {(y !== book.today.y || m !== book.today.m) && <button className="btn ghost" onClick={() => setView(book.today)}>{book.settings.paycycle ? "Current pay" : "This month"}</button>}
           <button className="btn" onClick={() => go("budget", { planYear: y, planMonth: m })} title={`${MONTHS_LONG[m - 1]}'s budget`}><Wallet size={15} aria-hidden /> Budget</button>
-          <button className="btn primary wide-only" onClick={() => addExpense()}><Plus size={16} aria-hidden /> Add expense</button>
           <details className="menu">
             <summary className="btn ghost" aria-label="More ways to fill in the month" title="Fill in the month"><Ellipsis size={16} aria-hidden /></summary>
             <div className="menu-pop" role="menu">

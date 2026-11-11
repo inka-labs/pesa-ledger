@@ -16,8 +16,8 @@ Three pages cover the everyday, and everything else is one click away:
 
   "Usual" is the middle of a category's last three months with figures, so one big bill doesn't move it. The
   pace counts what you add one at a time as continuing at its daily rate, a total you typed in as done, and
-  anything not recorded yet as reaching its budget (or its usual amount). With a pay cycle there's no pace, as
-  the month doesn't follow the calendar.
+  anything not recorded yet as reaching its budget (or its usual amount). With a pay cycle the pace runs from payday
+  to the day before the next one (October's pay on the 31st covers 31 Oct – 29 Nov).
 - **Budget:** one month at a time, one amount per category. An amount is the usual one for every month unless
   you tick **Only <month>** (school fees in January, insurance in November), and changing either never moves
   the other months. A month with nothing budgeted offers last month's. **Whole year** shows the 12-month grid, a

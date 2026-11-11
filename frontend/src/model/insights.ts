@@ -115,6 +115,8 @@ export function review(book: Book, ym: YM): Review | null {
 
 export type Pace = {
   day: number; days: number;
+  /** the last day the month's spending covers: its calendar end, or the day before the next payday */
+  end: Date;
   spent: number; projected: number; budget: number;
   /** projected minus budget: above 0 is heading over */
   gap: number;
@@ -122,13 +124,26 @@ export type Pace = {
   drivers: { c: Category; projected: number; budget: number }[];
 };
 
-/** Where this month's everyday spending is heading by month end. Null outside the current calendar month
- *  (and with a pay cycle, whose month doesn't follow the calendar). */
+/** The days a ledger month's spending covers: the calendar month, or with a pay cycle from its payday to
+ *  the day before the next one (October's pay on the 31st covers 31 Oct – 29 Nov). */
+export function period(settings: { paycycle?: { payday: number } | null }, ym: YM): { start: Date; next: Date } {
+  const pd = settings.paycycle?.payday;
+  if (!pd) return { start: new Date(ym.y, ym.m - 1, 1), next: new Date(ym.y, ym.m, 1) };
+  const on = (y: number, m0: number) => new Date(y, m0, Math.min(pd, new Date(y, m0 + 1, 0).getDate()));
+  return { start: on(ym.y, ym.m - 1), next: on(ym.y, ym.m) };
+}
+
+/** Where this month's everyday spending is heading by the end of the period it covers. Null when today
+ *  isn't inside that period. */
 export function pace(book: Book, now = new Date()): Pace | null {
   const ym = book.today;
-  if (book.settings.paycycle || ym.y !== now.getFullYear() || ym.m !== now.getMonth() + 1) return null;
-  const days = new Date(ym.y, ym.m, 0).getDate();
-  const day = Math.min(days, now.getDate());
+  const { start, next } = period(book.settings, ym);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (today < start || today >= next) return null;
+  const DAY = 86_400_000;
+  const days = Math.round((next.getTime() - start.getTime()) / DAY);
+  const day = Math.min(days, Math.round((today.getTime() - start.getTime()) / DAY) + 1);
+  const end = new Date(next.getTime() - DAY);
   let spent = 0, projected = 0, budget = 0;
   const drivers: Pace["drivers"] = [];
   for (const c of everyday(book)) {
@@ -147,7 +162,7 @@ export function pace(book: Book, now = new Date()): Pace | null {
     if (b && p > b * 1.05) drivers.push({ c, projected: p, budget: b });
   }
   drivers.sort((x, y) => (y.projected - y.budget) - (x.projected - x.budget));
-  return { day, days, spent, projected, budget, gap: projected - budget, drivers: drivers.slice(0, 3) };
+  return { day, days, end, spent, projected, budget, gap: projected - budget, drivers: drivers.slice(0, 3) };
 }
 
 // Missed and unusual -------------------------------------------------------------------------------

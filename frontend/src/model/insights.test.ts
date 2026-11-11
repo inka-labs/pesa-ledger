@@ -120,3 +120,21 @@ describe("a month's review", () => {
     expect(r.savedRate).toBeCloseTo(0.1);
   });
 });
+
+describe("pace with a pay cycle", () => {
+  it("runs from payday to the day before the next one", () => {
+    const l = ledger();
+    l.settings.paycycle = { payday: 31 };
+    l.years["2026"].actual["10"] = { ...l.years["2026"].actual["10"] }; // October's pay pays for November
+    const p = pace(new Book(l, { y: 2026, m: 10 }), new Date(2026, 10, 11))!; // 11 Nov
+    expect(p.days).toBe(30); // 31 Oct – 29 Nov
+    expect(p.day).toBe(12);
+    expect([p.end.getDate(), p.end.getMonth() + 1]).toEqual([29, 11]);
+  });
+
+  it("is nothing outside the period", () => {
+    const l = ledger();
+    l.settings.paycycle = { payday: 25 };
+    expect(pace(new Book(l, { y: 2026, m: 10 }), new Date(2026, 10, 30))).toBeNull();
+  });
+});

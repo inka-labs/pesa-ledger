@@ -7,7 +7,7 @@ import { money } from "../model/format";
 import { cycleLabel, fmtYM, mk, MONTHS, MONTHS_LONG, nextYM, parseYM, prevYM } from "../model/ledger";
 import { setActual } from "../model/edit";
 import { changeBadge, recent, StatCard, Swatch } from "../ui/bits";
-import { ArrowDownToLine, CircleAlert, Clock, Flag, Gauge, PiggyBank, Plus, Repeat, SearchX, ShoppingBag, Target, TrendingUp, Wallet } from "lucide-react";
+import { ArrowDownToLine, CircleAlert, Clock, Flag, Gauge, PiggyBank, Repeat, SearchX, ShoppingBag, Target, TrendingUp, Wallet } from "lucide-react";
 
 // one icon per kind of thing worth a look (the item key starts with its kind)
 const TODO_ICON: Record<string, typeof Wallet> = {
@@ -95,7 +95,6 @@ export function OverviewView() {
           <span className="muted small">{cycleLabel(book.settings, today) ?? "Your money this month"}</span></div>
         <div className="end">
           <button className="btn" onClick={() => go("budget", { planYear: today.y, planMonth: today.m })}><Wallet size={15} aria-hidden /> Budget</button>
-          <button className="btn primary" onClick={() => { setView({ ...today }); addExpense(); }}><Plus size={16} aria-hidden /> Add expense</button>
         </div>
       </div>
 
