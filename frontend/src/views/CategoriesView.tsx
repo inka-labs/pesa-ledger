@@ -230,7 +230,8 @@ function GroupCard({ g, cats, hist, first, last, narrowing, folded, onFold, onOp
                 <li key={c.id} className={`cg-row${c.archived ? " archived" : ""}${over === c.id ? " drop-before" : ""}${drag === c.id ? " lifted" : ""}`}
                   draggable={!narrowing} onDragStart={(e) => { setDrag(c.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", c.id); }}
                   onDragEnd={() => { setDrag(null); setOver(null); }} onDragOver={dragOver(c.id)} onDrop={drop(c.id)}>
-                  {!narrowing && <span className="grip" aria-hidden title="Drag to reorder or move to another group"><GripVertical size={15} /></span>}
+                  {/* the handle's column is kept with a filter on (nothing to drag then), so the name stays in its own column */}
+                  {narrowing ? <span aria-hidden /> : <span className="grip" aria-hidden title="Drag to reorder or move to another group"><GripVertical size={15} /></span>}
                   <button className="cg-name" onClick={() => onOpen(c.id)} title={`Open ${c.name}`}>
                     <span className="nm">{c.name}</span>
                     <span className="chips">
