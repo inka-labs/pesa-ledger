@@ -22,6 +22,13 @@ $Py = Join-Path $EnvDir 'python.exe'
 $Pyw = Join-Path $EnvDir 'pythonw.exe'
 $Unattended = [bool]$env:PESA_LEDGER_UNATTENDED
 
+# Start the ledger again in the background and wait for the launcher only. (Start-Process -Wait would also
+# wait for every process it starts, including the ledger itself, which keeps running: it would never return.)
+function Start-Ledger {
+    $p = Start-Process -FilePath $Pyw -ArgumentList '-X', 'utf8', '-m', 'pesa_ledger.launch', '--no-browser' -WorkingDirectory $App -PassThru
+    if (-not $p.WaitForExit(90000)) { Write-Host 'The ledger is taking a while to start; it will be ready shortly.' }
+}
+
 function Finish {
     if ($Unattended) { return }
     Write-Host ''; Read-Host 'Press Enter to close this window' | Out-Null
@@ -31,7 +38,7 @@ function Fail([string]$Message) {
     Write-Host "X $Message" -ForegroundColor Red
     Write-Host '  Your figures were not touched: they are in %USERPROFILE%\.pesa-ledger.'
     if ($Unattended -and (Test-Path $Py)) {
-        try { Start-Process -FilePath $Pyw -ArgumentList '-X', 'utf8', '-m', 'pesa_ledger.launch', '--no-browser' -WorkingDirectory $App -Wait } catch { }
+        try { Start-Ledger } catch { }
     }
     Finish
     exit 1
@@ -101,7 +108,7 @@ try {
     Write-Host ''
     if ($Unattended) {
         Write-Host "Pesa Ledger $AppVersion is installed. Starting it again..."
-        Start-Process -FilePath $Pyw -ArgumentList '-X', 'utf8', '-m', 'pesa_ledger.launch', '--no-browser' -WorkingDirectory $App -Wait
+        Start-Ledger
         exit 0
     }
     Write-Host "Pesa Ledger $AppVersion is installed. Opening it in your browser..." -ForegroundColor Green
