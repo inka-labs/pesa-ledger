@@ -26,5 +26,7 @@ stop = "python -m pesa_ledger.launch --stop"
 test = { depends-on = ["test-api", "test-ui"] }
 test-api = { cmd = "pytest -q", cwd = "backend" }
 test-ui = { cmd = "npm test", cwd = "frontend", depends-on = ["install-ui"] }
+# The downloads for people who don't use a terminal: packaging/dist/Pesa-Ledger-<version>-mac.zip and -windows.zip
+release = { cmd = "python packaging/build_release.py", depends-on = ["build-ui"] }
 # Start the ledger when you log in: pixi run autostart install | uninstall | status
 autostart = "python -m pesa_ledger.autostart"

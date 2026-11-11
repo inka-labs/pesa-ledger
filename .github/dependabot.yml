@@ -1,0 +1,13 @@
+# Pull requests for security fixes and updates to the page's npm packages and to the CI actions.
+# (Python packages are locked by pixi, which Dependabot doesn't read; the CI audit covers them.)
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies: { dependency-type: development }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }

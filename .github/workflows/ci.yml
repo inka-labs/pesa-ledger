@@ -1,0 +1,117 @@
+# Tests and a build on every platform people run Pesa Ledger on, and a security audit of its dependencies.
+# Actions are pinned to commits (not tags), so a moved tag can't change what runs here.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays: re-audit dependencies even when nothing changed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: v0.84.1
+          cache: true
+          locked: true # fail if pixi.lock is out of date with pixi.toml
+      - name: API and UI tests
+        run: pixi run test
+      - name: Typecheck and build the page
+        run: pixi run build-ui
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: v0.84.1
+          cache: true
+          locked: true
+      - name: Python packages (the exact locked versions)
+        run: |
+          pixi list --json | python3 -c "import json,sys; [print(f\"{p['name']}=={p['version']}\") for p in json.load(sys.stdin) if p.get('kind') == 'pypi' and p.get('version')]" > locked-requirements.txt
+          cat locked-requirements.txt
+          pipx run pip-audit --requirement locked-requirements.txt --no-deps --disable-pip --strict
+      - name: JavaScript packages
+        run: |
+          pixi run install-ui
+          pixi run npm --prefix frontend audit --audit-level=high
+
+  installer:
+    # Build the release zips, then really install from them the way a user would (into a clean
+    # folder, on another port) and check the installed ledger answers. Catches broken installers.
+    name: Installer (${{ matrix.os }})
+    needs: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    env:
+      PESA_LEDGER_PORT: "8799"
+      PESA_LEDGER_UNATTENDED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: v0.84.1
+          cache: true
+          locked: true
+      - name: Build the release zips
+        run: pixi run release
+      - name: Install from the Mac zip and check it answers
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/try/home"
+          ditto -x -k packaging/dist/Pesa-Ledger-*-mac.zip "$RUNNER_TEMP/try"
+          cd "$RUNNER_TEMP/try"
+          HOME="$RUNNER_TEMP/try/home" ./Pesa\ Ledger\ */Install\ Pesa\ Ledger.command
+          test -d "$RUNNER_TEMP/try/home/Applications/Pesa Ledger.app"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8799/)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8799/api/ledger)" = 401
+          curl -sI http://127.0.0.1:8799/ | grep -i "content-security-policy"
+          cd "$RUNNER_TEMP/try/home/Library/Application Support/Pesa Ledger/app" && HOME="$RUNNER_TEMP/try/home" .pixi/envs/default/bin/python -m pesa_ledger.launch --stop
+      - name: Install from the Windows zip and check it answers
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # the scripts must parse in Windows PowerShell 5.1 as well as pwsh
+          foreach ($f in Get-ChildItem packaging/windows/*.ps1) {
+            $errs = $null; [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errs)
+            if ($errs) { $errs; throw "PowerShell can't parse $($f.Name)" }
+          }
+          $try = Join-Path $env:RUNNER_TEMP 'try'
+          $zip = (Get-ChildItem packaging/dist/Pesa-Ledger-*-windows.zip).FullName
+          Expand-Archive -Path $zip -DestinationPath $try
+          $top = (Get-ChildItem $try -Directory | Select-Object -First 1).FullName
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $top 'app\packaging\windows\install.ps1') -Source (Join-Path $top 'app')
+          if ($LASTEXITCODE -ne 0) { throw "The installer failed ($LASTEXITCODE)" }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) 'Pesa Ledger.lnk'))) { throw 'No Start menu shortcut' }
+          $page = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8799/
+          if ($page.StatusCode -ne 200) { throw "The page answered $($page.StatusCode)" }
+          if (-not $page.Headers['Content-Security-Policy']) { throw 'No Content-Security-Policy header' }
+          try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8799/api/ledger | Out-Null; throw 'The API answered without signing in' }
+          catch { if ($_.Exception.Response.StatusCode.value__ -ne 401) { throw } }
+          $app = Join-Path $env:LOCALAPPDATA 'Pesa Ledger\app'
+          Push-Location $app; & (Join-Path $app '.pixi\envs\default\python.exe') -X utf8 -m pesa_ledger.launch --stop; Pop-Location

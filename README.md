@@ -1,5 +1,10 @@
 # Pesa Ledger
 
+[![CI](https://github.com/ttemu34/pesa-ledger/actions/workflows/ci.yml/badge.svg)](https://github.com/ttemu34/pesa-ledger/actions/workflows/ci.yml)
+
+**Using it:** [Getting started](docs/GETTING_STARTED.md): install on Mac or Windows, first steps, updating and
+backups. **Sharing it:** [packaging/](packaging/README.md) builds the installers. **Security:** [SECURITY.md](SECURITY.md).
+
 A private household ledger that runs on your own computer. Budget the months ahead, record what came in and went
 out, and compare month on month and year on year. It's built the same way as Ecoscope Studio and Docling Studio:
 a small local server and a web page, with your figures kept in a folder in your home directory.

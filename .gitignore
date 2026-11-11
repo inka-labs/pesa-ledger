@@ -9,3 +9,5 @@ frontend/dist/
 *.tsbuildinfo
 # Never commit anyone's figures: exports and imports stay out of the repo.
 *.csv
+# release zips (attach them to a GitHub release; they're rebuilt from the code)
+packaging/dist/
