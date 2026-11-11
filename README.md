@@ -9,14 +9,14 @@ Three pages cover the everyday, and everything else is one click away:
 - **Home:** where the app opens, laid out as a dashboard. Four cards (left to spend, came in, spent, saved) with
   the change from last month, a chart of money in, spent and saved over the last 12 months (click a month to open
   it), a ring of where this month's money went, the latest expenses added, a short to-do list and your goals.
-- **Spending:** the month, one row per category: what's been spent with one bar against its budget, and the
-  figure. **Add expense** (the sidebar, the + on each row, or the round + on a phone) adds an amount to a
-  category's total and keeps a list of what was added, so any of it can be taken back out. You can also type a
-  month's total straight in. The … menu copies last month's amounts or fills empty rows from the budget.
 - **Budget:** one month at a time, one amount per category. An amount is the usual one for every month unless
   you tick **Only <month>** (school fees in January, insurance in November), and changing either never moves
   the other months. A month with nothing budgeted offers last month's. **Whole year** shows the 12-month grid, a
   yearly figure to spread evenly, and the next 12 months' forecast.
+- **Spending:** the month, one row per category: what's been spent with one bar against its budget, and the
+  figure. **Add expense** (the sidebar, the + on each row, or the round + on a phone) adds an amount to a
+  category's total and keeps a list of what was added, so any of it can be taken back out. You can also type a
+  month's total straight in. The … menu copies last month's amounts or fills empty rows from the budget.
 - **More:** Year, Compare, Health, Net worth, Goals, Sinking funds and Allocation, each with what it's for:
   - **Year:** where each month's money went (with budget ticks and one-offs hatched), where the year's income
     went as shares, and a full month-by-month table against budget.

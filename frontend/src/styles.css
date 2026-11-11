@@ -666,7 +666,7 @@ select.ghost-select:hover { border-color: var(--line); }
 .subtabs a:hover { background: var(--sunk); }
 .subtabs a[aria-current="page"] { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
 
-/* phones: Home, Spending, + , Budget, More */
+/* phones: Home, Budget, + , Spending, More */
 .bb-add { display: none; }
 @media (max-width: 900px) {
   .bb-add { display: grid; place-items: center; width: 48px; height: 48px; margin: -14px auto 0; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 40%, transparent); cursor: pointer; }

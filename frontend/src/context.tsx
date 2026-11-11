@@ -6,10 +6,10 @@ import type { Ledger, Metric } from "./model/types";
 export type Tab = "overview" | "more" | "health" | "month" | "year" | "compare" | "networth" | "budget" | "goals" | "funds" | "allocation" | "settings" | "categories" | "appearance";
 export type Section = { id: string; label: string; tabs: { id: Tab; label: string }[] };
 
-/** Three everyday pages (how this month is going, what was spent, the budget), everything else one click
+/** Three everyday pages in the order a month runs (how it's going, the plan, what was spent), everything else one click
  *  away under More, and how the ledger is set up under Settings. */
 export const SECTIONS: Section[] = [
-  { id: "main", label: "", tabs: [{ id: "overview", label: "Home" }, { id: "month", label: "Spending" }, { id: "budget", label: "Budget" }, { id: "more", label: "More" }] },
+  { id: "main", label: "", tabs: [{ id: "overview", label: "Home" }, { id: "budget", label: "Budget" }, { id: "month", label: "Spending" }, { id: "more", label: "More" }] },
   { id: "more", label: "More", tabs: [{ id: "year", label: "Year" }, { id: "compare", label: "Compare" }, { id: "health", label: "Health" }, { id: "networth", label: "Net worth" }, { id: "goals", label: "Goals" }, { id: "funds", label: "Sinking funds" }, { id: "allocation", label: "Allocation" }] },
   { id: "setup", label: "Settings", tabs: [{ id: "settings", label: "General" }, { id: "categories", label: "Categories" }, { id: "appearance", label: "Appearance" }] },
 ];
