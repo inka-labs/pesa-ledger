@@ -22,6 +22,23 @@ from .core.store import home, write_text_private
 
 COOKIE = f"{brand.SLUG.replace('-', '_')}_session"
 ALLOWED_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
+
+# What the page may load and do: only its own scripts, styles, fonts and API (styles may be inline: the
+# palette is a <style> the page writes, and React sets style attributes), images it makes itself (chart
+# PNGs), and nothing may frame it. A script injected into a figure or a note would not run.
+SECURITY_HEADERS = {
+    "Content-Security-Policy": "; ".join([
+        "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
+        "font-src 'self' data:", "connect-src 'self'", "object-src 'none'", "base-uri 'none'", "form-action 'self'",
+        "frame-ancestors 'none'",
+    ]),
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+}
 UI_DIST = Path(os.environ.get("PESA_LEDGER_UI") or Path(__file__).resolve().parents[2] / "frontend" / "dist")
 
 
@@ -80,8 +97,8 @@ def create_app() -> FastAPI:
             if request.method not in ("GET", "HEAD") and not _same_origin(request):
                 return JSONResponse({"detail": "Cross-origin request refused."}, status_code=403)
         response = await call_next(request)
-        response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        for name, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(name, value)
         if request.url.path.startswith("/api/"):
             response.headers.setdefault("Cache-Control", "no-store")
         return response

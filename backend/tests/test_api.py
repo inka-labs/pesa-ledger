@@ -1,4 +1,5 @@
 import json
+import os
 import stat
 
 from fastapi.testclient import TestClient
@@ -35,8 +36,8 @@ def test_settings_and_years_round_trip(client, settings, ledger_home):
     assert got["years"]["2026"]["actual"]["01"]["inc_0"] == 400000
     assert got["years"]["2026"]["budget"]["11"]["ess_0"] == 40000
     # finances are owner-only on disk
-    mode = stat.S_IMODE((ledger_home / "years" / "2026.json").stat().st_mode)
-    assert mode == 0o600
+    if os.name != "nt":  # Windows has no owner-only mode bits; the profile folder's permissions guard it
+        assert stat.S_IMODE((ledger_home / "years" / "2026.json").stat().st_mode) == 0o600
 
 
 def test_older_settings_get_the_default_types_and_palette(client, settings):
@@ -172,7 +173,8 @@ def test_an_emptied_token_file_is_never_accepted(ledger_home):
     app = create_app()
     assert len(app.state.token) >= 32
     assert TestClient(app, base_url=BASE).get("/api/ledger").status_code == 401
-    assert stat.S_IMODE((ledger_home / "session_token").stat().st_mode) == 0o600
+    if os.name != "nt":
+        assert stat.S_IMODE((ledger_home / "session_token").stat().st_mode) == 0o600
 
 
 def test_another_local_port_is_another_site(client):
@@ -255,3 +257,10 @@ def test_navigation_setting(client, settings):
     saved = client.put("/api/settings", json={**settings, "nav": "top", "navCompact": True}).json()
     assert saved["nav"] == "top" and saved["navCompact"] is True
     assert client.put("/api/settings", json={**settings, "nav": "bottom"}).status_code == 400
+
+
+def test_every_response_carries_the_security_headers(client):
+    for path in ("/", "/api/ledger", "/auth?token=wrong"):
+        h = client.get(path).headers
+        assert "script-src 'self'" in h["content-security-policy"] and "frame-ancestors 'none'" in h["content-security-policy"]
+        assert h["x-frame-options"] == "DENY" and h["x-content-type-options"] == "nosniff"
