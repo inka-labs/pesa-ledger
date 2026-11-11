@@ -959,3 +959,8 @@ table.recent td:last-child, table.recent th:last-child { text-align: right; }
 /* search on Spending */
 .filters .find { padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink); }
 .filters .find:focus { outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: 0; border-color: var(--accent); }
+/* Categories: one wide card per group */
+.cg-grid { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 701px) {
+  .cg-row, .cg-cols { grid-template-columns: 18px minmax(0, 1fr) 200px 110px; }
+}
