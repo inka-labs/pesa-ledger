@@ -79,3 +79,50 @@ export function GroupDonut({ book, t }: { book: Book; t: Totals }) {
     </div>
   );
 }
+
+/** This month's spending by category against each one's budget: the categories you'd act on, biggest first. */
+export function BudgetVsSpent({ book, onCat }: { book: Book; onCat: (cid: string) => void }) {
+  const tick = useThemeTick();
+  const ym = book.today;
+  const rows = book.settings.cats
+    .filter((c) => !c.archived && !c.oneoff && book.effectOf(c.id) === "out")
+    .map((c) => ({ c, a: book.actual(ym.y, ym.m, c.id) ?? 0, b: book.planMonthly(ym.y, ym.m, c.id) ?? 0 }))
+    .filter((x) => x.a > 0 || x.b > 0)
+    .sort((x, y) => Math.max(y.a, y.b) - Math.max(x.a, x.b))
+    .slice(0, 8)
+    .reverse(); // Plotly draws the first row at the bottom
+  const key = JSON.stringify(rows.map((x) => [x.c.id, x.a, x.b]));
+  const { data, layout } = useMemo(() => {
+    const t = chartTheme();
+    const names = rows.map((x) => x.c.name);
+    const col = (x: (typeof rows)[number]) => cssColor(x.b && x.a > x.b * 1.1 ? "var(--bad)" : x.b && x.a > x.b ? "var(--warn)" : "var(--accent)");
+    const data: Data[] = [
+      { type: "bar", orientation: "h", name: "Budget", y: names, x: rows.map((x) => x.b || null), marker: { color: alpha(cssColor("var(--muted)"), 0.22) },
+        hovertemplate: "Budget %{x:,.0f}<extra></extra>", width: 0.72 },
+      { type: "bar", orientation: "h", name: "Spent", y: names, x: rows.map((x) => x.a), marker: { color: rows.map(col) },
+        customdata: rows.map((x) => x.c.id) as unknown as string[], width: 0.38,
+        hovertemplate: "Spent %{x:,.0f}<extra>%{y}</extra>" },
+    ];
+    const layout: Partial<Layout> = {
+      ...baseLayout(t, Math.max(200, rows.length * 36 + 36)), barmode: "overlay", dragmode: false, hovermode: "y unified", showlegend: false,
+      margin: { l: 130, r: 12, t: 6, b: 28 },
+      yaxis: { automargin: true, tickfont: { color: t.ink2, size: 12.5 }, showgrid: false, fixedrange: true },
+      xaxis: { gridcolor: t.line, tickformat: "~s", tickfont: { color: t.muted }, fixedrange: true, zeroline: false },
+    };
+    return { data, layout };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, tick]);
+  if (!rows.length) return <p className="muted small">Nothing spent or budgeted this month yet.</p>;
+  return (
+    <>
+      <div className="bvs-key small">
+        <span><i className="k-budget" /> Budget</span>
+        <span><i className="k-in" /> Spent, within budget</span>
+        <span><i className="k-over" /> Over</span>
+        <span><i className="k-way" /> More than 10% over</span>
+      </div>
+      <Plot data={data} layout={layout} label="This month's spending against budget, by category" filename="pesa-budget-vs-spent"
+        onClick={(e) => { const cid = (e.points?.[0] as { customdata?: string } | undefined)?.customdata; if (cid) onCat(cid); }} />
+    </>
+  );
+}

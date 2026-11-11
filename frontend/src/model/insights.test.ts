@@ -108,3 +108,15 @@ describe("missed and unusual", () => {
     expect(flags(new Book(l, TODAY), NOW).some((x) => x.cid === "car")).toBe(false);
   });
 });
+
+describe("a month's review", () => {
+  it("lays out the totals beside usual, and the biggest moves first", async () => {
+    const { review } = await import("./insights");
+    const l = ledger();
+    l.years["2026"].actual["11"] = { inc_0: 100_000, ess_0: 30_000, ess_4: 26_000, ess_5: 4_000, sav_0: 10_000 };
+    const r = review(new Book(l, { y: 2026, m: 12 }), TODAY)!;
+    expect(r.rows.find((x) => x.key === "income")).toMatchObject({ value: 100_000, usual: 100_000 });
+    expect(r.moves.map((x) => [x.c.id, x.d])).toEqual([["ess_4", 6_000], ["ess_5", -2_000]]);
+    expect(r.savedRate).toBeCloseTo(0.1);
+  });
+});

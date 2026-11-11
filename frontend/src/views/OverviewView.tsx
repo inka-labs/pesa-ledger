@@ -7,9 +7,15 @@ import { money } from "../model/format";
 import { cycleLabel, fmtYM, mk, MONTHS, MONTHS_LONG, nextYM, parseYM, prevYM } from "../model/ledger";
 import { setActual } from "../model/edit";
 import { changeBadge, recent, StatCard, Swatch } from "../ui/bits";
-import { ArrowDownToLine, Gauge, PiggyBank, Plus, ShoppingBag, Wallet } from "lucide-react";
-import { GroupDonut, InOutChart } from "../ui/homeCharts";
-import { PaceCard, StoryCard } from "../ui/Insights";
+import { ArrowDownToLine, CircleAlert, Clock, Flag, Gauge, PiggyBank, Plus, Repeat, SearchX, ShoppingBag, Target, TrendingUp, Wallet } from "lucide-react";
+
+// one icon per kind of thing worth a look (the item key starts with its kind)
+const TODO_ICON: Record<string, typeof Wallet> = {
+  unpaid: Repeat, over: Flag, next: Wallet, goals: Target, funds: PiggyBank,
+  missed: SearchX, high: TrendingUp, rising: TrendingUp, quiet: Clock,
+};
+import { BudgetVsSpent, GroupDonut, InOutChart } from "../ui/homeCharts";
+import { PaceCard, ReviewCard } from "../ui/Insights";
 import { flags } from "../model/insights";
 
 type Item = { key: string; text: ReactNode; action: string; run: () => void };
@@ -68,7 +74,7 @@ export function OverviewView() {
     });
   }
   const [all, setAll] = useState(false);
-  const shown = all ? items : items.slice(0, 3);
+  const shown = all ? items : items.slice(0, 4);
 
   const prev = prevYM(today);
   const tp = book.monthTotals(prev.y, prev.m);
@@ -119,7 +125,32 @@ export function OverviewView() {
 
       <div className="dash2">
         <PaceCard />
-        <StoryCard ym={prev} />
+        <ReviewCard ym={prev} />
+      </div>
+
+      <div className="dash2">
+        <div className="panel">
+          <div className="panel-h"><h3>Budget vs spent</h3><span className="muted small">{MONTHS_LONG[today.m - 1]}, by category · click a bar to open it</span></div>
+          <BudgetVsSpent book={book} onCat={(cid) => go("month", { ...today, focusCat: cid })} />
+        </div>
+        <div className="panel">
+          <div className="panel-h"><h3>Worth a look</h3>{items.length > 0 && <span className="chip">{items.length}</span>}</div>
+          {shown.length ? (
+            <ul className="todo">
+              {shown.map((it) => {
+                const Icon = TODO_ICON[it.key.split("-")[0]] ?? CircleAlert;
+                return (
+                  <li key={it.key}>
+                    <span className={`todo-i k-${it.key.split("-")[0]}`} aria-hidden><Icon size={15} /></span>
+                    <span className="todo-t">{it.text}</span>
+                    <button className="btn ghost sm" onClick={it.run}>{it.action}</button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : <p className="muted small">Nothing needs attention. Everything recorded, within budget and on track.</p>}
+          {items.length > 4 && <button className="link small" onClick={() => setAll((x) => !x)}>{all ? "Show fewer" : `Show ${items.length - 4} more`}</button>}
+        </div>
       </div>
 
       <div className="dash2">
@@ -157,34 +188,22 @@ export function OverviewView() {
             <p className="muted small">Expenses you add with <button className="link" onClick={() => { setView({ ...today }); addExpense(); }}>Add expense</button> show up here, newest first.</p>
           )}
         </div>
-        <div className="stack">
-          {shown.length > 0 && (
-            <div className="panel">
-              <div className="panel-h"><h3>Worth a look</h3>{items.length > 0 && <span className="chip">{items.length}</span>}</div>
-              <ul className="todo">
-                {shown.map((it) => (
-                  <li key={it.key}><span>{it.text}</span><button className="btn" onClick={it.run}>{it.action}</button></li>
-                ))}
-              </ul>
-              {items.length > 3 && <button className="link small" onClick={() => setAll((x) => !x)}>{all ? "Show fewer" : `Show ${items.length - 3} more`}</button>}
-            </div>
-          )}
-          {goals.length > 0 && (
-            <div className="panel">
-              <div className="panel-h"><h3>Goals</h3><div className="end"><button className="btn ghost" onClick={() => go("goals")}>All goals</button></div></div>
-              <ul className="gbars">
-                {goals.map(({ g, r }) => (
-                  <li key={g.id}>
-                    <button onClick={() => go("goals")}>
-                      <span className="gname">{g.name}{!r.onTrack && <span className="pill warn">Behind</span>}</span>
-                      <span className="num">{Math.round(r.progress * 100)}%</span>
-                      <div className={`meter thin${r.onTrack ? "" : " over"}`}><i style={{ width: `${r.progress * 100}%` }} /></div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+        <div className="panel">
+          <div className="panel-h"><h3>Goals</h3><div className="end"><button className="btn ghost" onClick={() => go("goals")}>{goals.length ? "All goals" : "Add a goal"}</button></div></div>
+          {goals.length ? (
+            <ul className="gbars">
+              {goals.map(({ g, r }) => (
+                <li key={g.id}>
+                  <button onClick={() => go("goals")}>
+                    <span className="gname">{g.name}{!r.onTrack && <span className="pill warn">Behind</span>}</span>
+                    <span className="num">{Math.round(r.progress * 100)}%</span>
+                    <div className={`meter thin${r.onTrack ? "" : " over"}`}><i style={{ width: `${r.progress * 100}%` }} /></div>
+                    <span className="muted small">{money(r.saved)} of {money(g.target)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="muted small">Saving for something? A goal shows what to put aside each month.</p>}
         </div>
       </div>
     </>

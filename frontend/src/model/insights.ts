@@ -84,6 +84,33 @@ export function monthStory(book: Book, ym: YM): Story | null {
   return { title: `${name} ${ym.y} in words`, lines };
 }
 
+/** A finished month as figures to lay out: the four totals beside their usual month, the categories that
+ *  moved most, and how spending did against the budget. */
+export type Review = {
+  ym: YM;
+  rows: { key: "income" | "spent" | "saved" | "left"; label: string; value: number; usual: number | null }[];
+  moves: { c: Category; value: number; usual: number; d: number }[];
+  savedRate: number | null;
+  budget: { spent: number; budget: number; over: number } | null;
+};
+
+export function review(book: Book, ym: YM): Review | null {
+  const t = book.regular.monthTotals(ym.y, ym.m);
+  if (!t.has) return null;
+  const ms = priorMonths(book, ym);
+  const avg = (k: "income" | "spent" | "saved" | "left") =>
+    ms.length ? ms.reduce((s, p) => s + book.regular.monthTotals(p.y, p.m)[k], 0) / ms.length : null;
+  const rows = ([["income", "Came in"], ["spent", "Spent"], ["saved", "Saved"], ["left", "Left over"]] as const)
+    .map(([key, label]) => ({ key, label, value: t[key], usual: avg(key) }));
+  const moves = ms.length ? everyday(book).map((c) => {
+    const value = book.actual(ym.y, ym.m, c.id) ?? 0, u = usual(book, ym, c.id).amount;
+    return { c, value, usual: u, d: value - u };
+  }).filter((x) => Math.abs(x.d) >= Math.max(500, t.spent * 0.01)).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 4) : [];
+  const sv = book.spendingVsBudget(ym.y, ym.m);
+  const over = everyday(book).filter((c) => { const b = book.planMonthly(ym.y, ym.m, c.id); const a = book.actual(ym.y, ym.m, c.id); return !!b && a != null && a > b; }).length;
+  return { ym, rows, moves, savedRate: t.income > 0 ? t.saved / t.income : null, budget: sv.budget > 0 ? { spent: sv.spent, budget: sv.budget, over } : null };
+}
+
 // Pace ---------------------------------------------------------------------------------------------
 
 export type Pace = {

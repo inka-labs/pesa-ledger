@@ -979,3 +979,55 @@ table.recent td:last-child, table.recent th:last-child { text-align: right; }
 .pb-mark-key { display: inline-block; width: 3px; height: 12px; border-radius: 2px; background: var(--ink); vertical-align: -2px; margin-right: 6px; }
 .story-lines { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; line-height: 1.5; }
 .story-lines li::marker { color: var(--accent); }
+
+/* Home, the cards under the stat cards ------------------------------------------------------------ */
+.dash2 { align-items: stretch; }
+.dash2 > .panel { align-content: start; }
+.ins { gap: 16px; }
+.ins-h { display: flex; align-items: center; gap: 10px; }
+.ins-h h3 { font-size: 15.5px; }
+.ins-h .pill { background: var(--sunk); color: var(--ink-2); margin-left: 0; }
+.ins-h .end { margin-left: auto; }
+.ins-how { margin-left: auto; color: var(--muted); display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; cursor: help; }
+.ins-how:hover, .ins-how:focus-visible { background: var(--sunk); color: var(--ink); }
+.ins-i { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); flex: none; }
+.ins-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ins-figs > div { display: grid; gap: 2px; padding: 12px 14px; border-radius: 10px; background: var(--bg); }
+.ins-big { font-family: var(--f-display); font-size: 24px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; }
+.ins-mid { font-size: 20px; }
+@media (max-width: 640px) { .ins-figs { grid-template-columns: minmax(0, 1fr); } }
+.pace-bar { height: 12px; }
+.drivers { display: grid; gap: 4px; padding-top: 12px; border-top: 1px solid var(--line); }
+.driver { display: grid; grid-template-columns: minmax(0, 1fr) 120px auto; gap: 12px; align-items: center; padding: 6px 4px; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; border-radius: 8px; font-size: 13px; }
+.driver:hover { background: var(--sunk); }
+.driver .dn { font-weight: 500; overflow-wrap: anywhere; }
+.dbar { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--bad) 55%, transparent); position: relative; overflow: hidden; }
+.dbar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+/* the month in review */
+.rv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rv-cell { display: grid; gap: 3px; padding: 12px 14px; border-radius: 10px; background: var(--bg); }
+.rv-v { font-family: var(--f-display); font-size: 20px; font-weight: 700; }
+.rv-moves { display: grid; gap: 8px; }
+.mv { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font: inherit; font-size: 12.5px; cursor: pointer; color: var(--ink); }
+.mv.up { border-color: color-mix(in srgb, var(--bad) 30%, var(--line)); }
+.mv.up b, .mv.up { color: var(--ink); }
+.mv.up b { color: var(--bad); }
+.mv.down b { color: var(--good); }
+.mv:hover { background: var(--sunk); }
+.rv-verdict { margin: 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--ink-2); line-height: 1.55; }
+/* worth a look */
+.todo li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px 0; font-size: 13.5px; }
+.todo-i { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--sunk); color: var(--ink-2); }
+.todo-i.k-over, .todo-i.k-high, .todo-i.k-rising { background: color-mix(in srgb, var(--bad) 12%, transparent); color: var(--bad); }
+.todo-i.k-goals, .todo-i.k-funds, .todo-i.k-missed, .todo-i.k-quiet { background: var(--warn-bg); color: var(--warn-ink); }
+.todo-i.k-unpaid, .todo-i.k-next { background: var(--accent-soft); color: var(--accent); }
+.todo-t { line-height: 1.45; }
+.btn.sm { padding: 5px 10px; font-size: 12.5px; white-space: nowrap; }
+.gbars button { grid-template-columns: minmax(0, 1fr) auto; }
+.gbars .muted.small { grid-column: 1 / -1; }
+.bvs-key { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--ink-2); }
+.bvs-key i { display: inline-block; width: 12px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.bvs-key .k-budget { background: color-mix(in srgb, var(--muted) 25%, transparent); }
+.bvs-key .k-in { background: var(--accent); }
+.bvs-key .k-over { background: var(--warn); }
+.bvs-key .k-way { background: var(--bad); }

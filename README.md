@@ -8,9 +8,9 @@ Three pages cover the everyday, and everything else is one click away:
 
 - **Home:** where the app opens, laid out as a dashboard. Four cards (left to spend, came in, spent, saved) with
   the change from last month; **where the month is heading** (at this pace, what you'll have spent by month end
-  against the budget, and which categories are pushing it over); **last month in words** (what came in and went
-  out against a usual month, what rose and fell most, how much was saved); a 12-month chart of money in, spent and
-  saved; a ring of where the month went; the latest expenses added; and **Worth a look**: what's over budget,
+  against the budget, and which categories are pushing it over); **last month in review** (what came in, was spent,
+  saved and left over against a usual month, what changed most, and how it did against the budget); **budget vs
+  spent** by category for the month (click a bar to open it); a 12-month chart of money in, spent and saved; a ring of where the month went; the latest expenses added; and **Worth a look**: what's over budget,
   goals and funds behind, categories you record every month that are still empty, spending well above its usual
   level or rising three months running, and "nothing added for N days" if you add expenses as they happen.
 
