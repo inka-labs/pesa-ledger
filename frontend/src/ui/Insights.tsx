@@ -5,10 +5,32 @@ import { money } from "../model/format";
 import { pace, review } from "../model/insights";
 import { MONTHS, MONTHS_LONG } from "../model/ledger";
 import type { YM } from "../model/types";
-import { changeBadge } from "./bits";
+import { changeBadge, GoLink } from "./bits";
 import { CalendarCheck2, Info, TrendingUp } from "lucide-react";
 
 const HOW = "Expenses you add one at a time carry on at their daily rate; totals you type in count as done; anything not recorded yet is expected to reach its budget (or its usual amount).";
+
+/** Where this month is heading, in one line, for pages that only need the gist (the full card is on Home). */
+export function PaceLine() {
+  const { book, go } = useApp();
+  const p = pace(book);
+  if (!p || (p.spent === 0 && p.projected === 0)) return null;
+  const endLabel = `${p.end.getDate()} ${MONTHS[p.end.getMonth()]}`;
+  const over = p.budget > 0 && p.gap > p.budget * 0.02;
+  const under = p.budget > 0 && p.gap < -p.budget * 0.02;
+  return (
+    <span className="paceline" title={HOW}>
+      <TrendingUp size={15} aria-hidden />
+      <span>
+        At this pace, about <b className="num">{money(p.projected)}</b> spent by {endLabel}
+        {over && <>, <b className={`num ${p.gap > p.budget * 0.1 ? "d-bad" : "warn-ink"}`}>{money(p.gap)} over</b> budget</>}
+        {under && <>, <b className="num d-good">{money(-p.gap)}</b> to spare</>}
+        {p.budget > 0 && !over && !under && <>, right on budget</>}.
+      </span>
+      <GoLink onClick={() => go("overview")}>Where it's heading</GoLink>
+    </span>
+  );
+}
 
 /** Two figures (where spending lands by month end, and how that sits against the budget), the bar, and the
  *  categories doing most to push it over. */
@@ -40,20 +62,31 @@ export function PaceCard() {
             </span>
             <span className="muted small">{over ? "over" : under ? "to spare" : ""} · budget {money(p.budget)}</span></div>
         )}
-        <div><span className="lbl">Spent so far</span><span className="num ins-big ins-mid">{money(p.spent)}</span><span className="muted small">{p.budget > 0 ? `${Math.round((p.spent / p.budget) * 100)}% of the budget` : ""}</span></div>
       </div>
-      <div className="pace-bar" role="img" aria-label={`Spent ${money(p.spent)} so far, about ${money(p.projected)} by month end, budget ${money(p.budget)}`}>
-        <i className="pb-spent" style={{ width: w(p.spent) }} />
-        <i className={`pb-rest${over ? " over" : ""}`} style={{ left: w(p.spent), width: w(p.projected - p.spent) }} />
-        {p.budget > 0 && <b className="pb-mark" style={{ left: w(p.budget) }} title={`Budget ${money(p.budget)}`} />}
-      </div>
-      <div className="pace-key small">
-        <span><i className="pb-spent" /> Spent</span>
-        <span><i className={`pb-rest${over ? " over" : ""}`} /> Still to come {money(Math.max(0, p.projected - p.spent))}</span>
-        {p.budget > 0 && <span><i className="pb-mark-key" /> Budget</span>}
-      </div>
+      {(() => {
+        // the part spent within the budget in the accent; anything past the budget marker amber (red past 10%)
+        const within = p.budget > 0 ? Math.min(p.spent, p.budget) : p.spent;
+        const beyond = p.budget > 0 ? Math.max(0, p.spent - p.budget) : 0;
+        const overTone = p.spent > p.budget * 1.1 ? "bad" : "warn";
+        return (
+          <>
+            <div className="pace-bar" role="img" aria-label={`Spent ${money(p.spent)} so far, about ${money(p.projected)} by month end, budget ${money(p.budget)}`}>
+              <i className={`pb-spent${beyond ? " cut" : ""}`} style={{ width: w(within) }} />
+              {beyond > 0 && <i className={`pb-over ${overTone}`} style={{ left: w(within), width: w(beyond) }} />}
+              <i className={`pb-rest${over ? " over" : ""}`} style={{ left: w(p.spent), width: w(p.projected - p.spent) }} />
+              {p.budget > 0 && <b className="pb-mark" style={{ left: w(p.budget) }} title={`Budget ${money(p.budget)}`} />}
+            </div>
+            <div className="pace-key small">
+              <span><i className="pb-spent" /> Spent {money(p.spent)}{p.budget > 0 ? ` (${Math.round((p.spent / p.budget) * 100)}%)` : ""}</span>
+              {beyond > 0 && <span><i className={`pb-over ${overTone}`} /> Over budget {money(beyond)}</span>}
+              {p.projected > p.spent && <span><i className={`pb-rest${over ? " over" : ""}`} /> Still to come {money(p.projected - p.spent)}</span>}
+              {p.budget > 0 && <span><i className="pb-mark-key" /> Budget {money(p.budget)}</span>}
+            </div>
+          </>
+        );
+      })()}
       {p.budget > 0 && p.days > p.day && (
-        <p className="allow small">
+        <p className={`allow small${p.budget - p.spent > 0 ? "" : " warn"}`}>
           {p.budget - p.spent > 0
             ? <>To finish on budget you can spend about <b className="num">{money((p.budget - p.spent) / (p.days - p.day))}</b> a day for the {p.days - p.day} days left.</>
             : <>The budget is used up, with {p.days - p.day} days to go.</>}
@@ -107,7 +140,7 @@ export function ReviewCard({ ym }: { ym: YM }) {
       <div className="ins-h">
         <span className="ins-i" aria-hidden><CalendarCheck2 size={16} /></span>
         <h3>{MONTHS_LONG[ym.m - 1]} in review</h3>
-        <button className="link small end" onClick={() => go("month", { ...ym })}>Open {MONTHS[ym.m - 1]}</button>
+        <GoLink className="end" onClick={() => go("month", { ...ym })}>Open {MONTHS[ym.m - 1]}</GoLink>
       </div>
       <div className="rv-grid">
         {r.rows.map((row) => {

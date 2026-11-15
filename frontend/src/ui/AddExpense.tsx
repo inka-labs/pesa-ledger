@@ -28,7 +28,9 @@ export function AddExpense({ cid: startCid, onClose }: { cid?: string | null; on
   const [bad, setBad] = useState("");
 
   const isNow = y === book.today.y && m === book.today.m;
-  const day = isNow ? new Date().getDate() : undefined;
+  // the day it was spent: today in the current month, blank (no day) otherwise; any day of the month can be typed
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const [dayText, setDayText] = useState(isNow ? String(Math.min(new Date().getDate(), daysInMonth)) : "");
   const entries = book.year(y)?.entries?.[mk(m)] ?? {};
   const list = Object.entries(entries).flatMap(([c, es]) => es.map((e, i) => ({ c, i, e }))).reverse();
 
@@ -37,6 +39,9 @@ export function AddExpense({ cid: startCid, onClose }: { cid?: string | null; on
     if ("error" in r) { setBad(r.error); return; }
     if (r.value == null || r.value === 0) { setBad("Enter how much it was."); return; }
     if (!book.cats[cid]) { setBad("Choose a category."); return; }
+    const d = dayText.trim() ? Number(dayText) : undefined;
+    if (d != null && !(Number.isInteger(d) && d >= 1 && d <= daysInMonth)) { setBad(`The day is a number from 1 to ${daysInMonth}.`); return; }
+    const day = d;
     const value = r.value;
     change((l) => void addEntry(l, y, m, cid, { amount: value, note: note.trim(), day }), [`y:${y}`]);
     try { localStorage.setItem("pesa-ledger.last-cat", cid); } catch { /* private window */ }
@@ -48,7 +53,7 @@ export function AddExpense({ cid: startCid, onClose }: { cid?: string | null; on
 
   return (
     <Sheet title={`Add to ${MONTHS_LONG[m - 1]} ${y}`} onClose={onClose} onSubmit={save}
-      footer={<div className="bar"><button className="btn primary">Add</button><button type="button" className="btn ghost" onClick={onClose}>Done</button></div>}>
+      footer={<div className="bar"><button className="btn primary">Add</button><button type="button" className="btn ghost" onClick={onClose}>Close</button></div>}>
       <label className="lbl" htmlFor="ae-amount">Amount</label>
       <input id="ae-amount" className={`amt big${bad ? " invalid" : ""}`} inputMode="decimal" autoFocus value={amount}
         placeholder="0" aria-describedby={bad ? "ae-bad" : undefined} aria-invalid={bad ? true : undefined}
@@ -70,8 +75,17 @@ export function AddExpense({ cid: startCid, onClose }: { cid?: string | null; on
         </span>
       )}
 
-      <label className="lbl" htmlFor="ae-note">Note <span className="muted">(optional)</span></label>
-      <input id="ae-note" value={note} maxLength={200} placeholder="e.g. Naivas, lunch, matatu" onChange={(e) => setNote(e.target.value)} />
+      <div className="ae-pair">
+        <span className="field">
+          <label className="lbl" htmlFor="ae-note">Note <span className="muted">(optional)</span></label>
+          <input id="ae-note" value={note} maxLength={200} placeholder="e.g. Naivas, lunch, matatu" onChange={(e) => setNote(e.target.value)} />
+        </span>
+        <span className="field">
+          <label className="lbl" htmlFor="ae-day">Day <span className="muted">of {MONTHS_LONG[m - 1].slice(0, 3)}</span></label>
+          <input id="ae-day" type="number" min={1} max={daysInMonth} inputMode="numeric" value={dayText} placeholder="–"
+            onChange={(e) => { setDayText(e.target.value); setBad(""); }} />
+        </span>
+      </div>
 
       {list.length > 0 && (
         <div className="ae-list">

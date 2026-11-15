@@ -6,7 +6,7 @@ import { useApp, type Tab, type View } from "../context";
 import { healthChecks, healthStats, rentCategory, type Check, type CheckId, type Tone } from "../model/health";
 import { money } from "../model/format";
 import type { HealthSettings, Ledger } from "../model/types";
-import { EmptyState, Swatch } from "../ui/bits";
+import { EmptyState, GoLink, Swatch } from "../ui/bits";
 import { CircleAlert, CircleCheck, HeartPulse, Info, TriangleAlert } from "lucide-react";
 
 const TONE: Record<Tone, { icon: React.ReactNode; label: string }> = {
@@ -66,7 +66,7 @@ export function HealthView() {
                   <p className="small muted">Rule: {c.rule}</p>
                   <div className="bar">
                     {c.setup && <a className="btn" href="#health-setup">{c.setup}</a>}
-                    {!c.setup && act && <button className="btn ghost" onClick={() => go(act.tab, act.patch)}>{act.label} →</button>}
+                    {!c.setup && act && <GoLink onClick={() => go(act.tab, act.patch)}>{act.label}</GoLink>}
                   </div>
                 </article>
               );

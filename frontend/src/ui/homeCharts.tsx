@@ -26,14 +26,15 @@ export function InOutChart({ book, onMonth }: { book: Book; onMonth: (ym: YM) =>
     const x = months.map((p) => `${MONTHS[p.m - 1]}${p.m === 1 || p === months[0] ? ` ${String(p.y).slice(2)}` : ""}`);
     const tot = months.map((p) => book.monthTotals(p.y, p.m));
     const val = (k: "income" | "spent" | "saved") => tot.map((x) => (x.has ? x[k] : null));
-    const accent = cssColor("var(--accent)"), spent = cssColor("var(--s2)"), saved = cssColor("var(--s1)");
+    // the same three colours as the Came in / Spent / Saved cards
+    const income = cssColor("var(--m-in)"), spent = cssColor("var(--m-spent)"), saved = cssColor("var(--m-saved)");
     const line = (name: string, y: (number | null)[], c: string, fill: boolean): Data => ({
       type: "scatter", mode: "lines+markers", name, x, y, connectgaps: false,
       line: { color: c, width: 2.4, shape: "spline", smoothing: 0.6 }, marker: { size: 5, color: c },
       fill: fill ? "tozeroy" : "none", fillcolor: alpha(c, 0.1),
       hovertemplate: `${name}: %{y:,.0f}<extra></extra>`,
     });
-    const data: Data[] = [line("Came in", val("income"), accent, true), line("Spent", val("spent"), spent, true), line("Saved", val("saved"), saved, false)];
+    const data: Data[] = [line("Came in", val("income"), income, true), line("Spent", val("spent"), spent, true), line("Saved", val("saved"), saved, false)];
     const layout: Partial<Layout> = { ...baseLayout(t, 280), margin: { l: 48, r: 8, t: 30, b: 28 }, dragmode: false };
     return { data, layout, months };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -62,7 +63,7 @@ export function GroupDonut({ book, t }: { book: Book; t: Totals }) {
       height: 220, margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, paper_bgcolor: "rgba(0,0,0,0)",
       font: { family: th.body, color: th.ink2 },
       hoverlabel: { bgcolor: th.surface, bordercolor: th.line, font: { family: th.body, color: th.ink } },
-      annotations: [{ text: `<b>${money(total)}</b><br><span style="font-size:11px">this month</span>`, showarrow: false, font: { size: 17, color: th.ink, family: th.body }, x: 0.5, y: 0.5 }],
+      annotations: [{ text: `<b>${money(total)}</b><br><span style="font-size:12px">spent + saved</span>`, showarrow: false, font: { size: 17, color: th.ink, family: th.body }, x: 0.5, y: 0.5 }],
     };
     return { data, layout };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,7 +71,7 @@ export function GroupDonut({ book, t }: { book: Book; t: Totals }) {
   if (!parts.length) return <p className="muted small">Nothing spent or saved this month yet.</p>;
   return (
     <div className="donut">
-      <Plot data={data} layout={layout} label={`Where this month's ${money(total)} went`} filename="pesa-where-it-went" />
+      <Plot data={data} layout={layout} label={`Where this month's ${money(total)} spent and saved went, by group`} filename="pesa-where-it-went" />
       <ul className="donut-key">
         {parts.map(({ g, v }) => (
           <li key={g.id}><i style={{ background: colorOf(g) }} /><span>{g.name}</span><span className="num">{Math.round((v / total) * 100)}%</span></li>

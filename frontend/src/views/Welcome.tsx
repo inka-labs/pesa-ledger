@@ -38,25 +38,22 @@ export function Welcome({ onStart }: { onStart: (l: Ledger, then: "categories" |
     <div className="panel welcome">
       <h2>Set up your ledger</h2>
       <p>
-        Pesa Ledger tracks a household budget the way a careful spreadsheet does. Budget the months ahead, then record what came in
-        and went out: income, savings, family support, essentials and sinking funds. See each month against its budget, the month
-        before and the same month last year.
+        Budget the months ahead, record what came in and went out, and see each month against its budget and the month before.
+        Everything stays on this computer; nothing is sent anywhere.
       </p>
-      <p>Everything stays on this computer. Nothing is sent anywhere.</p>
       <div className="choices">
-        <button className="choice" onClick={() => onStart({ settings: starterSettings(), years: {} }, "categories")}>
+        <button className="choice rec" onClick={() => onStart({ settings: starterSettings(), years: {} }, "categories")}>
+          <span className="chip ok">Recommended</span>
           <b>Start with standard categories</b><span>Rent, food, savings, family support and more. Rename or remove any of them before you begin.</span>
         </button>
-        <button className="choice" onClick={() => onStart({ settings: emptyGroupsSettings(), years: {} }, "categories")}>
-          <b>Build my own categories</b><span>Start with empty groups for income, savings and spending, and add only what you use.</span>
-        </button>
         <button className="choice" onClick={() => onStart(exampleLedger(thisMonth()), "month")}>
-          <b>Explore with example figures</b><span>Two years of made-up numbers so you can try every view. Clear them when you're ready.</span>
+          <b>Look around first</b><span>Two years of made-up figures so you can try every page. Clear them when you're ready to start.</span>
         </button>
-        <ImportButton className="choice" current={null} onDone={(r) => onStart(r.ledger, "month")} onError={setError}>
-          <b>Import a CSV</b><span>Bring in figures from a spreadsheet. Columns: year, month, group, category, amount, note.</span>
-        </ImportButton>
       </div>
+      <p className="welcome-alt small">
+        Or <button className="link" onClick={() => onStart({ settings: emptyGroupsSettings(), years: {} }, "categories")}>build your own categories</button> from empty groups,
+        or <ImportButton className="link" current={null} onDone={(r) => onStart(r.ledger, "month")} onError={setError}>import a CSV</ImportButton> (columns: year, month, group, category, amount, note).
+      </p>
       {error && <div className="notice err" role="alert">{error}</div>}
     </div>
   );

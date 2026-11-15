@@ -10,10 +10,12 @@ let lib: Promise<PlotlyLib> | null = null;
 const loadPlotly = () => (lib ??= import("plotly.js-basic-dist-min").then((m) => (m.default ?? m) as unknown as PlotlyLib));
 
 /** A CSS colour as Plotly needs it: `var(--s3)` becomes the colour it stands for right now. */
-export function cssColor(c: string): string {
+export function cssColor(c: string, depth = 0): string {
   const m = /^var\((--[\w-]+)\)$/.exec(c.trim());
   if (!m) return c;
-  return getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim() || "#888";
+  const v = getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim();
+  // a token can point at another one (--m-in is var(--s1)); follow it a few steps
+  return !v ? "#888" : v.startsWith("var(") && depth < 4 ? cssColor(v, depth + 1) : v;
 }
 
 /** Changes whenever the theme or the palette does, so charts redraw in the new colours. */

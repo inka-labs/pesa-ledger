@@ -6,7 +6,7 @@ import { useApp, type Tab, type View } from "../context";
 import { money } from "../model/format";
 import { cycleLabel, fmtYM, mk, MONTHS, MONTHS_LONG, nextYM, parseYM, prevYM } from "../model/ledger";
 import { setActual } from "../model/edit";
-import { changeBadge, recent, StatCard, Swatch } from "../ui/bits";
+import { changeBadge, GoLink, recent, StatCard, Swatch } from "../ui/bits";
 import { ArrowDownToLine, CircleAlert, Clock, Flag, Gauge, PiggyBank, Repeat, SearchX, ShoppingBag, Target, TrendingUp, Wallet } from "lucide-react";
 
 // one icon per kind of thing worth a look (the item key starts with its kind)
@@ -18,7 +18,8 @@ import { BudgetVsSpent, GroupDonut, InOutChart } from "../ui/homeCharts";
 import { PaceCard, ReviewCard } from "../ui/Insights";
 import { flags } from "../model/insights";
 
-type Item = { key: string; text: ReactNode; action: string; run: () => void };
+/** `nav`: the action opens another page (shown as a link); otherwise it does the thing here (a button). */
+type Item = { key: string; text: ReactNode; action: string; run: () => void; nav?: boolean };
 
 const CHECKLIST_KEY = "pesa-ledger.checklist-hidden";
 
@@ -54,21 +55,21 @@ export function OverviewView() {
   if (over.length)
     items.push({
       key: "over", text: over.length === 1 ? <><b>{over[0].c.name}</b> is {cur} {money(over[0].a - over[0].b)} over budget.</> : <><b>{over.length} categories</b> are over budget, most of all {over[0].c.name} (by {money(over[0].a - over[0].b)}).</>,
-      action: "See spending", run: () => go("month", { ...today, focusCat: over[0].c.id }),
+      action: "See spending", nav: true, run: () => go("month", { ...today, focusCat: over[0].c.id }),
     });
   if (!book.planRange(next.y, next.m, next.m).has)
-    items.push({ key: "next", text: <>{MONTHS_LONG[next.m - 1]} has no budget yet.</>, action: `Plan ${MONTHS[next.m - 1]}`, run: () => go("budget", { planYear: next.y, planMonth: next.m }) });
+    items.push({ key: "next", text: <>{MONTHS_LONG[next.m - 1]} has no budget yet.</>, action: `Plan ${MONTHS[next.m - 1]}`, nav: true, run: () => go("budget", { planYear: next.y, planMonth: next.m }) });
   const behind = book.settings.goals.filter((g) => { const r = book.goal(g); return !r.reached && !r.onTrack; });
   const short = book.settings.cats.filter((c) => c.fund && !c.archived && ["short", "overdue"].includes(book.fund(c.id)!.status));
   if (behind.length)
-    items.push({ key: "goals", text: behind.length === 1 ? <><b>{behind[0].name}</b> is behind pace.</> : <>{behind.length} goals are behind pace.</>, action: "See goals", run: () => go("goals") });
+    items.push({ key: "goals", text: behind.length === 1 ? <><b>{behind[0].name}</b> is behind pace.</> : <>{behind.length} goals are behind pace.</>, action: "See goals", nav: true, run: () => go("goals") });
   if (short.length)
-    items.push({ key: "funds", text: short.length === 1 ? <><b>{short[0].name}</b> won't have enough by {fmtYM(parseYM(short[0].fund!.due))}.</> : <>{short.length} sinking funds won't have enough for their bills.</>, action: "See funds", run: () => go("funds") });
+    items.push({ key: "funds", text: short.length === 1 ? <><b>{short[0].name}</b> won't have enough by {fmtYM(parseYM(short[0].fund!.due))}.</> : <>{short.length} sinking funds won't have enough for their bills.</>, action: "See funds", nav: true, run: () => go("funds") });
   // what the figures say: probably missing, well above usual, rising, and a quiet spell
   for (const f of flags(book)) {
     const cid = f.cid;
     items.push({
-      key: `${f.kind}-${cid ?? ""}`, text: <>{f.text}</>,
+      key: `${f.kind}-${cid ?? ""}`, text: <>{f.text}</>, nav: !(f.kind === "missed" || f.kind === "quiet"),
       action: f.kind === "missed" || f.kind === "quiet" ? "Add" : "See it",
       run: f.kind === "missed" || f.kind === "quiet" ? () => { setView({ ...today }); addExpense(cid); } : () => go("month", { ...today, focusCat: cid }),
     });
@@ -106,32 +107,25 @@ export function OverviewView() {
           valueTone={budget > 0 && ratio > 1.1 ? "bad" : budget > 0 && left < 0 ? "warn" : undefined}
           share={budget > 0 ? ratio : null}
           line={budget > 0
-            ? <>Spent {money(sv.spent)} of {money(budget)}{daysLeft != null && daysLeft > 0 && left > 0 ? ` · ${money(left / daysLeft)} a day` : ""}</>
+            ? <>{Math.round(ratio * 100)}% of the {money(budget)} budget{daysLeft != null && daysLeft > 0 && left > 0 ? ` · ${money(left / daysLeft)} a day left` : ""}</>
             : <button className="link" onClick={() => go("budget", { planYear: today.y, planMonth: today.m })}>Set a budget</button>} />
-        <StatCard icon={ArrowDownToLine} tone="blue" label="Came in" value={t.income}
+        <StatCard icon={ArrowDownToLine} tone="in" label="Came in" value={t.income}
           badge={changeBadge(t.income, tp.has ? tp.income : null, true)} badgeLabel={vsLast}
           spark={recent(book, today, (x) => x.income)}
           line={t.income === 0 && expected.months ? `About ${money(expected.amount)} usually comes in` : undefined} />
-        <StatCard icon={ShoppingBag} tone="orange" label="Spent" value={t.spent}
+        <StatCard icon={ShoppingBag} tone="spent" label="Spent" value={t.spent}
           badge={changeBadge(t.spent, tp.has ? tp.spent : null, false)} badgeLabel={vsLast}
           spark={recent(book, today, (x) => x.spent)}
           line={sv.oneOff ? `incl. ${money(sv.oneOff)} one-off` : undefined} />
-        <StatCard icon={PiggyBank} tone="violet" label="Saved" value={t.saved}
+        <StatCard icon={PiggyBank} tone="saved" label="Saved" value={t.saved}
           badge={changeBadge(t.saved, tp.has ? tp.saved : null, true)} badgeLabel={vsLast}
           spark={recent(book, today, (x) => x.saved)}
           line={t.income > 0 ? `${Math.round((t.saved / t.income) * 100)}% of what came in` : undefined} />
       </div>
 
+      {/* what to act on first: where the month is heading, and the short list worth a look */}
       <div className="dash2">
         <PaceCard />
-        <ReviewCard ym={prev} />
-      </div>
-
-      <div className="dash2">
-        <div className="panel">
-          <div className="panel-h"><h3>Budget vs spent</h3><span className="muted small">{MONTHS_LONG[today.m - 1]}, by category · click a bar to open it</span></div>
-          <BudgetVsSpent book={book} onCat={(cid) => go("month", { ...today, focusCat: cid })} />
-        </div>
         <div className="panel">
           <div className="panel-h"><h3>Worth a look</h3>{items.length > 0 && <span className="chip">{items.length}</span>}</div>
           {shown.length ? (
@@ -142,7 +136,7 @@ export function OverviewView() {
                   <li key={it.key}>
                     <span className={`todo-i k-${it.key.split("-")[0]}`} aria-hidden><Icon size={15} /></span>
                     <span className="todo-t">{it.text}</span>
-                    <button className="btn ghost sm" onClick={it.run}>{it.action}</button>
+                    {it.nav ? <GoLink onClick={it.run}>{it.action}</GoLink> : <button className="btn sm" onClick={it.run}>{it.action}</button>}
                   </li>
                 );
               })}
@@ -154,18 +148,26 @@ export function OverviewView() {
 
       <div className="dash2">
         <div className="panel">
+          <div className="panel-h"><h3>Budget vs spent</h3><span className="muted small">{MONTHS_LONG[today.m - 1]}, by category · click a bar to open it</span></div>
+          <BudgetVsSpent book={book} onCat={(cid) => go("month", { ...today, focusCat: cid })} />
+        </div>
+        <ReviewCard ym={prev} />
+      </div>
+
+      <div className="dash2">
+        <div className="panel">
           <div className="panel-h"><h3>Money in and out</h3><span className="muted small">last 12 months · click a month to open it</span></div>
           <InOutChart book={book} onMonth={(ym) => go("month", { ...ym })} />
         </div>
         <div className="panel">
-          <div className="panel-h"><h3>Where it went</h3><div className="end"><button className="btn ghost" onClick={() => go("month", { ...today })}>Details</button></div></div>
+          <div className="panel-h"><h3>Where it went</h3><div className="end"><GoLink onClick={() => go("month", { ...today })}>Details</GoLink></div></div>
           <GroupDonut book={book} t={t} />
         </div>
       </div>
 
       <div className="dash2">
         <div className="panel">
-          <div className="panel-h"><h3>Recent expenses</h3><div className="end"><button className="btn ghost" onClick={() => go("month", { ...today })}>See all</button></div></div>
+          <div className="panel-h"><h3>Recent expenses</h3><div className="end"><GoLink onClick={() => go("month", { ...today })}>See all</GoLink></div></div>
           {latest.length ? (
             <table className="t recent">
               <thead><tr><th>Category</th><th>Note</th><th>Date</th><th>Amount</th></tr></thead>
@@ -188,7 +190,7 @@ export function OverviewView() {
           )}
         </div>
         <div className="panel">
-          <div className="panel-h"><h3>Goals</h3><div className="end"><button className="btn ghost" onClick={() => go("goals")}>{goals.length ? "All goals" : "Add a goal"}</button></div></div>
+          <div className="panel-h"><h3>Goals</h3><div className="end"><GoLink onClick={() => go("goals")}>{goals.length ? "All goals" : "Add a goal"}</GoLink></div></div>
           {goals.length ? (
             <ul className="gbars">
               {goals.map(({ g, r }) => (

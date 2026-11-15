@@ -6,7 +6,7 @@ import type { Ledger, Settings, YearDoc, YM } from "./types";
 export function starterSettings(): Settings {
   const groups: Settings["groups"] = [
     { id: "inc", name: "Income", kind: "income", slot: 0 },
-    { id: "sav", name: "Savings & investments", kind: "saving", slot: 1 },
+    { id: "sav", name: "Savings & investments", kind: "saving", slot: 7 }, // violet, like the Saved figure
     { id: "fam", name: "Family support", kind: "expense", slot: 2 },
     { id: "ess", name: "Essentials", kind: "expense", slot: 3 },
     { id: "snk", name: "Sinking funds", kind: "expense", slot: 4 },

@@ -11,7 +11,7 @@ import { addMonths, fmtYM, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
 import type { Account, Ledger, YM } from "../model/types";
 import { newId } from "../model/csv";
 import { AmountInput, Delta, EmptyState, Kpi, Alt } from "../ui/bits";
-import { Landmark } from "lucide-react";
+import { ChevronLeft, ChevronRight, Landmark } from "lucide-react";
 import { baseLayout, chartTheme, Plot, useThemeTick } from "../ui/Plot";
 import { Sheet } from "../ui/Sheet";
 
@@ -32,9 +32,9 @@ export function NetWorthView() {
     <>
       <div className="panel-h">
         <div className="monthnav">
-          <button className="btn" aria-label="Previous month" onClick={() => setYm(prevYM(ym))}>‹</button>
+          <button className="btn icon" aria-label="Previous month" onClick={() => setYm(prevYM(ym))}><ChevronLeft size={16} aria-hidden /></button>
           <h2>{MONTHS_LONG[ym.m - 1]} {ym.y}</h2>
-          <button className="btn" aria-label="Next month" onClick={() => setYm(nextYM(ym))}>›</button>
+          <button className="btn icon" aria-label="Next month" onClick={() => setYm(nextYM(ym))}><ChevronRight size={16} aria-hidden /></button>
         </div>
         <span className="muted">What you own minus what you owe, at the end of the month</span>
         <div className="end">

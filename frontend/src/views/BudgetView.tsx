@@ -4,8 +4,8 @@ import { setBudget, setMonthOnly, setPlan, setUsualBudget, yearOf } from "../mod
 import { money } from "../model/format";
 import { fmtYM, isNum, mk, MONTHS, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
 import type { Category, Group } from "../model/types";
-import { AmountInput, changeBadge, StatCard, Swatch, YearSelect } from "../ui/bits";
-import { ArrowDownToLine, Gauge, PiggyBank, Receipt, ShoppingBag } from "lucide-react";
+import { AmountInput, changeBadge, Chev, StatCard, Swatch, YearSelect } from "../ui/bits";
+import { ArrowDownToLine, ChevronLeft, ChevronRight, Gauge, PiggyBank, Receipt, ShoppingBag } from "lucide-react";
 
 const MODE_KEY = "pesa-ledger.budget-mode";
 
@@ -23,9 +23,9 @@ export function BudgetView() {
       <h2>Budget</h2>
       {mode === "month" && (
         <div className="monthnav">
-          <button className="btn" aria-label="Previous month" onClick={() => go(prevYM({ y, m }))}>‹</button>
-          <h2 className="mname">{MONTHS_LONG[m - 1]} {y}</h2>
-          <button className="btn" aria-label="Next month" onClick={() => go(nextYM({ y, m }))}>›</button>
+          <button className="btn icon" aria-label="Previous month" onClick={() => go(prevYM({ y, m }))}><ChevronLeft size={16} aria-hidden /></button>
+          <h2 className="bm-name">{MONTHS_LONG[m - 1]} {y}</h2>
+          <button className="btn icon" aria-label="Next month" onClick={() => go(nextYM({ y, m }))}><ChevronRight size={16} aria-hidden /></button>
         </div>
       )}
       <div className="end">
@@ -61,13 +61,13 @@ export function BudgetView() {
     <>
       {head}
       <div className="stats">
-        <StatCard icon={ShoppingBag} tone="orange" label="To spend" value={pl.spent}
+        <StatCard icon={ShoppingBag} tone="spent" label="To spend" value={pl.spent}
           badge={changeBadge(pl.spent, prevPlan.has ? prevPlan.spent : null, false)} badgeLabel={`vs ${MONTHS[prev.m - 1]}'s budget`}
           line={prevSpent.has ? `${MONTHS[prev.m - 1]} spent ${money(prevSpent.spent)}` : undefined} />
-        <StatCard icon={PiggyBank} tone="violet" label="To save" value={pl.saved}
+        <StatCard icon={PiggyBank} tone="saved" label="To save" value={pl.saved}
           badge={changeBadge(pl.saved, prevPlan.has ? prevPlan.saved : null, true)} badgeLabel={`vs ${MONTHS[prev.m - 1]}'s budget`}
           line={income > 0 ? `${Math.round((pl.saved / income) * 100)}% of income` : undefined} />
-        <StatCard icon={ArrowDownToLine} tone="blue" label={t.income > 0 ? "Came in" : "Expected in"} value={income}
+        <StatCard icon={ArrowDownToLine} tone="in" label={t.income > 0 ? "Came in" : "Expected in"} value={income}
           line={t.income > 0 ? "Recorded this month" : expected.months ? "Your recent average" : "Record some income to see this"} />
         <StatCard icon={Gauge} lead tone={unassigned < 0 ? "amber" : "green"} label={unassigned >= 0 ? "Not budgeted yet" : "Beyond income"}
           value={Math.abs(unassigned)} valueTone={unassigned < 0 ? "bad" : undefined}
@@ -120,7 +120,7 @@ function BudgetGroup({ g, cats, y, m, total, lastSpent, lastLabel }: { g: Group;
     <section className="grp">
       <div className="grp-h">
         <button className="fold" aria-expanded={open} onClick={() => setOpen((x) => !x)}>
-          <span className={`chev${open ? " open" : ""}`} aria-hidden>▸</span><Swatch g={g} /><h3>{g.name}</h3>
+          <Chev open={open} /><Swatch g={g} /><h3>{g.name}</h3>
         </button>
         <span className="tot"><span className="num">{money(total)}</span>{lastSpent > 0 && <span className="muted small"> · {lastLabel} cost {money(lastSpent)}</span>}</span>
       </div>

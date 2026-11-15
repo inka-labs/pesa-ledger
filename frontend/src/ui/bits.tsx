@@ -5,6 +5,21 @@ import { amountText, money, pct } from "../model/format";
 import type { Group, Totals } from "../model/types";
 import { colorOf } from "../model/theme";
 import { useApp } from "../context";
+import { ArrowRight, ChevronRight } from "lucide-react";
+
+/** The fold arrow on a group or section: points right when folded, down when open. */
+export function Chev({ open }: { open: boolean }) {
+  return <ChevronRight size={16} strokeWidth={2.2} className={`chev${open ? " open" : ""}`} aria-hidden />;
+}
+
+/** "Go somewhere" (another page, a month, a list): one look everywhere, the accent colour with an arrow. */
+export function GoLink({ onClick, children, className, title }: { onClick: () => void; children: ReactNode; className?: string; title?: string }) {
+  return (
+    <button type="button" className={`go${className ? ` ${className}` : ""}`} onClick={onClick} title={title}>
+      <span>{children}</span><ArrowRight size={14} aria-hidden />
+    </button>
+  );
+}
 
 /** A number box that keeps what you type until you leave it (Enter or Tab), then commits.
  *  Blank means "no figure". "USD 415" or "$415" is converted to the main currency at the live rate.
@@ -193,7 +208,7 @@ export function CycleNote() {
 export function GroupToggle({ g, folded, onToggle, count }: { g: Group; folded: boolean; onToggle: () => void; count: number }) {
   return (
     <button className="fold trow" aria-expanded={!folded} onClick={onToggle} title={folded ? `Show ${g.name}'s categories` : `Fold ${g.name}`}>
-      <span className={`chev${folded ? "" : " open"}`} aria-hidden>▸</span>
+      <Chev open={!folded} />
       <Swatch g={g} /> {g.name}
       {folded && count > 0 && <span className="muted small"> · {count}</span>}
     </button>
@@ -221,8 +236,11 @@ export function YearSelect({ value, onChange, id, label }: { value: number; onCh
 
 // Stat cards -----------------------------------------------------------------------------------
 
-export type StatTone = "green" | "orange" | "blue" | "violet" | "amber" | "slate";
-const TONE_VAR: Record<StatTone, string> = { green: "var(--accent)", orange: "var(--s2)", blue: "var(--s1)", violet: "var(--s7)", amber: "var(--s4)", slate: "var(--ink-2)" };
+/** "in", "spent" and "saved" are the three money figures, the same colour on every card and chart
+ *  (--m-in / --m-spent / --m-saved); "green" is the accent (on track), "amber" a warning, "slate" neutral. */
+export type StatTone = "in" | "spent" | "saved" | "green" | "amber" | "slate";
+const TONE_VAR: Record<StatTone, string> = { in: "var(--m-in)", spent: "var(--m-spent)", saved: "var(--m-saved)", green: "var(--accent)", amber: "var(--warn)", slate: "var(--ink-2)" };
+export const toneColor = (t: StatTone) => TONE_VAR[t];
 
 /** A change as a badge: "▲ 12%" in green when that's good, red when it isn't (null: nothing to compare). */
 export function changeBadge(cur: number, prev: number | null | undefined, upGood: boolean): { text: string; good: boolean | null } | null {
@@ -277,4 +295,39 @@ export function recent(book: { monthTotals: (y: number, m: number) => Totals }, 
     out.push(t.has ? pick(t) : null);
   }
   return out;
+}
+
+export type SummaryCell = {
+  label: string; value: number | string; tone?: StatTone; valueTone?: "bad" | "warn"; plain?: boolean;
+  share?: number | null; badge?: { text: string; good: boolean | null } | null; badgeLabel?: string; line?: ReactNode;
+};
+
+/** The month's figures as one compact strip (four across, two by two on a phone), for pages whose real
+ *  work is the list underneath: the figures stay in view without pushing the list off the screen. */
+export function SummaryStrip({ cells, foot }: { cells: SummaryCell[]; foot?: ReactNode }) {
+  const { book } = useApp();
+  return (
+    <section className="sumbar" aria-label="The month in figures">
+      <div className="sumbar-cells">
+        {cells.map((c, i) => (
+          <div key={c.label} className={`sumcell${i === 0 ? " lead" : ""}`} style={{ ["--tone" as string]: TONE_VAR[c.tone ?? "slate"] }}>
+            <span className="sum-l"><i className="sum-dot" aria-hidden />{c.label}</span>
+            <span className={`num sum-v${c.valueTone === "bad" ? " d-bad" : c.valueTone === "warn" ? " warn-ink" : ""}`}>
+              {!c.plain && typeof c.value === "number" && <span className="cc">{book.settings.currency}</span>}
+              {typeof c.value === "number" ? money(c.value) : c.value}
+            </span>
+            {c.share != null && <div className={`meter thin${c.share > 1.0001 ? (c.share > 1.1 ? " way" : " over") : ""}`}><i style={{ width: `${Math.min(100, Math.max(0, c.share) * 100)}%` }} /></div>}
+            {(c.badge || c.line) && (
+              <span className="sum-sub small">
+                {c.badge && <><span className={`badge ${c.badge.good == null ? "" : c.badge.good ? "up" : "down"}`}>{c.badge.text}</span>{c.badgeLabel && <span className="muted"> {c.badgeLabel}</span>}</>}
+                {c.badge && c.line ? <span className="muted"> · </span> : null}
+                {c.line && <span className="muted">{c.line}</span>}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      {foot && <div className="sumbar-foot small">{foot}</div>}
+    </section>
+  );
 }

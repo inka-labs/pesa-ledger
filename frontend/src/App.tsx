@@ -3,7 +3,7 @@ import { SEARCH_KEY, UNDO_KEY } from "./ui/keys";
 import { api, type Version } from "./api";
 import { NAME } from "./brand";
 import { ABOUT, AppContext, SECTIONS, TABS, sectionOf, type Ctx, type Tab, type View } from "./context";
-import { ChevronDown, ChevronLeft, Ellipsis, Info, PanelLeftClose, PanelLeftOpen, Monitor, Moon, Plus, Search, Settings as SettingsIcon, Sun, Undo2, X } from "lucide-react";
+import { ChevronDown, Ellipsis, Info, PanelLeftClose, PanelLeftOpen, Moon, Plus, Search, Settings as SettingsIcon, Sun, SunMoon, Undo2, X } from "lucide-react";
 import { AddExpense } from "./ui/AddExpense";
 import { MoreView } from "./views/MoreView";
 import { TAB_ICON } from "./ui/icons";
@@ -205,7 +205,9 @@ export default function App() {
   ];
 
   const saveLabel = save.kind === "saving" ? "Saving…" : save.kind === "saved" ? "Saved" : save.kind === "error" ? "Not saved" : "On this computer";
-  const ThemeIcon = theme === "system" ? Monitor : theme === "light" ? Sun : Moon;
+  const ThemeIcon = theme === "system" ? SunMoon : theme === "light" ? Sun : Moon;
+  const themeLabel = theme === "system" ? "Theme: matches this computer" : theme === "light" ? "Theme: light" : "Theme: dark";
+  const nextTheme = theme === "system" ? "light" : theme === "light" ? "dark" : "match this computer";
   const navLink = (t: { id: Tab; label: string }, cls: string) => {
     const Icon = TAB_ICON[t.id];
     return (
@@ -261,18 +263,18 @@ export default function App() {
             <div className="topbar-end">
               <span className="save" data-s={save.kind} role="status">{saveLabel}</span>
               <button className="iconbtn" onClick={doUndo} disabled={!canUndo} title={`Undo the last change (${UNDO_KEY})`} aria-label="Undo"><Undo2 size={17} /></button>
-              <button className="iconbtn" onClick={cycle} title={`Theme: ${theme}. Click to switch`} aria-label={`Theme: ${theme}`}><ThemeIcon size={17} /></button>
-              <span className="mark" title="Main currency">{ledger.settings.currency}</span>
+              <button className="iconbtn" onClick={cycle} title={`${themeLabel}. Click for ${nextTheme}`} aria-label={`${themeLabel}. Switch to ${nextTheme}`}><ThemeIcon size={17} /></button>
+              <a className="cur-btn" href="#settings" title={`Main currency: ${ledger.settings.currency}. Change it, or add a second currency, in Settings`}>{ledger.settings.currency}</a>
               {navTop && <button className="btn primary" onClick={quickAdd}><Plus size={15} aria-hidden /> Add expense</button>}
             </div>
           </header>
         )}
         <header className="mtop">
-          <div className="brand"><h1>{NAME}</h1>{ledger && <span className="mark">{ledger.settings.currency}</span>}</div>
+          <div className="brand"><h1>{NAME}</h1>{ledger && <a className="cur-btn" href="#settings" aria-label={`Main currency: ${ledger.settings.currency}. Change it in Settings`}>{ledger.settings.currency}</a>}</div>
           {ledger && <span className="save" data-s={save.kind} role="status" title={saveLabel}><span className="sr-only">{saveLabel}</span></span>}
           {ledger && <button className="iconbtn" onClick={openSearch} aria-label="Search"><Search size={19} /></button>}
           {ledger && <button className="iconbtn" onClick={doUndo} disabled={!canUndo} aria-label="Undo"><Undo2 size={19} /></button>}
-          <button className="iconbtn" onClick={cycle} aria-label={`Theme: ${theme}`}><ThemeIcon size={19} /></button>
+          <button className="iconbtn" onClick={cycle} aria-label={`${themeLabel}. Switch to ${nextTheme}`}><ThemeIcon size={19} /></button>
         </header>
 
         {save.kind === "error" && (
@@ -365,19 +367,18 @@ function ctxToday(ledger: { settings: Parameters<typeof currentMonth>[0] } | nul
   return currentMonth(ledger?.settings ?? null);
 }
 
-/** Pages under More and Settings get a way back and their siblings; the three everyday pages need neither. */
+/** Pages under More and Settings get their siblings one click away; the three everyday pages need neither.
+ *  (The More page itself is the hub, so it has no row of its own.) */
 function SubNav({ tab }: { tab: Tab }) {
   const sec = sectionOf(tab);
-  if (sec.id === "more")
-    return <a className="crumb" href="#more"><ChevronLeft size={15} aria-hidden /> More</a>;
-  if (sec.id === "setup")
-    return (
-      <nav className="subtabs" aria-label="Settings">
-        <SettingsIcon size={15} aria-hidden />
-        {sec.tabs.map((t) => <a key={t.id} href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined}>{t.label}</a>)}
-      </nav>
-    );
-  return null;
+  if (tab === "more" || (sec.id !== "more" && sec.id !== "setup")) return null;
+  const Icon = sec.id === "more" ? TAB_ICON.more : SettingsIcon;
+  return (
+    <nav className={`subtabs${sec.id === "more" ? " more-sub" : ""}`} aria-label={sec.id === "more" ? "More pages" : "Settings"}>
+      {sec.id === "more" ? <a className="subtabs-home" href="#more" title="All of More" aria-label="All of More"><Icon size={15} aria-hidden /></a> : <Icon size={15} aria-hidden />}
+      {sec.tabs.map((t) => <a key={t.id} href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined}>{t.label}</a>)}
+    </nav>
+  );
 }
 
 /** "More" in the sidebar: a dropdown of the pages under it, open while you're on one of them. */

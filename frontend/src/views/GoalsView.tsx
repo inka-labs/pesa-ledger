@@ -56,7 +56,7 @@ export function GoalsView() {
           <div className="stats three">
             <StatCard icon={PiggyBank} lead tone="green" label="Saved towards goals" value={saved} share={target ? saved / target : null}
               line={`of ${money(target)} across ${active.length} ${active.length === 1 ? "goal" : "goals"}`} />
-            <StatCard icon={CalendarClock} tone="blue" label="Needed a month" value={perMonth} line="to make every deadline" />
+            <StatCard icon={CalendarClock} tone="saved" label="Needed a month" value={perMonth} line="to make every deadline" />
             <StatCard icon={TriangleAlert} tone={behind ? "amber" : "green"} label="Behind pace" value={`${behind} of ${active.length}`} plain
               line={behind ? "Add money or move a deadline" : "Everything is on track"} />
           </div>

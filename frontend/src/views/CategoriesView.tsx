@@ -13,7 +13,7 @@ import { addMonths, EFFECTS, fmtYM, kindsOf, MONTHS, parseYM } from "../model/le
 import { bucketOf, defaultBucket, defineBucket, placedByYou, ruleById } from "../model/allocation";
 import type { Category, Effect, Group, Ledger } from "../model/types";
 import { ColorPicker } from "../ui/ColorPicker";
-import { AmountInput, Sparkline, StatCard, TextInput } from "../ui/bits";
+import { AmountInput, Chev, Sparkline, StatCard, TextInput } from "../ui/bits";
 import { colorOf } from "../model/theme";
 import { useFolded } from "../ui/fold";
 import { Sheet } from "../ui/Sheet";
@@ -110,9 +110,9 @@ export function CategoriesView() {
       </div>
       <div className="stats">
         <StatCard icon={Tags} lead tone="green" label="Categories" plain value={String(active.length)} line={`in ${groups.length} groups${archivedCount ? ` · ${archivedCount} archived` : ""}`} />
-        <StatCard icon={Repeat} tone="blue" label="Repeat every month" plain value={String(repeating.length)} line={repeating.length ? `${money(repeating.reduce((s, c) => s + Math.abs(c.repeat ?? 0), 0))} a month` : "Rent, salary, subscriptions"} />
-        <StatCard icon={PiggyBank} tone="violet" label="Sinking funds" plain value={String(funds.length)} line={funds.length ? `${funds.filter((c) => ["short", "overdue"].includes(book.fund(c.id)?.status ?? "")).length} short of their bill` : "Pots for bills you know are coming"} />
-        <StatCard icon={Sparkles} tone="orange" label="One-off categories" plain value={String(oneoffs.length)} line={oneoffs.length ? oneoffs.map((c) => c.name).slice(0, 3).join(", ") : "A car, a renovation, a bonus"} />
+        <StatCard icon={Repeat} tone="slate" label="Repeat every month" plain value={String(repeating.length)} line={repeating.length ? `${money(repeating.reduce((s, c) => s + Math.abs(c.repeat ?? 0), 0))} a month` : "Rent, salary, subscriptions"} />
+        <StatCard icon={PiggyBank} tone="slate" label="Sinking funds" plain value={String(funds.length)} line={funds.length ? `${funds.filter((c) => ["short", "overdue"].includes(book.fund(c.id)?.status ?? "")).length} short of their bill` : "Pots for bills you know are coming"} />
+        <StatCard icon={Sparkles} tone="slate" label="One-off categories" plain value={String(oneoffs.length)} line={oneoffs.length ? oneoffs.map((c) => c.name).slice(0, 3).join(", ") : "A car, a renovation, a bonus"} />
       </div>
       {view.catHint && <div className="notice">These are starter categories. Rename them, remove the ones you don't use and add your own. Then set amounts on the Budget tab.</div>}
 
@@ -198,7 +198,7 @@ function GroupCard({ g, cats, hist, first, last, narrowing, folded, onFold, onOp
     <section className={`cg-card${drag ? " dragging" : ""}`} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(null); }}>
       <header className="cg-head">
         <button className="fold" aria-expanded={!folded} aria-label={`${folded ? "Show" : "Fold"} ${g.name}`} onClick={onFold} disabled={narrowing}>
-          <span className={`chev${folded ? "" : " open"}`} aria-hidden>▸</span>
+          <Chev open={!folded} />
         </button>
         <ColorPicker g={g} onPick={(p) => edit((l) => Object.assign(group(l), p))} />
         <TextInput className="inline-edit gname" value={g.name} label="Group name"

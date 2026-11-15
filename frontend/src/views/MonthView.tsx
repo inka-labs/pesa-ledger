@@ -4,10 +4,10 @@ import { removeEntry, setActual, setNote } from "../model/edit";
 import { money } from "../model/format";
 import { before, cycleLabel, mk, MONTHS, MONTHS_LONG, nextYM, prevYM } from "../model/ledger";
 import type { Category, Group } from "../model/types";
-import { AmountInput, changeBadge, recent, StatCard, Swatch, TextInput } from "../ui/bits";
-import { PaceCard } from "../ui/Insights";
+import { AmountInput, changeBadge, Chev, SummaryStrip, Swatch, TextInput } from "../ui/bits";
+import { PaceLine } from "../ui/Insights";
 import { usual } from "../model/insights";
-import { ArrowDownToLine, Ellipsis, Gauge, PiggyBank, Plus, ShoppingBag, Trash2, Wallet } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Ellipsis, Plus, Trash2, Wallet } from "lucide-react";
 
 export function MonthView() {
   const { book, change, view, setView, go } = useApp();
@@ -78,9 +78,9 @@ export function MonthView() {
     <>
       <div className="panel-h">
         <div className="monthnav">
-          <button className="btn" aria-label="Previous month" title="Previous month (←)" onClick={() => setView(prevYM({ y, m }))}>‹</button>
+          <button className="btn icon" aria-label="Previous month" title="Previous month (←)" onClick={() => setView(prevYM({ y, m }))}><ChevronLeft size={16} aria-hidden /></button>
           <MonthPicker />
-          <button className="btn" aria-label="Next month" title="Next month (→)" onClick={() => setView(nextYM({ y, m }))}>›</button>
+          <button className="btn icon" aria-label="Next month" title="Next month (→)" onClick={() => setView(nextYM({ y, m }))}><ChevronRight size={16} aria-hidden /></button>
         </div>
         <div className="end">
           {(y !== book.today.y || m !== book.today.m) && <button className="btn ghost" onClick={() => setView(book.today)}>{book.settings.paycycle ? "Current pay" : "This month"}</button>}
@@ -97,24 +97,21 @@ export function MonthView() {
       </div>
       {cycle && <p className="cycle-note"><b>{cycle}</b>: the pay that landed in {MONTHS_LONG[m - 1]} and what it paid for.</p>}
 
-      <div className="stats">
-        <StatCard icon={Gauge} lead tone={leftToSpend < 0 && spentBudget > 0 ? "amber" : "green"}
-          label={spentBudget > 0 ? (leftToSpend >= 0 ? "Left to spend" : "Over budget") : "No budget yet"}
-          value={spentBudget > 0 ? Math.abs(leftToSpend) : "–"} plain={spentBudget <= 0}
-          valueTone={sv.spent > spentBudget * 1.1 && spentBudget > 0 ? "bad" : leftToSpend < 0 && spentBudget > 0 ? "warn" : undefined}
-          share={spentBudget > 0 ? sv.spent / spentBudget : null}
-          line={spentBudget > 0 ? `Budget ${money(spentBudget)}` : <button className="link" onClick={() => go("budget", { planYear: y, planMonth: m })}>Set a budget</button>} />
-        <StatCard icon={ShoppingBag} tone="orange" label="Spent" value={sv.spent}
-          badge={changeBadge(t.spent, tp.has ? tp.spent : null, false)} badgeLabel={`vs ${pLabel}`}
-          spark={recent(book, { y, m }, (x) => x.spent)} line={sv.oneOff ? `plus ${money(sv.oneOff)} one-off` : undefined} />
-        <StatCard icon={ArrowDownToLine} tone="blue" label="Came in" value={t.income}
-          badge={changeBadge(t.income, tp.has ? tp.income : null, true)} badgeLabel={`vs ${pLabel}`}
-          spark={recent(book, { y, m }, (x) => x.income)} />
-        <StatCard icon={PiggyBank} tone="violet" label="Saved" value={t.saved}
-          badge={changeBadge(t.saved, tp.has ? tp.saved : null, true)} badgeLabel={`vs ${pLabel}`}
-          spark={recent(book, { y, m }, (x) => x.saved)} line={`Left over ${money(t.left)}`} />
-      </div>
-      {y === book.today.y && m === book.today.m && <PaceCard />}
+      <SummaryStrip
+        cells={[
+          {
+            label: spentBudget > 0 ? (leftToSpend >= 0 ? "Left to spend" : "Over budget") : "No budget yet",
+            tone: leftToSpend < 0 && spentBudget > 0 ? "amber" : "green",
+            value: spentBudget > 0 ? Math.abs(leftToSpend) : "–", plain: spentBudget <= 0,
+            valueTone: sv.spent > spentBudget * 1.1 && spentBudget > 0 ? "bad" : leftToSpend < 0 && spentBudget > 0 ? "warn" : undefined,
+            share: spentBudget > 0 ? sv.spent / spentBudget : null,
+            line: spentBudget > 0 ? `of ${money(spentBudget)} budget` : <button className="link" onClick={() => go("budget", { planYear: y, planMonth: m })}>Set a budget</button>,
+          },
+          { label: "Spent", tone: "spent", value: sv.spent, badge: changeBadge(t.spent, tp.has ? tp.spent : null, false), badgeLabel: `vs ${pLabel}`, line: sv.oneOff ? `plus ${money(sv.oneOff)} one-off` : undefined },
+          { label: "Came in", tone: "in", value: t.income, badge: changeBadge(t.income, tp.has ? tp.income : null, true), badgeLabel: `vs ${pLabel}` },
+          { label: "Saved", tone: "saved", value: t.saved, badge: changeBadge(t.saved, tp.has ? tp.saved : null, true), badgeLabel: `vs ${pLabel}`, line: `left over ${money(t.left)}` },
+        ]}
+        foot={y === book.today.y && m === book.today.m ? <PaceLine /> : undefined} />
       {future && <p className="small muted">{MONTHS_LONG[m - 1]} hasn't happened yet. <button className="link" onClick={() => go("budget", { planYear: y, planMonth: m })}>Set its budget</button>.</p>}
       {!future && <Unpaid />}
       <div className="filters">
@@ -131,7 +128,7 @@ export function MonthView() {
         {!book.settings.groups.length && <div className="panel">Add groups and categories on the <button className="link" onClick={() => go("categories")}>Categories</button> page to start.</div>}
       </div>
       <details className="panel notes" open={!!book.year(y)?.notes?.[mk(m)]}>
-        <summary className="lbl">Notes for {MONTHS_LONG[m - 1]}</summary>
+        <summary><h3>Notes for {MONTHS_LONG[m - 1]}</h3><span className="muted small">Optional</span></summary>
         <TextInput key={`${y}-${m}`} id="mnote" multiline label={`Notes for ${MONTHS_LONG[m - 1]}`}
           value={book.year(y)?.notes?.[mk(m)] ?? ""}
           placeholder="Anything worth remembering: a late payment, a one-off cost, a decision for next month."
@@ -215,14 +212,14 @@ function MonthPicker() {
   return (
     <div className="mpick" ref={ref}>
       <button className="mtitle" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)} title="Choose a month">
-        <h2>{MONTHS_LONG[view.m - 1]} {view.y}</h2><span className="caret" aria-hidden>▾</span>
+        <h2>{MONTHS_LONG[view.m - 1]} {view.y}</h2><ChevronDown size={16} className="caret" aria-hidden />
       </button>
       {open && (
         <div className="mpick-pop" role="dialog" aria-label="Choose a month">
           <div className="bar yr">
-            <button className="iconbtn" aria-label="Previous year" onClick={() => setYear(year - 1)}>‹</button>
+            <button className="iconbtn" aria-label="Previous year" onClick={() => setYear(year - 1)}><ChevronLeft size={16} aria-hidden /></button>
             <b>{year}</b>
-            <button className="iconbtn" aria-label="Next year" onClick={() => setYear(year + 1)}>›</button>
+            <button className="iconbtn" aria-label="Next year" onClick={() => setYear(year + 1)}><ChevronRight size={16} aria-hidden /></button>
           </div>
           <div className="mgrid">
             {MONTHS.map((mn, i) => {
@@ -258,7 +255,7 @@ function GroupSection({ g, gAct, gPlan, show }: { g: Group; gAct: number; gPlan:
     <section className="grp">
       <div className="grp-h">
         <button className="fold" aria-expanded={!folded} aria-label={`${folded ? "Show" : "Hide"} ${g.name}`} onClick={toggle}>
-          <span className={`chev${folded ? "" : " open"}`} aria-hidden>▸</span>
+          <Chev open={!folded} />
           <Swatch g={g} />
           <h3>{g.name}</h3>
         </button>
@@ -310,16 +307,26 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
           <span className="nname">{c.name}{c.archived && <small>Archived</small>}</span>
           {c.oneoff && <span className="oneoff-cat">One-off</span>}
         </button>
-        {bar}
-        <span className="nstat small">
-          {status}
-          {entries.length > 0 && <span className="muted">{status ? " · " : ""}{entries.length} added</span>}
-        </span>
+        <div className="srow-meter">
+          {bar}
+          <span className="nstat small">
+            {status}
+            {entries.length > 0 && <>{status ? <span className="muted"> · </span> : null}<button className="link quiet" onClick={() => setOpen(true)}>{entries.length} {entries.length === 1 ? "entry" : "entries"}</button></>}
+          </span>
+        </div>
       </div>
-      <button className="iconbtn quick" aria-label={`Add an expense to ${c.name}`} title={`Add to ${c.name}`} onClick={() => addExpense(c.id)}><Plus size={15} aria-hidden /></button>
-      <AmountInput id={`actual-${c.id}`} value={a} label={`${c.name} for ${MONTHS[m - 1]}`}
-        placeholder={c.repeat ? money(c.repeat) : "0"} title={c.repeat ? `Repeats at ${money(c.repeat)} a month` : "The month's total. Type it, or use + to add one expense at a time"}
-        onCommit={(v) => change((l) => void setActual(l, y, m, c.id, v), [`y:${y}`])} />
+      <button className="btn sm add-quick" aria-label={`Add an expense to ${c.name}`} title={`Add one expense to ${c.name}; it's added to the month's total`} onClick={() => addExpense(c.id)}>
+        <Plus size={14} aria-hidden /><span>Add</span>
+      </button>
+      <AmountInput id={`actual-${c.id}`} className="quiet" value={a} label={`${c.name} for ${MONTHS[m - 1]}`}
+        placeholder={c.repeat ? money(c.repeat) : "0"}
+        title={entries.length ? `The month's total, made of ${entries.length} ${entries.length === 1 ? "entry" : "entries"}. Typing a new total replaces it; Add keeps a list.` : c.repeat ? `Repeats at ${money(c.repeat)} a month` : "The month's total: type it, or use Add to keep a list of what made it up"}
+        onCommit={(v) => {
+          change((l) => void setActual(l, y, m, c.id, v), [`y:${y}`]);
+          // typing over a total that was built from a list: say what happened to the list, with an Undo
+          if (entries.length && v == null) notify(`Cleared ${c.name} and the ${entries.length} ${entries.length === 1 ? "entry" : "entries"} that made it up.`, true);
+          else if (entries.length) notify(`${c.name} set to ${money(v!)}. The ${entries.length === 1 ? "entry" : `${entries.length} entries`} you added stay listed but no longer add up to it.`, true);
+        }} />
       {open && (
         <div className="sdetail small">
           <span>{budget ? <>Budget <b className="num">{money(budget)}</b></> : "No budget"} · {MONTHS[p.m - 1]}: <b className="num">{last == null ? "–" : money(last)}</b>{c.repeat ? <> · repeats at <b className="num">{money(c.repeat)}</b></> : null}</span>
@@ -334,7 +341,7 @@ function CategoryRow({ c, g }: { c: Category; g: Group }) {
                 </li>
               ))}
             </ul>
-          ) : <span className="muted">Nothing added one at a time. Use + to keep a list of what made up the total.</span>}
+          ) : <span className="muted">Nothing added one at a time. Use Add to keep a list of what made up the total.</span>}
         </div>
       )}
     </div>
