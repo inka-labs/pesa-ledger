@@ -1,6 +1,10 @@
 # Pesa Ledger
 
-[![CI](https://github.com/ttemu34/pesa-ledger/actions/workflows/ci.yml/badge.svg)](https://github.com/ttemu34/pesa-ledger/actions/workflows/ci.yml)
+[![CI](https://github.com/inka-labs/pesa-ledger/actions/workflows/ci.yml/badge.svg)](https://github.com/inka-labs/pesa-ledger/actions/workflows/ci.yml)
+
+![Pesa Ledger's home page: money left to spend, what came in, what was spent and saved this month](docs/img/overview.png)
+
+**[See how it works](https://inka-labs.github.io/pesa-ledger/)**: a short tour with screenshots. **[Download](https://github.com/inka-labs/pesa-ledger/releases/latest)** for Mac or Windows.
 
 **Using it:** [Getting started](docs/GETTING_STARTED.md): install on Mac or Windows, first steps, updating and
 backups. **Sharing it:** [packaging/](packaging/README.md) builds the installers. **Security:** [SECURITY.md](SECURITY.md).
@@ -175,3 +179,7 @@ frontend/src/
   views/        Home (OverviewView), Spending (MonthView), Budget, More and the pages under it, Settings
   ui/           amount inputs, tiles, charts
 ```
+
+## Licence
+
+[Apache License 2.0](LICENSE). © 2026 Inka Labs.

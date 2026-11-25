@@ -33,7 +33,7 @@ You'll get a zip file from whoever shares Pesa Ledger with you: `Pesa-Ledger-<ve
 
 You need [pixi](https://pixi.sh). Then:
 
-    git clone https://github.com/ttemu34/pesa-ledger.git
+    git clone https://github.com/inka-labs/pesa-ledger.git
     cd pesa-ledger
     pixi run start
 
